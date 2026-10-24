@@ -1,0 +1,28 @@
+# Local development services. Run from the repo root:
+#   docker compose -f infra/docker-compose.yml up -d
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: vta
+      POSTGRES_PASSWORD: vta_dev
+      POSTGRES_DB: vta
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vta"]
+      interval: 5s
+      retries: 10
+
+  # Catches outgoing email locally (used once an email provider is wired, Phase 8)
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+
+volumes:
+  pgdata:

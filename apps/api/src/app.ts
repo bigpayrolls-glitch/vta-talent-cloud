@@ -1,0 +1,150 @@
+import cookie from '@fastify/cookie';
+import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
+import type { Permission } from '@vta/shared';
+import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
+import type { Config } from './config.js';
+import type { DB } from './db/index.js';
+import { resolveActor, SESSION_COOKIE } from './auth/sessions.js';
+import { ApiError } from './lib/errors.js';
+import { newId, safeEqual } from './lib/crypto.js';
+import { consoleProviders, type Providers } from './lib/providers.js';
+import { assertPermission, type Actor } from './policy/index.js';
+import { authRoutes } from './routes/auth.js';
+import { adminRoutes } from './routes/admin.js';
+import { sharedRoutes } from './routes/shared.js';
+import { healthRoutes } from './routes/health.js';
+import type { AuditContext } from './audit/service.js';
+
+declare module 'fastify' {
+  interface FastifyContextConfig {
+    /** Permission required for this route. Every route must set this or `public: true`. */
+    permission?: Permission;
+    public?: boolean;
+  }
+  interface FastifyRequest {
+    actor: Actor | null;
+  }
+  interface FastifyInstance {
+    db: DB;
+    config: Config;
+    providers: Providers;
+    routeTable: RouteInfo[];
+  }
+}
+
+export interface RouteInfo {
+  method: string;
+  url: string;
+  permission: Permission | null;
+  public: boolean;
+}
+
+export interface AppOptions {
+  db: DB;
+  config: Config;
+  providers?: Providers;
+  logger?: FastifyServerOptions['logger'];
+}
+
+/** Paths and body fields that must never reach the logs (SEC-15). */
+const REDACT_PATHS = [
+  'req.headers.cookie',
+  'req.headers.authorization',
+  'req.headers["x-csrf-token"]',
+  'res.headers["set-cookie"]',
+];
+
+export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
+  const app = Fastify({
+    logger: opts.logger ?? { level: 'info', redact: { paths: REDACT_PATHS, censor: '[redacted]' } },
+    genReqId: (req) => {
+      const given = req.headers['x-request-id'];
+      return typeof given === 'string' && /^[\w-]{8,64}$/.test(given) ? given : newId();
+    },
+    trustProxy: opts.config.NODE_ENV === 'production',
+    bodyLimit: 1_048_576,
+  });
+
+  app.decorate('db', opts.db);
+  app.decorate('config', opts.config);
+  app.decorate('providers', opts.providers ?? consoleProviders(app.log));
+  app.decorateRequest('actor', null);
+
+  await app.register(cookie);
+  await app.register(helmet, {
+    contentSecurityPolicy: { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } },
+    hsts: opts.config.COOKIE_SECURE ? { maxAge: 31_536_000, includeSubDomains: true } : false,
+  });
+  await app.register(rateLimit, { global: false });
+
+  // Every route must declare a permission or be explicitly public (F-05).
+  const routeTable: RouteInfo[] = [];
+  app.decorate('routeTable', routeTable);
+  app.addHook('onRoute', (route) => {
+    const cfg = route.config as { permission?: Permission; public?: boolean } | undefined;
+    if (route.method === 'HEAD' || route.method === 'OPTIONS') return;
+    if (!cfg?.permission && !cfg?.public) {
+      throw new Error(`Route ${String(route.method)} ${route.url} must declare config.permission or config.public`);
+    }
+    routeTable.push({ method: String(route.method), url: route.url, permission: cfg.permission ?? null, public: !!cfg.public });
+  });
+
+  app.addHook('onRequest', async (req, reply) => {
+    reply.header('x-request-id', req.id);
+    reply.header('cache-control', 'no-store');
+    const cfg: { permission?: Permission; public?: boolean } = req.routeOptions.config ?? {};
+    req.actor = await resolveActor(app.db, req.cookies[SESSION_COOKIE]);
+    if (cfg.public) return;
+    if (!cfg.permission) throw new ApiError('NOT_FOUND', 'Route not found');
+    if (!req.actor) throw new ApiError('UNAUTHENTICATED', 'Please sign in');
+    // CSRF: state-changing requests must echo the session's CSRF token in a header.
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+      const sent = req.headers['x-csrf-token'];
+      if (typeof sent !== 'string' || !safeEqual(sent, req.actor.csrfToken)) {
+        throw new ApiError('FORBIDDEN', 'Missing or invalid CSRF token. Reload the page and try again.');
+      }
+    }
+    assertPermission(req.actor, cfg.permission);
+  });
+
+  app.setNotFoundHandler((req, reply) => {
+    reply.code(404).send({ error: { code: 'NOT_FOUND', message: 'Route not found', requestId: req.id } });
+  });
+
+  app.setErrorHandler((err, req, reply) => {
+    if (err instanceof ApiError) {
+      return reply.code(err.statusCode).send({
+        error: { code: err.code, message: err.message, fields: err.fields, requestId: req.id },
+      });
+    }
+    const e = err as { statusCode?: number; message?: string };
+    if (e.statusCode === 429) {
+      return reply.code(429).send({ error: { code: 'RATE_LIMITED', message: 'Too many requests. Please wait and try again.', requestId: req.id } });
+    }
+    if (e.statusCode && e.statusCode >= 400 && e.statusCode < 500) {
+      return reply.code(400).send({ error: { code: 'VALIDATION_FAILED', message: e.message ?? 'Bad request', requestId: req.id } });
+    }
+    req.log.error({ err }, 'Unhandled error');
+    return reply.code(500).send({ error: { code: 'INTERNAL', message: 'Something went wrong. Please try again.', requestId: req.id } });
+  });
+
+  await app.register(
+    async (api) => {
+      await api.register(healthRoutes);
+      await api.register(authRoutes, { prefix: '/auth' });
+      await api.register(adminRoutes, { prefix: '/admin' });
+      await api.register(sharedRoutes);
+    },
+    { prefix: '/api/v1' },
+  );
+
+  return app;
+}
+
+/** Audit context for the current request. */
+export const auditCtx = (req: { actor: Actor | null; id: string; ip: string }): AuditContext => ({
+  actorId: req.actor?.userId ?? null,
+  requestId: req.id,
+  ip: req.ip,
+});

@@ -1,0 +1,27 @@
+{
+  "name": "vta-talent-cloud",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "description": "VTA Talent Cloud — role-based automotive skills and workforce platform (Phase 1: foundation + Admin Portal)",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @vta/api --filter @vta/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "db:migrate": "pnpm --filter @vta/api db:migrate",
+    "db:seed": "pnpm --filter @vta/api db:seed",
+    "db:reset": "pnpm --filter @vta/api db:reset"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^17.13.0",
+    "typescript-eslint": "^8.72.0"
+  }
+}

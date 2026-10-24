@@ -1,0 +1,251 @@
+import {
+  acceptInvitationSchema,
+  loginSchema,
+  otpRequestSchema,
+  otpVerifySchema,
+  portalsForRoles,
+  type MeDto,
+} from '@vta/shared';
+import type { FastifyPluginAsync } from 'fastify';
+import { z } from 'zod';
+import { auditCtx } from '../app.js';
+import { audit } from '../audit/service.js';
+import { createSession, revokeUserSessions, SESSION_COOKIE } from './../auth/sessions.js';
+import {
+  dummyPasswordCheck,
+  hashPassword,
+  isCommonPassword,
+  newId,
+  safeEqual,
+  sha256,
+  sixDigitCode,
+  verifyPassword,
+} from '../lib/crypto.js';
+import { ApiError, invalid, notFound, unauthenticated } from '../lib/errors.js';
+import { iso, parse } from '../lib/validate.js';
+
+const MAX_FAILED_LOGINS = 5;
+const LOCK_MINUTES = 15;
+const OTP_TTL_SECONDS = 5 * 60;
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_RESEND_GAP_SECONDS = 60;
+const OTP_MAX_PER_HOUR = 5;
+
+const otpHash = (challengeId: string, code: string) => sha256(`${challengeId}:${code}`);
+
+export const authRoutes: FastifyPluginAsync = async (app) => {
+  const db = app.db;
+  const secure = app.config.COOKIE_SECURE;
+  const ipLimit = (max: number) => ({ rateLimit: { max, timeWindow: '1 minute' } });
+
+  /** F-03: email + password sign-in for staff. Generic errors so emails cannot be discovered. */
+  app.post('/login', { config: { public: true, ...ipLimit(20) } }, async (req, reply) => {
+    const { email, password } = parse(loginSchema, req.body);
+    const user = await db.selectFrom('users').selectAll().where('email', '=', email).executeTakeFirst();
+    if (!user) {
+      await dummyPasswordCheck(password);
+      throw unauthenticated('Email or password is incorrect');
+    }
+    if (user.locked_until && user.locked_until > new Date()) {
+      throw new ApiError('RATE_LIMITED', `Too many failed attempts. Try again in ${LOCK_MINUTES} minutes.`);
+    }
+    const ok = user.password_hash ? await verifyPassword(user.password_hash, password) : (await dummyPasswordCheck(password), false);
+    if (!ok) {
+      const failed = user.failed_login_count + 1;
+      const lock = failed >= MAX_FAILED_LOGINS;
+      await db
+        .updateTable('users')
+        .set({
+          failed_login_count: lock ? 0 : failed,
+          locked_until: lock ? new Date(Date.now() + LOCK_MINUTES * 60_000) : null,
+        })
+        .where('id', '=', user.id)
+        .execute();
+      if (lock) await audit(db, { ...auditCtx(req), actorId: null }, { action: 'auth.locked', entityType: 'user', entityId: user.id });
+      throw unauthenticated('Email or password is incorrect');
+    }
+    if (user.status === 'suspended') throw new ApiError('FORBIDDEN', 'This account is suspended. Contact VTA support.');
+    if (user.status !== 'active') throw unauthenticated('Email or password is incorrect');
+    await createSession(db, req, reply, user.id, secure);
+    await audit(db, { ...auditCtx(req), actorId: user.id }, { action: 'auth.login', entityType: 'user', entityId: user.id, after: { method: 'password' } });
+    return { ok: true };
+  });
+
+  /** F-04: request a phone OTP. Same response whether or not the number is registered. */
+  app.post('/otp/request', { config: { public: true, ...ipLimit(10) } }, async (req) => {
+    const { phone } = parse(otpRequestSchema, req.body);
+    const recent = await db
+      .selectFrom('otp_challenges')
+      .select(['created_at'])
+      .where('phone', '=', phone)
+      .where('created_at', '>', new Date(Date.now() - 3600_000))
+      .orderBy('created_at', 'desc')
+      .execute();
+    const last = recent[0];
+    if (last && Date.now() - new Date(last.created_at).getTime() < OTP_RESEND_GAP_SECONDS * 1000) {
+      const wait = Math.ceil(OTP_RESEND_GAP_SECONDS - (Date.now() - new Date(last.created_at).getTime()) / 1000);
+      throw new ApiError('RATE_LIMITED', `Please wait ${wait} seconds before requesting another code.`);
+    }
+    if (recent.length >= OTP_MAX_PER_HOUR) {
+      throw new ApiError('RATE_LIMITED', 'Too many codes requested. Try again in an hour.');
+    }
+    const user = await db
+      .selectFrom('users')
+      .select(['id'])
+      .where('phone', '=', phone)
+      .where('status', 'in', ['active', 'invited'])
+      .executeTakeFirst();
+    const id = newId();
+    const code = sixDigitCode();
+    await db
+      .insertInto('otp_challenges')
+      .values({
+        id,
+        phone,
+        // Unregistered numbers still get a challenge row (keeps the resend limit honest) but no SMS.
+        code_hash: user ? otpHash(id, code) : 'unregistered',
+        purpose: 'login',
+        expires_at: new Date(Date.now() + OTP_TTL_SECONDS * 1000),
+        ip: req.ip,
+      })
+      .execute();
+    if (user) await app.providers.sms.sendOtp(phone, code);
+    return { ok: true, message: 'If this number is registered, a code has been sent.', expiresInSeconds: OTP_TTL_SECONDS };
+  });
+
+  /** F-04: verify the code and sign in. First sign-in of an invited phone user activates the account. */
+  app.post('/otp/verify', { config: { public: true, ...ipLimit(20) } }, async (req, reply) => {
+    const { phone, code } = parse(otpVerifySchema, req.body);
+    const challenge = await db
+      .selectFrom('otp_challenges')
+      .selectAll()
+      .where('phone', '=', phone)
+      .where('consumed_at', 'is', null)
+      .where('expires_at', '>', new Date())
+      .orderBy('created_at', 'desc')
+      .executeTakeFirst();
+    const expired = invalid('This code has expired. Request a new one.', { code: 'Code expired' });
+    if (!challenge || challenge.attempts >= OTP_MAX_ATTEMPTS) throw expired;
+
+    if (!safeEqual(challenge.code_hash, otpHash(challenge.id, code))) {
+      const attempts = challenge.attempts + 1;
+      await db
+        .updateTable('otp_challenges')
+        .set({ attempts, consumed_at: attempts >= OTP_MAX_ATTEMPTS ? new Date() : null })
+        .where('id', '=', challenge.id)
+        .execute();
+      const left = OTP_MAX_ATTEMPTS - attempts;
+      if (left <= 0) throw expired;
+      throw invalid(`Incorrect code. ${left} ${left === 1 ? 'attempt' : 'attempts'} left.`, { code: 'Incorrect code' });
+    }
+    await db.updateTable('otp_challenges').set({ consumed_at: new Date() }).where('id', '=', challenge.id).execute();
+
+    const user = await db.selectFrom('users').selectAll().where('phone', '=', phone).executeTakeFirst();
+    if (!user) throw expired; // challenge without a user never has a valid hash; defensive
+    if (user.status === 'suspended') throw new ApiError('FORBIDDEN', 'This account is suspended. Contact VTA support.');
+    if (user.status !== 'active' && user.status !== 'invited') throw unauthenticated('This account cannot sign in.');
+
+    await db.transaction().execute(async (trx) => {
+      if (user.status === 'invited') {
+        await trx
+          .updateTable('users')
+          .set({ status: 'active', phone_verified_at: new Date(), updated_at: new Date() })
+          .where('id', '=', user.id)
+          .execute();
+        await audit(trx, { ...auditCtx(req), actorId: user.id }, {
+          action: 'user.activated', entityType: 'user', entityId: user.id,
+          before: { status: 'invited' }, after: { status: 'active', via: 'otp' },
+        });
+      } else if (!user.phone_verified_at) {
+        await trx.updateTable('users').set({ phone_verified_at: new Date() }).where('id', '=', user.id).execute();
+      }
+    });
+    await createSession(db, req, reply, user.id, secure);
+    await audit(db, { ...auditCtx(req), actorId: user.id }, { action: 'auth.login', entityType: 'user', entityId: user.id, after: { method: 'otp' } });
+    return { ok: true };
+  });
+
+  app.post('/logout', { config: { permission: 'self.read' } }, async (req, reply) => {
+    await db.updateTable('sessions').set({ revoked_at: new Date() }).where('id', '=', req.actor!.sessionId).execute();
+    reply.clearCookie(SESSION_COOKIE, { path: '/' });
+    return { ok: true };
+  });
+
+  /** Who am I: roles, portals and the CSRF token the web app sends on writes. */
+  app.get('/me', { config: { permission: 'self.read' } }, async (req): Promise<MeDto> => {
+    const actor = req.actor!;
+    const user = await db.selectFrom('users').selectAll().where('id', '=', actor.userId).executeTakeFirstOrThrow();
+    const roles = await db
+      .selectFrom('role_assignments as ra')
+      .leftJoin('organisations as o', 'o.id', 'ra.organisation_id')
+      .leftJoin('centres as c', 'c.id', 'ra.centre_id')
+      .select(['ra.id', 'ra.role', 'ra.organisation_id', 'o.legal_name', 'ra.centre_id', 'c.name as centre_name', 'ra.granted_at'])
+      .where('ra.user_id', '=', actor.userId)
+      .where('ra.revoked_at', 'is', null)
+      .orderBy('ra.granted_at')
+      .execute();
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      status: user.status,
+      roles: roles.map((r) => ({
+        id: r.id,
+        role: r.role,
+        organisationId: r.organisation_id,
+        organisationName: r.legal_name,
+        centreId: r.centre_id,
+        centreName: r.centre_name,
+        grantedAt: iso(r.granted_at)!,
+      })),
+      portals: portalsForRoles(actor.roles),
+      csrfToken: actor.csrfToken,
+    };
+  });
+
+  const tokenParam = z.object({ token: z.string().min(20).max(100) });
+
+  async function findInvitation(token: string) {
+    const inv = await db
+      .selectFrom('invitations as i')
+      .innerJoin('users as u', 'u.id', 'i.user_id')
+      .select(['i.id', 'i.user_id', 'i.expires_at', 'i.accepted_at', 'u.name', 'u.email', 'u.status'])
+      .where('i.token_hash', '=', sha256(token))
+      .executeTakeFirst();
+    if (!inv || inv.accepted_at || inv.expires_at < new Date() || inv.status !== 'invited') {
+      throw notFound('This invitation link is invalid or has expired. Ask your administrator for a new one.');
+    }
+    return inv;
+  }
+
+  app.get('/invitations/:token', { config: { public: true, ...ipLimit(30) } }, async (req) => {
+    const { token } = parse(tokenParam, req.params);
+    const inv = await findInvitation(token);
+    return { name: inv.name, email: inv.email, expiresAt: iso(inv.expires_at) };
+  });
+
+  /** Accept an email invitation: set a password, activate, sign in. */
+  app.post('/invitations/:token/accept', { config: { public: true, ...ipLimit(10) } }, async (req, reply) => {
+    const { token } = parse(tokenParam, req.params);
+    const { password } = parse(acceptInvitationSchema, req.body);
+    if (isCommonPassword(password)) throw invalid('Choose a less common password', { password: 'This password is too common' });
+    const inv = await findInvitation(token);
+    const passwordHash = await hashPassword(password);
+    await db.transaction().execute(async (trx) => {
+      await trx.updateTable('invitations').set({ accepted_at: new Date() }).where('id', '=', inv.id).execute();
+      await trx
+        .updateTable('users')
+        .set({ password_hash: passwordHash, status: 'active', email_verified_at: new Date(), updated_at: new Date() })
+        .where('id', '=', inv.user_id)
+        .execute();
+      await audit(trx, { ...auditCtx(req), actorId: inv.user_id }, {
+        action: 'user.invitation_accepted', entityType: 'user', entityId: inv.user_id,
+        before: { status: 'invited' }, after: { status: 'active' },
+      });
+    });
+    await revokeUserSessions(db, inv.user_id);
+    await createSession(db, req, reply, inv.user_id, secure);
+    return { ok: true };
+  });
+};
