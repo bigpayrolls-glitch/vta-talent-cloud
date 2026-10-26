@@ -1,6 +1,8 @@
 import { createHmac } from 'node:crypto';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import type { Kysely } from 'kysely';
+import type { Database } from '../db/types.js';
 import { safeEqual } from './crypto.js';
 
 /**
@@ -29,6 +31,26 @@ export function localStorage(rootDir: string): Storage {
     },
     get: (key) => readFile(resolve(key)),
     delete: (key) => rm(resolve(key), { force: true }),
+  };
+}
+
+/**
+ * Files kept in PostgreSQL (table stored_files). For hosts without a persistent disk, such as a Vercel staging copy.
+ * Fine for demo volumes; production should move to object storage (D10).
+ */
+export function databaseStorage(db: Kysely<Database>): Storage {
+  return {
+    async put(key, data) {
+      await db.insertInto('stored_files').values({ key, data }).execute();
+    },
+    async get(key) {
+      const row = await db.selectFrom('stored_files').select('data').where('key', '=', key).executeTakeFirst();
+      if (!row) throw new Error('File not found in storage');
+      return row.data;
+    },
+    async delete(key) {
+      await db.deleteFrom('stored_files').where('key', '=', key).execute();
+    },
   };
 }
 

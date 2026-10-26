@@ -199,7 +199,7 @@ infra             Docker Compose for local services
 - Partner admins cannot create batches yet. That arrives with programmes in Phase 7 (design decision of 24 Oct 2026).
 - The wordmark is plain text. Swap `Wordmark` in `apps/web/src/components/ui.tsx` for the VTA master logo once supplied.
 - Install and offline behaviour is tested in Chromium (desktop and Android size). It still needs a manual check on a real iPhone before the pilot (acceptance criterion).
-- Not yet deployed. Hosting is decision D10.
+- A **staging** copy can run on Vercel for review (see [docs/deploy-vercel.md](docs/deploy-vercel.md)): demo data, sign-in codes shown on screen, files kept in the database, uploads up to about 4.5 MB. Pilot hosting is still decision D10.
 
 ## Defaults assumed (change any of these at any time)
 

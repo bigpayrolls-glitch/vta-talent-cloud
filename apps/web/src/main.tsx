@@ -151,6 +151,11 @@ createRoot(document.getElementById('root')!).render(
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ToastProvider>
+          {import.meta.env.VITE_APP_ENV === 'staging' && (
+            <p role="note" className="bg-ink px-4 py-1.5 text-center text-[12px] font-medium text-white">
+              Staging copy with demo data. Do not enter real personal information.
+            </p>
+          )}
           <RouterProvider router={router} />
           <UpdatePrompt />
         </ToastProvider>

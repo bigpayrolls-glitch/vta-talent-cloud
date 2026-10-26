@@ -133,6 +133,7 @@ function PhoneForm({ onDone }: { onDone: () => Promise<void> }) {
   const [code, setCode] = useState('');
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
+  const [stagingCode, setStagingCode] = useState('');
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -142,7 +143,8 @@ function PhoneForm({ onDone }: { onDone: () => Promise<void> }) {
 
   const requestCode = () =>
     requestForm.submit({ phone }, async (data) => {
-      await api.post('/auth/otp/request', data);
+      const res = await api.post<{ stagingCode?: string }>('/auth/otp/request', data);
+      setStagingCode(res.stagingCode ?? '');
       setSentTo(data.phone);
       setCooldown(60);
     });
@@ -186,6 +188,7 @@ function PhoneForm({ onDone }: { onDone: () => Promise<void> }) {
       <p className="text-sm text-muted">
         If <span className="font-semibold text-ink">{sentTo.replace('+91', '+91 ')}</span> is registered, a code is on its way. It expires in 5 minutes.
       </p>
+      {stagingCode && <StagingCode code={stagingCode} />}
       {(verifyForm.formError || requestForm.formError) && <ErrorNote message={verifyForm.formError || requestForm.formError} />}
       <Field label="6-digit code" htmlFor="code" error={verifyForm.errors.code}>
         <input
@@ -218,5 +221,14 @@ function PhoneForm({ onDone }: { onDone: () => Promise<void> }) {
         </button>
       </div>
     </form>
+  );
+}
+
+/** Staging only: no SMS provider yet, so the API returns the code and it is shown here. */
+export function StagingCode({ code }: { code: string }) {
+  return (
+    <p role="status" className="rounded-lg bg-warning-tint px-3 py-2 text-sm text-warning">
+      Staging (no SMS yet): your code is <span className="font-mono text-base font-bold tracking-widest">{code}</span>
+    </p>
   );
 }

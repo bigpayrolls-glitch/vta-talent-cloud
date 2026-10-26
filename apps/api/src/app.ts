@@ -19,7 +19,7 @@ import { operationsRoutes } from './routes/operations/index.js';
 import { learnerRoutes } from './routes/learner/routes.js';
 import { hiringRoutes } from './routes/hiring/index.js';
 import { programmesRoutes } from './routes/programmes/index.js';
-import { localStorage, type Storage } from './lib/storage.js';
+import { databaseStorage, localStorage, type Storage } from './lib/storage.js';
 import { UPLOAD_MAX_BYTES } from '@vta/shared';
 import type { AuditContext } from './audit/service.js';
 
@@ -84,7 +84,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   app.decorate('db', opts.db);
   app.decorate('config', opts.config);
   app.decorate('providers', opts.providers ?? consoleProviders(app.log));
-  app.decorate('storage', opts.storage ?? localStorage(opts.config.STORAGE_DIR));
+  app.decorate('storage', opts.storage ?? (opts.config.STORAGE_DRIVER === 'database' ? databaseStorage(opts.db) : localStorage(opts.config.STORAGE_DIR)));
   app.decorateRequest('actor', null);
 
   await app.register(cookie);
