@@ -11,6 +11,8 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'];
 
 async function check(page: Page, name: string) {
   await page.waitForLoadState('networkidle');
+  // Let entrance animations finish: text that is still fading in would be measured at part opacity.
+  await page.evaluate(() => Promise.all(document.getAnimations().filter((a) => a.effect?.getTiming().iterations !== Infinity).map((a) => a.finished)));
   const r = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   const problems = r.violations.map((v) => `${v.id} (${v.impact}): ${v.help}\n    ${v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join('\n    ')}`);
   expect.soft(problems, `${name}\n${problems.join('\n')}`).toEqual([]);
