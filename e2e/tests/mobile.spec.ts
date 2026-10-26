@@ -60,7 +60,7 @@ test.describe('on a phone', () => {
   test('the Learner portal fits a phone', async ({ page }) => {
     await signInPhone(page, '9900000201');
     const bar = page.getByRole('navigation', { name: 'Quick navigation' });
-    for (const name of ['Home', 'Learning', 'Certificates', 'Profile']) await expect(bar.getByRole('link', { name })).toBeVisible();
+    for (const name of ['Home', 'My Courses', 'Certificates', 'Profile']) await expect(bar.getByRole('link', { name })).toBeVisible();
     for (const path of ['/learn', '/learn/learning', '/learn/certificates', '/learn/profile', '/learn/documents', '/learn/privacy', '/register']) {
       await page.goto(path);
       await page.waitForLoadState('networkidle');

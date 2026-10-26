@@ -236,6 +236,11 @@ export async function seed(db: DB): Promise<SeedResult> {
   await batch('batchA', '2W Peenya October 2026', 'course2w', 'centrePartnerA', 'trainerA', '2026-10-12', '2027-01-12', 'active', ['learner', 'cand1', 'cand2', 'cand3']);
   await batch('batchVta', '4W Bengaluru November 2026', 'course4w', 'centreVta', 'trainerVta', '2026-11-16', '2027-03-16', 'planned', ['cand4']);
   await batch('batchB', 'EV Mysuru November 2026', 'courseEv', 'centrePartnerB', 'trainerB', '2026-11-23', '2027-03-23', 'planned', ['cand5', 'cand6']);
+  // Phase 13: course fees (from the brand design) and an open 2W batch learners can enrol in online.
+  for (const [key, fee] of [['course2w', 4999], ['course4w', 9999], ['courseEv', 11999]] as const) {
+    await db.updateTable('courses').set({ fee_paise: fee * 100 }).where('id', '=', ids[key]!).execute();
+  }
+  await batch('batchOpen2w', '2W Peenya November 2026', 'course2w', 'centrePartnerA', 'trainerA', '2026-11-10', '2027-02-10', 'planned', []);
 
   // ---- Phase 3: attendance, assessments, a credential (all invented) ----
   const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);

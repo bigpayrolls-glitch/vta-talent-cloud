@@ -20,7 +20,7 @@ async function check(page: Page, name: string) {
 
 test.describe('accessibility (axe, WCAG 2.2 AA)', () => {
   test('public pages', async ({ page }) => {
-    for (const path of ['/', '/login', '/register', '/join/employer', '/join/partner', '/forgot-password', '/privacy', '/terms', `/verify/${ids.credentialRaviCode}`]) {
+    for (const path of ['/', '/courses', `/courses/${ids.course2w}`, '/login', '/register', '/join/employer', '/join/partner', '/forgot-password', '/privacy', '/terms', `/verify/${ids.credentialRaviCode}`]) {
       await page.goto(path);
       await check(page, path);
     }

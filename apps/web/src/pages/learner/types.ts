@@ -27,8 +27,9 @@ export interface LearningItem {
   enrolmentId: string;
   enrolmentStatus: 'enrolled' | 'withdrawn' | 'completed' | 'not_completed';
   batch: { id: string; name: string; status: string; startDate: string; endDate: string };
-  course: { title: string; skillArea: string };
+  course: { id: string; title: string; skillArea: string };
   centre: { name: string; city: string | null };
+  source: 'centre' | 'self';
   attendance: AttendanceStats & { sessionsHeld: number; thresholdPct: number; belowThreshold: boolean };
   assessment: { state: 'not_assessed' | 'in_review' | 'released'; outcome: 'pass' | 'fail' | null };
   credentialId: string | null;

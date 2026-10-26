@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { SKILL_AREA_LABEL, type SkillArea } from '@vta/shared';
-import { AlertTriangle, ArrowLeft, Award, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Award, CheckCircle2, XCircle } from 'lucide-react';
+import { useState } from 'react';
 import { Link, useParams } from 'react-router';
+import { courseImage } from '../public/Courses';
 import { EmptyState, ErrorNote, PageHeader, Spinner, StatusBadge } from '../../components/ui';
 import { api } from '../../lib/api';
 import { fmtDate } from './attendance';
@@ -40,65 +42,167 @@ const ASSESSMENT: Record<LearningItem['assessment']['state'], string> = {
   released: 'Result available',
 };
 
-/** EE-04: each course with dates, centre, attendance and where the assessment stands. */
+/** Share of the batch's dates that have passed (0 before it starts, 100 after it ends). */
+function timelinePct(start: string, end: string): number {
+  const s = new Date(`${start}T00:00:00+05:30`).getTime();
+  const e = new Date(`${end}T23:59:59+05:30`).getTime();
+  return Math.max(0, Math.min(100, Math.round(((Date.now() - s) / (e - s)) * 100)));
+}
+const daysUntil = (d: string) => Math.ceil((new Date(`${d}T00:00:00+05:30`).getTime() - Date.now()) / 86_400_000);
+/** Finished: completed or not, the batch closed, or its end date has passed. */
+const isDone = (i: LearningItem) =>
+  i.enrolmentStatus === 'completed' || i.enrolmentStatus === 'not_completed' || i.batch.status === 'completed' || new Date(`${i.batch.endDate}T23:59:59+05:30`).getTime() < Date.now();
+const TABS = [
+  { key: 'ongoing', label: 'Ongoing' },
+  { key: 'completed', label: 'Completed' },
+  { key: 'all', label: 'All courses' },
+] as const;
+
+/** EE-04 and the brand design of 26 Oct 2026: each course with dates, centre, attendance, assessment and certificate. */
 export function LearningPage() {
   const q = useQuery({ queryKey: ['me', 'learning'], queryFn: () => api.get<{ items: LearningItem[] }>('/me/learning') });
+  const [tab, setTab] = useState<(typeof TABS)[number]['key']>('ongoing');
+  const items = q.data?.items ?? [];
+  const lists = {
+    ongoing: items.filter((i) => i.enrolmentStatus === 'enrolled' && !isDone(i)),
+    completed: items.filter(isDone),
+    all: items,
+  };
+  const shown = lists[tab];
   return (
     <>
-      <PageHeader title="My learning" description="Your courses, attendance and results." />
+      <PageHeader
+        title="My Courses"
+        description="Your courses, attendance, assessments and certificates."
+        actions={
+          <Link to="/courses" className="btn-secondary">
+            Find a course
+          </Link>
+        }
+      />
       {q.isLoading ? (
         <Spinner />
       ) : q.isError ? (
         <ErrorNote message={(q.error as Error).message} />
-      ) : !q.data!.items.length ? (
-        <EmptyState title="No courses yet" body="When your training centre enrols you in a batch, it appears here." />
       ) : (
-        <ul className="grid gap-4">
-          {q.data!.items.map((i) => (
-            <li key={i.enrolmentId} className="card px-5 py-4">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="text-[13px] font-semibold uppercase tracking-wide text-muted">{SKILL_AREA_LABEL[i.course.skillArea as SkillArea] ?? i.course.skillArea}</p>
-                  <h2 className="text-lg font-bold">{i.course.title}</h2>
-                  <p className="text-sm text-muted">
-                    {i.batch.name}, {i.centre.name}
-                    {i.centre.city ? `, ${i.centre.city}` : ''}
-                  </p>
-                  <p className="text-sm text-muted">
-                    {fmtDate(i.batch.startDate)} to {fmtDate(i.batch.endDate)}
-                  </p>
-                </div>
-                <StatusBadge status={i.enrolmentStatus} />
-              </div>
-              <div className="mt-4">
-                <AttendanceMeter item={i} />
-              </div>
-              <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-line pt-3 text-sm">
-                <span className="flex items-center gap-1.5 font-medium">
-                  {i.assessment.state === 'released' ? (
-                    i.assessment.outcome === 'pass' ? <CheckCircle2 className="size-4 text-success" aria-hidden /> : <XCircle className="size-4 text-brand" aria-hidden />
-                  ) : (
-                    <Clock className="size-4 text-muted" aria-hidden />
-                  )}
-                  {i.assessment.state === 'released' ? `Assessment: ${i.assessment.outcome === 'pass' ? 'Passed' : 'Not passed'}` : ASSESSMENT[i.assessment.state]}
-                </span>
-                <span className="ml-auto flex flex-wrap gap-2">
-                  {i.assessment.state === 'released' && (
-                    <Link to={`/learn/learning/${i.enrolmentId}/result`} className="btn-secondary btn-sm">
-                      View result
-                    </Link>
-                  )}
-                  {i.credentialId && (
-                    <Link to={`/learn/certificates/${i.credentialId}`} className="btn-primary btn-sm">
-                      <Award className="size-4" aria-hidden />
-                      Certificate
-                    </Link>
-                  )}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
+        <>
+          <div role="tablist" aria-label="Courses" className="mb-4 flex gap-2">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={tab === t.key}
+                onClick={() => setTab(t.key)}
+                className={`h-9 rounded-full border px-4 text-sm font-medium ${tab === t.key ? 'border-[#D7141C] bg-brand-tint text-[#C8101A]' : 'border-line hover:bg-surface'}`}
+              >
+                {t.label} ({lists[t.key].length})
+              </button>
+            ))}
+          </div>
+          {!shown.length ? (
+            <EmptyState
+              title={tab === 'completed' ? 'No completed courses yet' : 'No courses here yet'}
+              body="Find a course and enrol online, or your training centre can enrol you in a batch."
+              action={
+                <Link to="/courses" className="btn-primary">
+                  Explore training
+                </Link>
+              }
+            />
+          ) : (
+            <ul className="grid gap-4">
+              {shown.map((i) => {
+                const pct = timelinePct(i.batch.startDate, i.batch.endDate);
+                const upcoming = daysUntil(i.batch.startDate) > 0;
+                const a = i.attendance;
+                return (
+                  <li key={i.enrolmentId} className="card overflow-hidden">
+                    <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row">
+                      <img src={courseImage(i.course.skillArea)} alt="" className="h-28 w-full shrink-0 rounded-lg object-cover sm:h-24 sm:w-40" />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-semibold uppercase tracking-wide text-muted">{SKILL_AREA_LABEL[i.course.skillArea as SkillArea] ?? i.course.skillArea}</p>
+                            <h2 className="text-lg font-bold">{i.course.title}</h2>
+                          </div>
+                          {i.enrolmentStatus === 'enrolled' && !isDone(i) ? (
+                            <span className={`rounded-full px-2.5 py-0.5 text-[13px] font-semibold ${upcoming ? 'bg-info-tint text-info' : 'bg-success-tint text-success'}`}>{upcoming ? 'Upcoming' : 'Ongoing'}</span>
+                          ) : (
+                            <StatusBadge status={i.enrolmentStatus} />
+                          )}
+                        </div>
+                        <p className="text-sm text-muted">
+                          {i.batch.name}, {fmtDate(i.batch.startDate)} to {fmtDate(i.batch.endDate)}
+                        </p>
+                        <p className="text-sm text-muted">
+                          {i.centre.name}
+                          {i.centre.city ? `, ${i.centre.city}` : ''}
+                        </p>
+                        {i.enrolmentStatus === 'enrolled' && !isDone(i) && (
+                          <div className="mt-3">
+                            <div className="flex justify-between text-[13px]">
+                              <span className="text-muted">{upcoming ? `Starts in ${daysUntil(i.batch.startDate)} days` : 'Course timeline'}</span>
+                              <span className="font-semibold">{pct}%</span>
+                            </div>
+                            <div className="mt-1 h-2 overflow-hidden rounded-full bg-surface" aria-hidden>
+                              <div className="h-full rounded-full bg-[#D7141C]" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <dl className="grid grid-cols-3 divide-x divide-line border-t border-line text-sm">
+                      <div className="px-4 py-3">
+                        <dt className="font-semibold">Attendance</dt>
+                        <dd className={`text-muted ${a.belowThreshold ? 'font-medium text-brand' : ''}`}>
+                          {a.sessionsHeld ? `${a.present + a.late} / ${a.sessionsHeld} sessions` : 'No sessions yet'}
+                          {a.belowThreshold && (
+                            <span className="mt-0.5 flex items-center gap-1 text-[12px]">
+                              <AlertTriangle className="size-3.5" aria-hidden />
+                              Below {a.thresholdPct}%
+                            </span>
+                          )}
+                        </dd>
+                      </div>
+                      <div className="px-4 py-3">
+                        <dt className="font-semibold">Assessment</dt>
+                        <dd className="text-muted">
+                          {i.assessment.state === 'released' ? (i.assessment.outcome === 'pass' ? 'Passed' : 'Not passed') : ASSESSMENT[i.assessment.state]}
+                        </dd>
+                      </div>
+                      <div className="px-4 py-3">
+                        <dt className="font-semibold">Certificate</dt>
+                        <dd className="text-muted">{i.credentialId ? 'Issued' : 'Not yet issued'}</dd>
+                      </div>
+                    </dl>
+                    <div className="flex flex-wrap gap-2 border-t border-line px-5 py-3">
+                      <Link to={`/courses/${i.course.id}`} className="btn-secondary btn-sm">
+                        Course details
+                      </Link>
+                      {i.source === 'self' && (
+                        <Link to={`/enrol/done/${i.enrolmentId}`} className="btn-secondary btn-sm">
+                          Receipt
+                        </Link>
+                      )}
+                      {i.assessment.state === 'released' && (
+                        <Link to={`/learn/learning/${i.enrolmentId}/result`} className="btn-secondary btn-sm">
+                          View result
+                        </Link>
+                      )}
+                      {i.credentialId && (
+                        <Link to={`/learn/certificates/${i.credentialId}`} className="btn-primary btn-sm">
+                          <Award className="size-4" aria-hidden />
+                          Certificate
+                        </Link>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </>
       )}
     </>
   );
@@ -114,7 +218,7 @@ export function ResultPage() {
     <>
       <Link to="/learn/learning" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden />
-        My learning
+        My Courses
       </Link>
       {q.isLoading ? (
         <Spinner />

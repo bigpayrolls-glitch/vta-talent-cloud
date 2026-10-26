@@ -77,8 +77,9 @@ test.describe.serial('Learner portal', () => {
     await expect(page.getByText('It is not a government, NSDC or ASDC qualification.', { exact: false })).toBeVisible();
 
     await page.goto('/learn/learning');
+    await page.getByRole('tab', { name: /Completed/ }).click();
     const done = page.locator('li').filter({ hasText: '2W Peenya July 2026' });
-    await expect(done.getByText('Assessment: Passed')).toBeVisible();
+    await expect(done.getByText('Passed', { exact: true })).toBeVisible();
     await done.getByRole('link', { name: 'View result' }).click();
     await expect(page.getByText('Passed', { exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Skills assessed' })).toBeVisible();

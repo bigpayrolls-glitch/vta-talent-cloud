@@ -48,6 +48,8 @@ export const courseSchema = z.object({
   description: z.string().trim().max(2000).optional(),
   attendanceThresholdPct: z.coerce.number().int().min(0, '0–100').max(100, '0–100'),
   passMarkPct: z.coerce.number().int().min(0, '0–100').max(100, '0–100'),
+  /** Phase 13: course fee in whole rupees, paid by learners who enrol themselves. 0 = free. No GST for now. */
+  feeRupees: z.coerce.number().int('Whole rupees only').min(0, 'Cannot be negative').max(500_000, 'At most ₹5,00,000').default(0),
 });
 
 export const criteriaListSchema = z.object({

@@ -1,7 +1,7 @@
 import { loginSchema, otpRequestSchema, otpVerifySchema, type MeDto } from '@vta/shared';
 import { ArrowRight, Building2, Eye, EyeOff, GraduationCap, Lock, Mail, Presentation, Smartphone, Users } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { ErrorNote, Field, Wordmark } from '../components/ui';
 import { api, setCsrfToken } from '../lib/api';
 import { homePathFor, useAuth } from '../lib/auth';
@@ -19,15 +19,20 @@ type Method = 'email' | 'phone';
 export function LoginPage() {
   const { me, loading, refresh } = useAuth();
   const navigate = useNavigate();
-  const [method, setMethod] = useState<Method>('email');
+  const [params] = useSearchParams();
+  // Phase 13: where to go after signing in, for example back to enrolling in a batch. Only paths on this site.
+  const raw = params.get('next') ?? '';
+  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : null;
+  const enrolling = !!next?.startsWith('/enrol/');
+  const [method, setMethod] = useState<Method>(enrolling ? 'phone' : 'email');
 
-  if (!loading && me) return <Navigate to={homePathFor(me)} replace />;
+  if (!loading && me) return <Navigate to={next ?? homePathFor(me)} replace />;
 
   const afterSignIn = async () => {
     await refresh();
     const fresh = await api.get<MeDto>('/auth/me');
     setCsrfToken(fresh.csrfToken);
-    navigate(homePathFor(fresh), { replace: true });
+    navigate(next ?? homePathFor(fresh), { replace: true });
   };
 
   return (
@@ -82,8 +87,8 @@ export function LoginPage() {
           </Link>
         </div>
         <div className="mx-auto my-auto w-full max-w-[520px] py-[clamp(12px,4vh,40px)]">
-          <h1 className="text-[clamp(28px,4.6vh,38px)] font-black tracking-[-0.02em] text-ink">Welcome back</h1>
-          <p className="mt-1.5 text-[17px] text-muted">Sign in to continue to your AutoTalent Grid portal.</p>
+          <h1 className="text-[clamp(28px,4.6vh,38px)] font-black tracking-[-0.02em] text-ink">{enrolling ? 'Sign in to enrol' : 'Welcome back'}</h1>
+          <p className="mt-1.5 text-[17px] text-muted">{enrolling ? 'Sign in with your mobile number, or create a learner account, to continue your enrolment.' : 'Sign in to continue to your AutoTalent Grid portal.'}</p>
 
           <div role="tablist" aria-label="Sign-in method" className="mt-[clamp(16px,3.5vh,32px)] grid grid-cols-2 rounded-xl bg-surface p-1">
             {(['email', 'phone'] as const).map((m) => (
@@ -114,7 +119,7 @@ export function LoginPage() {
           <div className="mt-[clamp(16px,3.5vh,32px)] space-y-1.5 border-t border-line pt-[clamp(12px,3vh,28px)] text-[15px] text-ink/80">
             <p>
               New to AutoTalent Grid?{' '}
-              <Link to="/register" className="font-medium text-[#C8101A] underline underline-offset-2">
+              <Link to={next ? `/register?next=${encodeURIComponent(next)}` : '/register'} className="font-medium text-[#C8101A] underline underline-offset-2">
                 Create an account
               </Link>
               .

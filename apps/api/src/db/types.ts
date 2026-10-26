@@ -139,6 +139,7 @@ export interface CoursesTable {
   description: string | null;
   attendance_threshold_pct: number;
   pass_mark_pct: number;
+  fee_paise: Generated<number>;
   status: 'active' | 'inactive';
   created_at: Timestamp;
   updated_at: Timestamp;
@@ -220,7 +221,22 @@ export interface EnrolmentsTable {
   withdrawn_at: Date | null;
   withdraw_reason: string | null;
   attendance_pct: ColumnType<string | null, number | null | undefined, number | null>;
+  source: Generated<'centre' | 'self'>;
   updated_at: Timestamp;
+}
+
+export interface CoursePaymentsTable {
+  id: string;
+  enrolment_id: string;
+  candidate_id: string;
+  batch_id: string;
+  amount_paise: number;
+  currency: Generated<string>;
+  method: 'upi' | 'card' | 'netbanking' | null;
+  provider: 'test' | 'free';
+  status: 'succeeded';
+  receipt_number: string;
+  created_at: Timestamp;
 }
 
 export interface DocumentsTable {
@@ -544,6 +560,7 @@ export interface Database {
   password_resets: PasswordResetsTable;
   employer_subscriptions: EmployerSubscriptionsTable;
   subscription_payments: SubscriptionPaymentsTable;
+  course_payments: CoursePaymentsTable;
   account_requests: AccountRequestsTable;
   programme_partners: ProgrammePartnersTable;
   programme_batches: ProgrammeBatchesTable;
