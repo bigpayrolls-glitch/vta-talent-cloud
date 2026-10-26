@@ -43,8 +43,8 @@ test.describe('sign-in and portal routing', () => {
   test('a wrong password shows a plain error', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Email').fill(EMAIL.opsAdmin);
-    await page.getByLabel('Password').fill('not-the-password');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByLabel('Password', { exact: true }).fill('not-the-password');
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await expect(page.getByRole('alert')).toHaveText('Email or password is incorrect');
   });
 });

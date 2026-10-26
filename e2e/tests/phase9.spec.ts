@@ -56,8 +56,8 @@ test('forgot password: the link sets a new password; then it is changed back fro
   await expect(page).toHaveURL(/\/login$/);
 
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill('Temporary-pass-91');
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByLabel('Password', { exact: true }).fill('Temporary-pass-91');
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page).not.toHaveURL(/\/login$/);
   await page.waitForLoadState('networkidle');
 

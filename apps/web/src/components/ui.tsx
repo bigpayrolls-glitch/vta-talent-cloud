@@ -16,8 +16,37 @@ export function LogoMark({ className = 'h-7 w-auto', label, inverse = false }: {
  * AutoTalent Grid logo: the symbol and the name, with "Talent" in red (brand artwork of 26 Oct 2026).
  * `tight`: on narrow phones only the symbol shows, leaving room in a busy header.
  */
-export function Wordmark({ compact = false, tight = false, inverse = false }: { compact?: boolean; tight?: boolean; inverse?: boolean }) {
+export function Wordmark({
+  compact = false,
+  tight = false,
+  inverse = false,
+  tagline = false,
+  large = false,
+}: {
+  compact?: boolean;
+  tight?: boolean;
+  inverse?: boolean;
+  /** The full lockup from the brand artwork: symbol, name with ™, and "Train. Connect. Employ." beneath the name. */
+  tagline?: boolean;
+  large?: boolean;
+}) {
   const narrowHide = tight ? 'max-[479px]:hidden' : '';
+  if (tagline) {
+    return (
+      <span className="inline-flex items-center gap-2.5 select-none" role="img" aria-label="AutoTalent Grid. Train. Connect. Employ.">
+        <LogoMark className={large ? 'h-16 w-auto' : 'h-11 w-auto'} inverse={inverse} />
+        <span className="flex flex-col items-center" aria-hidden>
+          <span className={`whitespace-nowrap font-black leading-none tracking-[-0.02em] ${large ? 'text-[36px]' : 'text-[24px]'} ${inverse ? 'text-white' : 'text-ink'}`}>
+            Auto<span className={inverse ? 'text-[#FF4D55]' : 'text-[#D7141C]'}>Talent</span> Grid
+            <sup className={`ml-0.5 align-super font-semibold ${large ? 'text-[11px]' : 'text-[8px]'}`}>™</sup>
+          </span>
+          <span className={`mt-1 whitespace-nowrap font-medium ${large ? 'text-[15px] tracking-[0.18em]' : 'text-[10.5px] tracking-[0.16em]'} ${inverse ? 'text-white/85' : 'text-ink/85'}`}>
+            Train. Connect. Employ.
+          </span>
+        </span>
+      </span>
+    );
+  }
   return (
     <span className="inline-flex items-center gap-2 select-none" role="img" aria-label="AutoTalent Grid">
       <LogoMark className={compact ? 'h-7 w-auto' : 'h-9 w-auto'} inverse={inverse} />

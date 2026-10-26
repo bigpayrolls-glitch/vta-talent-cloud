@@ -33,7 +33,7 @@ export function VerifyPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-surface px-4 py-8">
       <header className="mx-auto w-full max-w-lg">
-        <Wordmark compact />
+        <Wordmark tagline />
       </header>
       <main className="mx-auto my-auto w-full max-w-lg py-8">
         <h1 className="mb-4 text-sm font-semibold text-muted">Certificate check</h1>
