@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { BadgeCheck, CircleSlash, ShieldQuestion } from 'lucide-react';
-import { useParams } from 'react-router';
+import { useParams, Link } from 'react-router';
 import { Spinner, Wordmark } from '../components/ui';
 import { api, ApiError } from '../lib/api';
 
@@ -33,7 +33,9 @@ export function VerifyPage() {
   return (
     <div className="flex min-h-dvh flex-col bg-surface px-4 py-8">
       <header className="mx-auto w-full max-w-lg">
-        <Wordmark tagline />
+        <Link to="/" aria-label="AutoTalent Grid home" className="inline-block w-fit rounded-lg">
+            <Wordmark tagline />
+          </Link>
       </header>
       <main className="mx-auto my-auto w-full max-w-lg py-8">
         <h1 className="mb-4 text-sm font-semibold text-muted">Certificate check</h1>

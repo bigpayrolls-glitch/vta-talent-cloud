@@ -78,3 +78,12 @@ test('the partner form asks for the partner type and fits a phone', async ({ pag
   await expect(page.getByText('Choose the partner type')).toBeVisible();
   await expectNoHorizontalScroll(page);
 });
+
+test('the logo on the sign-in and sign-up pages leads back to the home page', async ({ page }) => {
+  for (const path of ['/login', '/register']) {
+    await page.goto(path);
+    await page.getByRole('link', { name: 'AutoTalent Grid home' }).first().click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Move to a Job.');
+  }
+});

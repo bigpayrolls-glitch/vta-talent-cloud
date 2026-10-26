@@ -11,7 +11,9 @@ import { useForm } from '../lib/useForm';
 export function Centered({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col px-5 py-8">
-      <Wordmark tagline />
+      <Link to="/" aria-label="AutoTalent Grid home" className="inline-block w-fit rounded-lg">
+            <Wordmark tagline />
+          </Link>
       <main className="mx-auto my-auto w-full max-w-md py-10">{children}</main>
     </div>
   );
