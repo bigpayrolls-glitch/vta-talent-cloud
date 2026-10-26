@@ -14,7 +14,7 @@ test('the public home page offers each kind of user a way in, and fits a phone',
   await expectNoHorizontalScroll(page);
 });
 
-for (const [width, height] of [[1536, 1024], [1440, 900], [1366, 768], [1280, 720]]) {
+for (const [width, height] of [[1536, 1024], [1440, 900], [1366, 768], [1280, 720]] as const) {
   test(`on a ${width}x${height} screen the home page fits without scrolling`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await page.goto('/');
