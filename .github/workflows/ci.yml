@@ -23,6 +23,9 @@ jobs:
       TEST_DATABASE_URL: postgres://vta:vta_dev@localhost:5432/vta_test
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the secret scan checks every commit in a pull request.
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
