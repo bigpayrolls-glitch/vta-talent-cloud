@@ -89,8 +89,8 @@ export function PublicHomePage() {
                 Create a learner account
                 <ArrowRight className="size-5" aria-hidden />
               </Link>
-              <Link to="/join/employer" className="btn h-12 border border-[#D7141C] bg-white px-7 text-base text-ink hover:bg-brand-tint">
-                Register your company
+              <Link to="/courses" className="btn h-12 border border-[#D7141C] bg-white px-7 text-base text-ink hover:bg-brand-tint">
+                Explore training
               </Link>
             </div>
           </div>
@@ -160,6 +160,7 @@ export function PublicHomePage() {
 /** Header and footer for the public pages. `fit`: on a laptop or desktop the page fills exactly one screen. */
 export function PublicShell({ children, fit = false }: { children: ReactNode; fit?: boolean }) {
   const [checkOpen, setCheckOpen] = useState(false);
+  const { me } = useAuth();
   return (
     <div className={`flex min-h-[calc(100dvh-var(--banner-h,0px))] flex-col bg-white ${fit ? 'lg:h-[calc(100dvh-var(--banner-h,0px))]' : ''}`}>
       <header className="sticky top-0 z-20 shrink-0 border-b border-line bg-white/95 backdrop-blur">
@@ -172,8 +173,9 @@ export function PublicShell({ children, fit = false }: { children: ReactNode; fi
               <Wordmark tagline />
             </span>
           </Link>
-          <nav aria-label="Main" className="hidden items-center gap-8 text-[15px] font-medium text-ink lg:flex">
+          <nav aria-label="Main" className="hidden items-center gap-7 text-[15px] font-medium text-ink lg:flex">
             <Link to="/register" className="hover:text-[#C8101A]">For Learners</Link>
+            <Link to="/courses" className="hover:text-[#C8101A]">Explore Training</Link>
             <Link to="/join/employer" className="hover:text-[#C8101A]">For Employers</Link>
             <Link to="/join/partner" className="hover:text-[#C8101A]">For Training Partners</Link>
           </nav>
@@ -182,8 +184,8 @@ export function PublicShell({ children, fit = false }: { children: ReactNode; fi
               <ScanLine className="size-5 text-[#D7141C]" aria-hidden />
               Check a certificate
             </button>
-            <Link to="/login" className="btn-primary h-11 bg-[#C8101A] px-5 hover:bg-brand-hover">
-              Sign in
+            <Link to={me ? homePathFor(me) : '/login'} className="btn-primary h-11 bg-[#C8101A] px-5 hover:bg-brand-hover">
+              {me ? 'My portal' : 'Sign in'}
               <ArrowRight className="size-4" aria-hidden />
             </Link>
           </div>
@@ -195,6 +197,7 @@ export function PublicShell({ children, fit = false }: { children: ReactNode; fi
           <Wordmark tagline />
           <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-ink/75">
             <Link to="/register" className="hover:text-ink">For Learners</Link>
+            <Link to="/courses" className="hover:text-ink">Explore Training</Link>
             <Link to="/join/employer" className="hover:text-ink">For Employers</Link>
             <Link to="/join/partner" className="hover:text-ink">For Training Partners</Link>
             <button type="button" onClick={() => setCheckOpen(true)} className="hover:text-ink">Check a certificate</button>

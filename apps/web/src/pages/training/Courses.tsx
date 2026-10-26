@@ -35,6 +35,7 @@ export interface CourseRow {
   description: string | null;
   attendanceThresholdPct: number;
   passMarkPct: number;
+  feeRupees: number;
   status: 'active' | 'inactive';
   criteriaCount?: number;
   batchCount?: number;
@@ -187,6 +188,8 @@ export function CourseDetailPage() {
             <dd>At least {c.attendanceThresholdPct}% attendance</dd>
             <dt className="text-muted">To pass</dt>
             <dd>{c.passMarkPct}% of total marks, and every required criterion passed</dd>
+            <dt className="text-muted">Fee</dt>
+            <dd>{c.feeRupees ? `₹${c.feeRupees.toLocaleString('en-IN')} (learners who enrol themselves pay it online)` : 'Free'}</dd>
             <dt className="text-muted">Prerequisites</dt>
             <dd className="whitespace-pre-line">{c.prerequisites || '—'}</dd>
             <dt className="text-muted">Description</dt>
@@ -294,6 +297,7 @@ function CourseModal({ course, onClose }: { course?: CourseDetail; onClose: () =
     trainingHours: course?.trainingHours ? String(course.trainingHours) : '',
     attendanceThresholdPct: String(course?.attendanceThresholdPct ?? 75),
     passMarkPct: String(course?.passMarkPct ?? 60),
+    feeRupees: String(course?.feeRupees ?? 0),
     prerequisites: course?.prerequisites ?? '',
     description: course?.description ?? '',
   });
@@ -385,6 +389,9 @@ function CourseModal({ course, onClose }: { course?: CourseDetail; onClose: () =
             <input id="co-pass" type="number" min={0} max={100} disabled={locked} className="field-input" value={v.passMarkPct} onChange={upd('passMarkPct')} />
           </Field>
         </div>
+        <Field label="Course fee (₹)" htmlFor="co-fee" error={err.feeRupees} hint="What a learner pays to enrol online. 0 makes the course free. No GST is added.">
+          <input id="co-fee" type="number" min={0} step={1} className="field-input sm:max-w-[240px]" value={v.feeRupees} onChange={upd('feeRupees')} />
+        </Field>
         <Field label="Prerequisites (optional)" htmlFor="co-pre" error={err.prerequisites}>
           <textarea id="co-pre" rows={2} className="field-input h-auto py-2" value={v.prerequisites} onChange={upd('prerequisites')} />
         </Field>

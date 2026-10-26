@@ -27,6 +27,7 @@ export function courseDto(c: Course & { criteria_count?: string | number; batch_
     description: c.description,
     attendanceThresholdPct: c.attendance_threshold_pct,
     passMarkPct: c.pass_mark_pct,
+    feeRupees: Math.round(c.fee_paise / 100),
     status: c.status,
     criteriaCount: c.criteria_count !== undefined ? Number(c.criteria_count) : undefined,
     batchCount: c.batch_count !== undefined ? Number(c.batch_count) : undefined,
@@ -67,6 +68,7 @@ function toRow(b: z.infer<typeof courseSchema>) {
     description: b.description || null,
     attendance_threshold_pct: b.attendanceThresholdPct,
     pass_mark_pct: b.passMarkPct,
+    fee_paise: (b.feeRupees ?? 0) * 100,
   };
 }
 
@@ -207,5 +209,6 @@ function courseFromRow(c: Course): z.infer<typeof courseSchema> {
     description: c.description ?? undefined,
     attendanceThresholdPct: c.attendance_threshold_pct,
     passMarkPct: c.pass_mark_pct,
+    feeRupees: Math.round(c.fee_paise / 100),
   };
 }

@@ -59,6 +59,7 @@ export const NOTIFICATION_TEMPLATES = {
   job_submitted: { title: (p) => `Job waiting for review: ${p.job}`, body: (p) => `From ${p.company}.` },
   joining_reported: { title: (p) => `Joining to verify: ${p.job}`, body: (p) => `${p.company} recorded a joining.` },
   plan_requested: { title: (p) => `${p.org} asked about the ${p.plan} plan`, body: (p) => (p.note ? `Their note: ${p.note}` : 'Contact them to set it up.') },
+  self_enrolled: { title: (p) => `${p.learner} enrolled in ${p.batch}`, body: (p) => (p.amount ? `They enrolled online and paid ${p.amount}.` : 'They enrolled online.') },
   account_closure_requested: { title: () => 'A learner asked to close their account', body: () => 'Open Users to review the request.' },
 } satisfies Record<string, Template>;
 

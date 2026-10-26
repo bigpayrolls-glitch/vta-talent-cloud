@@ -344,9 +344,11 @@ export const learnerRoutes: FastifyPluginAsync = async (app) => {
         'b.status as batch_status',
         'b.start_date',
         'b.end_date',
+        'c.id as course_id',
         'c.title as course_title',
         'c.skill_area',
         'c.attendance_threshold_pct',
+        'e.source',
         'ce.name as centre_name',
         'ce.city as centre_city',
       ])
@@ -374,8 +376,10 @@ export const learnerRoutes: FastifyPluginAsync = async (app) => {
         enrolmentId: r.enrolment_id,
         enrolmentStatus: r.enrolment_status,
         batch: { id: r.batch_id, name: r.batch_name, status: r.batch_status, startDate: r.start_date, endDate: r.end_date },
-        course: { title: r.course_title, skillArea: r.skill_area },
+        course: { id: r.course_id, title: r.course_title, skillArea: r.skill_area },
         centre: { name: r.centre_name, city: r.centre_city },
+        /** Phase 13: enrolled online by the learner (a receipt exists) or by the centre. */
+        source: r.source,
         attendance: { ...att, sessionsHeld, thresholdPct: r.attendance_threshold_pct, belowThreshold: att.pct !== null && att.pct < r.attendance_threshold_pct },
         assessment: { state, outcome: released?.outcome ?? null },
         credentialId: creds.find((c) => c.enrolment_id === r.enrolment_id)?.id ?? null,

@@ -19,6 +19,10 @@ const queryClient = new QueryClient({
 const router = createBrowserRouter([
   // Public site (Phase 8). Signed-in people are sent on to their portal.
   { path: '/', lazy: () => import('./pages/public/Home').then((m) => ({ Component: m.PublicHomePage })) },
+  { path: '/courses', lazy: () => import('./pages/public/Courses').then((m) => ({ Component: m.CoursesPage })) },
+  { path: '/courses/:id', lazy: () => import('./pages/public/Courses').then((m) => ({ Component: m.CourseDetailPage })) },
+  { path: '/enrol/done/:id', lazy: () => import('./pages/public/Courses').then((m) => ({ Component: m.EnrolDonePage })) },
+  { path: '/enrol/:batchId', lazy: () => import('./pages/public/Courses').then((m) => ({ Component: m.EnrolPage })) },
   { path: '/join/employer', lazy: () => import('./pages/public/JoinPage').then((m) => ({ Component: () => <m.JoinPage type="employer" /> })) },
   { path: '/join/partner', lazy: () => import('./pages/public/JoinPage').then((m) => ({ Component: () => <m.JoinPage type="partner" /> })) },
   { path: '/login', element: <LoginPage /> },

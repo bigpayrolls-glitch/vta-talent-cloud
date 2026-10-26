@@ -1,7 +1,7 @@
 import { NOTICE_VERSION, otpRequestSchema, registerSchema, type MeDto } from '@vta/shared';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import { useToast } from '../components/toast';
 import { ErrorNote, Field, Wordmark } from '../components/ui';
@@ -17,6 +17,10 @@ const detailsSchema = registerSchema.omit({ code: true });
 export function RegisterPage() {
   const { me, loading, refresh } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  // Phase 13: back to enrolling after creating the account. Only paths on this site.
+  const raw = params.get('next') ?? '';
+  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : null;
   const toast = useToast();
   const details = useForm(detailsSchema);
   const request = useForm(otpRequestSchema);
@@ -33,7 +37,7 @@ export function RegisterPage() {
     return () => clearTimeout(t);
   }, [cooldown]);
 
-  if (!loading && me) return <Navigate to={homePathFor(me)} replace />;
+  if (!loading && me) return <Navigate to={next ?? homePathFor(me)} replace />;
 
   const sendCode = (data: z.output<typeof detailsSchema>) =>
     request.submit({ phone: data.phone, purpose: 'register' }, async (r) => {
@@ -126,7 +130,7 @@ export function RegisterPage() {
                 const fresh = await api.get<MeDto>('/auth/me');
                 setCsrfToken(fresh.csrfToken);
                 if (res.existing) toast('success', 'This number already had an account, so you are signed in to it.');
-                navigate(res.existing ? homePathFor(fresh) : '/learn', { replace: true });
+                navigate(next ?? (res.existing ? homePathFor(fresh) : '/learn'), { replace: true });
               });
             }}
           >
