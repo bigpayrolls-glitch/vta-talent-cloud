@@ -14,14 +14,15 @@ test('the public home page offers each kind of user a way in, and fits a phone',
   await expectNoHorizontalScroll(page);
 });
 
-for (const [width, height] of [[1536, 1024], [1440, 900], [1366, 768], [1280, 720]] as const) {
-  test(`on a ${width}x${height} screen the home page fits without scrolling`, async ({ page }) => {
+for (const [width, height] of [[1536, 1024], [1440, 900], [1366, 768], [1280, 720], [1360, 610]] as const) {
+  for (const path of ['/', '/login']) test(`on a ${width}x${height} screen ${path} fits without scrolling`, async ({ page }) => {
     await page.setViewportSize({ width, height });
-    await page.goto('/');
+    await page.goto(path);
     await page.waitForLoadState('networkidle');
     const { scroll, client } = await page.evaluate(() => ({ scroll: document.documentElement.scrollHeight, client: document.documentElement.clientHeight }));
     expect(scroll).toBeLessThanOrEqual(client);
-    await expect(page.getByRole('contentinfo')).toBeInViewport({ ratio: 1 });
+    if (path === '/') await expect(page.getByRole('contentinfo')).toBeInViewport({ ratio: 1 });
+    else await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeInViewport({ ratio: 1 });
   });
 }
 

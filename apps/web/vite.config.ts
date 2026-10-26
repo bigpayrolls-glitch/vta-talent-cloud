@@ -23,7 +23,7 @@ export default defineConfig({
     VitePWA({
       registerType: 'prompt',
       injectRegister: false,
-      includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'icons/atg-apple-touch-icon.png'],
       manifest: {
         id: '/',
         name: 'AutoTalent Grid',
@@ -37,9 +37,9 @@ export default defineConfig({
         background_color: '#FFFFFF',
         lang: 'en-IN',
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: '/icons/atg-icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icons/atg-icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icons/atg-icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {

@@ -25,11 +25,11 @@ ${name ? `<div style="margin-top:${size * 0.035}px;font-weight:850;font-size:${s
 </div></body></html>`;
 
 const icons = [
-  { file: 'icon-192.png', size: 192, rounded: true, scale: 0.6, name: 0.105 },
-  { file: 'icon-512.png', size: 512, rounded: true, scale: 0.6, name: 0.105 },
-  { file: 'icon-maskable-512.png', size: 512, scale: 0.46, name: 0.08 },
-  { file: 'apple-touch-icon.png', size: 180, scale: 0.6, name: 0.105 },
-  { file: 'favicon-32.png', size: 32, rounded: true, scale: 0.86 },
+  { file: 'atg-icon-192.png', size: 192, rounded: true, scale: 0.6, name: 0.105 },
+  { file: 'atg-icon-512.png', size: 512, rounded: true, scale: 0.6, name: 0.105 },
+  { file: 'atg-icon-maskable-512.png', size: 512, scale: 0.46, name: 0.08 },
+  { file: 'atg-apple-touch-icon.png', size: 180, scale: 0.6, name: 0.105 },
+  { file: 'atg-favicon-32.png', size: 32, rounded: true, scale: 0.86 },
 ];
 
 const browser = await chromium.launch();
