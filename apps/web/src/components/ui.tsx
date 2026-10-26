@@ -9,7 +9,7 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
 export function Wordmark({ compact = false, tight = false }: { compact?: boolean; tight?: boolean }) {
   const narrowHide = tight ? 'max-[479px]:hidden' : '';
   return (
-    <span className="inline-flex items-center gap-2 select-none" aria-label="VTA Talent Cloud">
+    <span className="inline-flex items-center gap-2 select-none" role="img" aria-label="VTA Talent Cloud">
       <span className={`font-black tracking-tight text-brand italic ${compact ? 'text-2xl' : 'text-[28px]'}`} aria-hidden>
         VTA
       </span>

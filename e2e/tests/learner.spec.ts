@@ -98,7 +98,7 @@ test.describe.serial('Learner portal', () => {
 
     const row = page.locator('li').filter({ hasText: 'experience-letter' });
     await expect(row.getByText('Employers I share my profile with')).toBeVisible();
-    await expect(row.getByText('Pending')).toBeVisible();
+    await expect(row.getByText('Not checked yet')).toBeVisible();
     await row.getByRole('button', { name: 'Make private' }).click();
     await expect(row.getByText('Only me and VTA')).toBeVisible();
     await row.getByRole('button', { name: /Remove/ }).click();

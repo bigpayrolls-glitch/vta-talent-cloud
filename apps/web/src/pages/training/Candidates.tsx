@@ -16,7 +16,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { SearchBox, Select, SkillAreaPicker, SkillTags } from '../../components/form';
 import { useToast } from '../../components/toast';
 import { EmptyState, ErrorNote, Field, formatDate, formatPhone, Modal, PageHeader, Pagination, Spinner, StatusBadge } from '../../components/ui';
-import { api, qs, uploadFile } from '../../lib/api';
+import { api, ApiError, qs, uploadFile } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useForm } from '../../lib/useForm';
 import { useListParams } from '../../lib/useListParams';
@@ -52,7 +52,7 @@ interface CandidateDetail extends Omit<CandidateRow, 'possibleDuplicate'> {
   enrolments: { id: string; status: string; enrolledAt: string; batchId: string; batchName: string; batchStatus: string; courseTitle: string; centreName: string }[];
   noticeAccepted: boolean;
   noticeAcceptedAt: string | null;
-  documents: { id: string; kind: keyof typeof DOCUMENT_KIND_LABEL; title: string; fileName: string; mimeType: string; sizeBytes: number; verificationStatus: string; scanStatus: string; visibility: 'private' | 'employers'; uploadedBySelf: boolean; createdAt: string }[];
+  documents: { id: string; kind: keyof typeof DOCUMENT_KIND_LABEL; title: string; fileName: string; mimeType: string; sizeBytes: number; verificationStatus: string; reviewReason: string | null; scanStatus: string; visibility: 'private' | 'employers'; uploadedBySelf: boolean; createdAt: string }[];
 }
 
 const experience = (m: number) => (m === 0 ? 'No experience' : m < 12 ? `${m} months` : `${Math.floor(m / 12)} yr${m >= 24 ? 's' : ''}${m % 12 ? ` ${m % 12} mo` : ''}`);
@@ -416,7 +416,12 @@ export function CandidateDetailPage() {
                       {d.uploadedBySelf ? ', uploaded by the candidate' : ''}
                       {d.visibility === 'employers' ? ', employers may see it' : ''}
                     </p>
+                    <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                      <StatusBadge status={d.verificationStatus} label={d.verificationStatus === 'pending' ? 'Not checked yet' : d.verificationStatus === 'rejected' ? 'Not accepted' : 'Verified'} />
+                      {d.reviewReason && <span className="text-[13px] text-muted">{d.reviewReason}</span>}
+                    </div>
                   </div>
+                  {manage && <DocumentReview candidateId={c.id} doc={d} />}
                   <button className="btn-secondary btn-sm" onClick={() => void openDocument(d.id)} aria-label={`Download ${d.title}`}>
                     <Download className="size-4" aria-hidden />
                   </button>
@@ -535,5 +540,63 @@ function UploadModal({ candidateId, onClose, onDone }: { candidateId: string; on
         <p className="text-[13px] text-muted">Do not upload Aadhaar or other ID documents unless VTA policy requires it.</p>
       </div>
     </Modal>
+  );
+}
+
+/** AD-05: VTA verifies or rejects a candidate's document (a reason is needed to reject; the learner sees it). */
+function DocumentReview({ candidateId, doc }: { candidateId: string; doc: { id: string; title: string; verificationStatus: string } }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const send = async (decision: 'verified' | 'rejected') => {
+    setBusy(true);
+    setError('');
+    try {
+      await api.post(`/admin/candidates/${candidateId}/documents/${doc.id}/review`, decision === 'rejected' ? { decision, reason } : { decision });
+      await qc.invalidateQueries({ queryKey: ['candidate', candidateId] });
+      toast('success', decision === 'verified' ? 'Document verified' : 'Document not accepted; the learner has been told why');
+      setRejecting(false);
+      setReason('');
+    } catch (e) {
+      if (e instanceof ApiError) setError(e.fields.reason ?? e.message);
+      else setError('Could not save. Try again.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      {doc.verificationStatus !== 'verified' && (
+        <button className="btn-secondary btn-sm" disabled={busy} onClick={() => void send('verified')} aria-label={`Verify ${doc.title}`}>
+          Verify
+        </button>
+      )}
+      {doc.verificationStatus !== 'rejected' && (
+        <button className="btn-secondary btn-sm text-brand" onClick={() => setRejecting(true)} aria-label={`Reject ${doc.title}`}>
+          Reject
+        </button>
+      )}
+      <Modal
+        open={rejecting}
+        onClose={() => setRejecting(false)}
+        title={`Reject “${doc.title}”?`}
+        footer={
+          <>
+            <button type="button" className="btn-secondary" onClick={() => setRejecting(false)}>Cancel</button>
+            <button type="button" className="btn-primary" disabled={busy} onClick={() => void send('rejected')}>Reject</button>
+          </>
+        }
+      >
+        <p className="text-sm">The learner sees your reason and can upload a better copy.</p>
+        <div className="mt-4">
+          <Field label="Reason" htmlFor={`reason-${doc.id}`} error={error}>
+            <textarea id={`reason-${doc.id}`} className="field-input min-h-20" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />
+          </Field>
+        </div>
+      </Modal>
+    </>
   );
 }

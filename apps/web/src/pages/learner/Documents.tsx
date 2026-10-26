@@ -65,12 +65,13 @@ export function DocumentsPage() {
                     {!d.uploadedBySelf && ', added by VTA'}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px]">
-                    <StatusBadge status={d.verificationStatus} />
+                    <StatusBadge status={d.verificationStatus} label={d.verificationStatus === 'verified' ? 'Verified by VTA' : d.verificationStatus === 'rejected' ? 'Not accepted' : 'Not checked yet'} />
                     <span className="inline-flex items-center gap-1 rounded-full bg-surface px-2.5 py-1 font-medium">
                       {d.visibility === 'private' ? <EyeOff className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
                       {DOCUMENT_VISIBILITY_LABEL[d.visibility]}
                     </span>
                   </div>
+                  {d.reviewReason && <p className="mt-2 text-[13px] text-brand">VTA&apos;s note: {d.reviewReason}</p>}
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2 pl-8">

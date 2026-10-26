@@ -123,7 +123,7 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
       .execute();
     const documents = await db
       .selectFrom('documents')
-      .select(['id', 'kind', 'title', 'original_name', 'mime_type', 'size_bytes', 'verification_status', 'scan_status', 'visibility', 'uploaded_by', 'created_at'])
+      .select(['id', 'kind', 'title', 'original_name', 'mime_type', 'size_bytes', 'verification_status', 'review_reason', 'scan_status', 'visibility', 'uploaded_by', 'created_at'])
       .where('owner_user_id', '=', id)
       .where('deleted_at', 'is', null)
       .orderBy('created_at', 'desc')
@@ -174,6 +174,7 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
         mimeType: d.mime_type,
         sizeBytes: d.size_bytes,
         verificationStatus: d.verification_status,
+        reviewReason: d.review_reason,
         scanStatus: d.scan_status,
         visibility: d.visibility,
         uploadedBySelf: d.uploaded_by === id,

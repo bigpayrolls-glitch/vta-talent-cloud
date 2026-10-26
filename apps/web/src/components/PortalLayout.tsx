@@ -114,7 +114,7 @@ function UserMenu({ portal }: { portal: Portal }) {
         <ChevronDown className="hidden size-4 text-muted sm:block" aria-hidden />
       </button>
       {open && (
-        <div role="menu" className="absolute right-0 top-12 z-40 w-72 overflow-hidden rounded-xl border border-line bg-white shadow-xl">
+        <div className="absolute right-0 top-12 z-40 w-72 overflow-hidden rounded-xl border border-line bg-white shadow-xl">
           <div className="border-b border-line px-4 py-3">
             <p className="font-semibold">{me.name}</p>
             <p className="truncate text-sm text-muted">{me.email ?? me.phone}</p>
@@ -128,16 +128,14 @@ function UserMenu({ portal }: { portal: Portal }) {
               ))}
             </ul>
           </div>
-          {others.length > 0 && (
-            <div className="border-b border-line py-1">
-              {others.map((p) => (
-                <Link key={p} role="menuitem" to={PORTAL_PATH[p]} onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface">
-                  <Repeat className="size-4 text-muted" aria-hidden />
-                  Switch to {PORTAL_LABEL[p]}
-                </Link>
-              ))}
-            </div>
-          )}
+          {/* Only actions sit inside the menu role; the account details above are plain text. */}
+          <div role="menu" aria-label="Account">
+          {others.map((p, i) => (
+            <Link key={p} role="menuitem" to={PORTAL_PATH[p]} onClick={() => setOpen(false)} className={`flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface ${i === others.length - 1 ? 'border-b border-line' : ''}`}>
+              <Repeat className="size-4 text-muted" aria-hidden />
+              Switch to {PORTAL_LABEL[p]}
+            </Link>
+          ))}
           {me.hasPassword && (
             <Link role="menuitem" to={`${PORTAL_PATH[portal]}/account`} onClick={() => setOpen(false)} className="flex items-center gap-2.5 border-b border-line px-4 py-3 text-sm hover:bg-surface">
               <KeyRound className="size-4 text-muted" aria-hidden />
@@ -156,6 +154,7 @@ function UserMenu({ portal }: { portal: Portal }) {
             <LogOut className="size-4 text-muted" aria-hidden />
             Sign out
           </button>
+          </div>
         </div>
       )}
       <SignOutGuard open={guard} onClose={() => setGuard(false)} />

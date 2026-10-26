@@ -68,6 +68,7 @@ export interface LearnerDocument {
   mimeType: string;
   sizeBytes: number;
   verificationStatus: 'pending' | 'verified' | 'rejected';
+  reviewReason: string | null;
   scanStatus: string;
   visibility: 'private' | 'employers';
   uploadedBySelf: boolean;

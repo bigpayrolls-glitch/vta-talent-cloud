@@ -53,7 +53,7 @@ export function LoginPage() {
             ))}
           </ul>
         </div>
-        <p className="mt-12 text-sm text-ink/60">One sign-in. You land in the portal for your role.</p>
+        <p className="mt-12 text-sm text-ink/80">One sign-in. You land in the portal for your role.</p>
       </aside>
 
       <main className="flex flex-col px-5 py-8 sm:px-10">

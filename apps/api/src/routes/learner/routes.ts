@@ -217,13 +217,15 @@ export const learnerRoutes: FastifyPluginAsync = async (app) => {
 
   // ---------------------------------------------------------------- evidence documents (EE-03)
 
-  const docDto = (d: { id: string; kind: string; title: string; mime_type: string; size_bytes: number; verification_status: string; scan_status: string; visibility: string; uploaded_by: string | null; created_at: Date }, userId: string) => ({
+  const docDto = (d: { id: string; kind: string; title: string; mime_type: string; size_bytes: number; verification_status: string; scan_status: string; visibility: string; uploaded_by: string | null; created_at: Date; review_reason?: string | null }, userId: string) => ({
     id: d.id,
     kind: d.kind,
     title: d.title,
     mimeType: d.mime_type,
     sizeBytes: d.size_bytes,
     verificationStatus: d.verification_status,
+    // Phase 10: why VTA could not accept it, so the learner can upload a better copy.
+    reviewReason: d.verification_status === 'rejected' ? (d.review_reason ?? null) : null,
     scanStatus: d.scan_status,
     visibility: d.visibility,
     uploadedBySelf: d.uploaded_by === userId,
