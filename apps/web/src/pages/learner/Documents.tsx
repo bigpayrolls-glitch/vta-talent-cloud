@@ -93,7 +93,7 @@ export function DocumentsPage() {
         </ul>
       )}
       <p className="mt-4 text-[13px] text-muted">
-        Employers can see a document only if you let them and you share your profile (from Phase 6). Each download link works for 5 minutes. Files are not virus-scanned yet.
+        Employers can see a document only if you let them and you share your profile. Each download link works for 5 minutes. Files are not virus-scanned yet.
       </p>
 
       {uploading && <UploadModal onClose={() => setUploading(false)} onDone={refresh} />}

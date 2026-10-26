@@ -3,6 +3,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { auditCtx } from '../../app.js';
 import { audit } from '../../audit/service.js';
+import { EMPLOYER_TEAM, notify, orgMembers, PARTNER_TEAM } from '../../lib/notify.js';
 import type { Organisation } from '../../db/types.js';
 import { newId } from '../../lib/crypto.js';
 import { invalid, notFound } from '../../lib/errors.js';
@@ -125,6 +126,10 @@ export const organisationRoutes: FastifyPluginAsync = async (app) => {
           before: { verification_status: org.verification_status },
           after: { verification_status: d.to, reason },
         });
+        // Only people who can already sign in; an unconfirmed sign-up sees the outcome when they confirm.
+        const team = await orgMembers(trx, id, org.type === 'employer' ? EMPLOYER_TEAM : PARTNER_TEAM);
+        const tpl = ({ verified: 'org_verified', rejected: 'org_rejected', more_info_needed: 'org_more_info' } as const)[d.to];
+        await notify(trx, team, tpl, { org: org.legal_name, type: org.type, reason }, org.type === 'employer' ? '/employer/company' : '/partner/organisation');
       });
       return { id, verificationStatus: d.to };
     });

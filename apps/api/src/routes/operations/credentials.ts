@@ -10,6 +10,7 @@ import type { Database } from '../../db/types.js';
 import { newId } from '../../lib/crypto.js';
 import { todayIst } from '../../lib/dates.js';
 import { invalid, notFound } from '../../lib/errors.js';
+import { notify } from '../../lib/notify.js';
 import { iso, parse } from '../../lib/validate.js';
 import { batchManageScope, inScope, isPlatformAdmin } from '../../policy/index.js';
 
@@ -83,6 +84,7 @@ async function issue(trx: Transaction<Database>, req: FastifyRequest, enrolmentI
     entityId: e.candidate_id,
     after: { credentialId: id, course: e.title, batchId: e.batch_id, supersedes: supersedes ?? null },
   });
+  await notify(trx, [e.candidate_id], 'certificate_issued', { course: e.title }, `/learn/certificates/${id}`);
   return id;
 }
 

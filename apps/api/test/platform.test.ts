@@ -30,6 +30,9 @@ describe('Phase 1 test 4: every API route declares a permission', () => {
       'POST /api/v1/auth/otp/verify',
       'POST /api/v1/auth/register', // self-registration, needs a phone code (EE-01)
       'GET /api/v1/public/credentials/:code', // QR verification page, approved fields only (AD-07)
+      'GET /api/v1/auth/password/reset/:token', // checks a reset link before the form is shown
+      'POST /api/v1/auth/password/forgot', // same reply for any email; 3 emails an hour per account
+      'POST /api/v1/auth/password/reset', // single-use, 30-minute link
       'POST /api/v1/public/organisations/register', // employer/partner sign-up: pending until email confirmed and VTA verifies (EM-01, PA-01)
     ].sort());
   });

@@ -6,6 +6,7 @@ import { audit } from '../../audit/service.js';
 import type { DB } from '../../db/index.js';
 import { newId } from '../../lib/crypto.js';
 import { forbidden, invalid, notFound } from '../../lib/errors.js';
+import { notify } from '../../lib/notify.js';
 import { iso, parse } from '../../lib/validate.js';
 import { trainerBatch, visibleBatch } from './common.js';
 
@@ -277,7 +278,7 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
         const r = await trx
           .selectFrom('assessment_results as r')
           .innerJoin('enrolments as e', 'e.id', 'r.enrolment_id')
-          .select(['r.id', 'r.status', 'r.submitted_by', 'r.outcome', 'e.batch_id', 'e.candidate_id'])
+          .select(['r.id', 'r.status', 'r.submitted_by', 'r.outcome', 'r.enrolment_id', 'e.batch_id', 'e.candidate_id'])
           .where('r.id', '=', id)
           .forUpdate()
           .executeTakeFirst();
@@ -297,6 +298,16 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
           before: { resultId: id, status: r.status },
           after: { resultId: id, candidateId: r.candidate_id, status: d.to, outcome: r.outcome, reason },
         });
+        // SH-07: an approved result is released to the learner; a returned or rejected one goes back to the trainer.
+        const ctx = await trx
+          .selectFrom('batches as b')
+          .innerJoin('courses as c', 'c.id', 'b.course_id')
+          .innerJoin('users as u', (j) => j.on('u.id', '=', r.candidate_id))
+          .select(['b.name as batch', 'b.trainer_id', 'c.title as course', 'u.name as learner'])
+          .where('b.id', '=', r.batch_id)
+          .executeTakeFirstOrThrow();
+        if (d.to === 'approved') await notify(trx, [r.candidate_id], 'result_released', { course: ctx.course, outcome: r.outcome }, `/learn/learning/${r.enrolment_id}/result`);
+        else await notify(trx, [r.submitted_by ?? ctx.trainer_id], d.to === 'returned' ? 'result_returned' : 'result_rejected', { ...ctx, reason }, `/partner/batches/${r.batch_id}`);
         return { id, status: d.to };
       });
     });

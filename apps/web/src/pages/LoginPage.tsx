@@ -126,6 +126,11 @@ function EmailForm({ onDone }: { onDone: () => Promise<void> }) {
       <Field label="Password" htmlFor="password" error={f.errors.password}>
         <input id="password" type="password" autoComplete="current-password" className="field-input" value={password} onChange={(e) => setPassword(e.target.value)} aria-invalid={!!f.errors.password} />
       </Field>
+      <p className="-mt-1 text-right text-sm">
+        <Link to="/forgot-password" className="font-medium text-brand hover:underline">
+          Forgot password?
+        </Link>
+      </p>
       <button type="submit" className="btn-primary h-11 w-full" disabled={f.submitting}>
         {f.submitting ? 'Signing in…' : 'Sign in'}
       </button>

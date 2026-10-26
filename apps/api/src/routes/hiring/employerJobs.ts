@@ -15,7 +15,8 @@ import { auditCtx } from '../../app.js';
 import { audit } from '../../audit/service.js';
 import type { JobApplication } from '../../db/types.js';
 import { newId } from '../../lib/crypto.js';
-import { todayIst } from '../../lib/dates.js';
+import { formatIstDateTime, todayIst } from '../../lib/dates.js';
+import { notify, vtaReviewers } from '../../lib/notify.js';
 import { invalid, notFound } from '../../lib/errors.js';
 import { LINK_TTL_SECONDS, signLink } from '../../lib/storage.js';
 import { iso, parse } from '../../lib/validate.js';
@@ -125,6 +126,7 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
           .where('id', '=', id)
           .execute();
         await audit(trx, auditCtx(req), { action: `job.${action === 'submit' ? 'submitted' : action === 'resume' ? 'resumed' : `${action}d`}`, entityType: 'job', entityId: id, before: { status: j.status }, after: { status: t.to } });
+        if (action === 'submit') await notify(trx, await vtaReviewers(trx), 'job_submitted', await jobContext(trx, id), `/admin/jobs/${id}`);
       });
       return jobDto(await ownJob(db, req, id));
     });
@@ -292,7 +294,11 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
     return { ok: true, status: b.to };
   });
 
-  async function moveApplication(req: FastifyRequest, a: JobApplication, to: ApplicationStatus, kind: 'employer', extra: { joining_date: string | null; reason: string | null }) {
+  /** Job title and company name for notification text. */
+  const jobContext = (trx: Parameters<typeof notify>[0], jobId: string) =>
+    trx.selectFrom('jobs as j').innerJoin('organisations as o', 'o.id', 'j.organisation_id').select(['j.title as job', 'o.legal_name as company']).where('j.id', '=', jobId).executeTakeFirstOrThrow();
+
+  async function moveApplication(req: FastifyRequest, a: JobApplication, to: ApplicationStatus, kind: 'employer', extra: { joining_date: string | null; reason: string | null }, quiet = false) {
     const now = new Date();
     await db.transaction().execute(async (trx) => {
       const updated = await trx
@@ -305,6 +311,10 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
       if (!updated) throw invalid('This application was just changed by someone else. Reload and try again.');
       await trx.insertInto('application_events').values({ id: newId(), application_id: a.id, from_status: a.status, to_status: to, actor_id: req.actor!.userId, actor_kind: kind }).execute();
       await audit(trx, auditCtx(req), { action: 'application.moved', entityType: 'application', entityId: a.id, before: { status: a.status }, after: { status: to, joining_date: extra.joining_date, reason: extra.reason } });
+      // SH-07: the learner hears about each step (the employer's reason stays internal); VTA hears about joinings to verify.
+      const ctx = await jobContext(trx, a.job_id);
+      if (!quiet) await notify(trx, [a.candidate_id], 'application_update', { ...ctx, status: to }, `/learn/applications/${a.id}`);
+      if (to === 'joined') await notify(trx, await vtaReviewers(trx), 'joining_reported', ctx, '/admin/outcomes');
     });
   }
 
@@ -322,12 +332,17 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
         .values({ id: iid, application_id: a.id, scheduled_at: new Date(b.scheduledAt), mode: b.mode, location: b.location ?? null, outcome: b.outcome, internal_notes: b.internalNotes ?? null, created_by: req.actor!.userId })
         .execute();
       await audit(trx, auditCtx(req), { action: 'interview.scheduled', entityType: 'application', entityId: a.id, after: { interviewId: iid, scheduled_at: b.scheduledAt, mode: b.mode } });
+      if (b.outcome === 'scheduled') {
+        const mode = { in_person: 'in person', phone: 'by phone', video: 'by video call' }[b.mode];
+        await notify(trx, [a.candidate_id], 'interview_scheduled', { ...(await jobContext(trx, a.job_id)), mode, when: formatIstDateTime(new Date(b.scheduledAt)) }, `/learn/applications/${a.id}`);
+      }
     });
     // Scheduling an interview moves a shortlisted application to "interview".
     if (a.status === 'applied' || a.status === 'shortlisted') {
       const from = a.status;
-      if (from === 'applied') await moveApplication(req, a, 'shortlisted', 'employer', { joining_date: null, reason: null });
-      await moveApplication(req, { ...a, status: 'shortlisted' }, 'interview', 'employer', { joining_date: null, reason: null });
+      // Quietly: the learner already has the interview notification.
+      if (from === 'applied') await moveApplication(req, a, 'shortlisted', 'employer', { joining_date: null, reason: null }, true);
+      await moveApplication(req, { ...a, status: 'shortlisted' }, 'interview', 'employer', { joining_date: null, reason: null }, true);
     }
     reply.code(201);
     return { id: iid };

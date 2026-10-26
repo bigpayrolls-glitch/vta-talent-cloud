@@ -8,3 +8,4 @@ export * from './learner.js';
 export * from './hiring.js';
 export * from './programmes.js';
 export * from './signup.js';
+export * from './notifications.js';

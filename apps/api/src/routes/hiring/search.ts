@@ -4,6 +4,7 @@ import { sql } from 'kysely';
 import { z } from 'zod';
 import { auditCtx } from '../../app.js';
 import { audit } from '../../audit/service.js';
+import { notify } from '../../lib/notify.js';
 import { newId } from '../../lib/crypto.js';
 import { conflict, invalid, notFound } from '../../lib/errors.js';
 import { iso, parse } from '../../lib/validate.js';
@@ -135,6 +136,8 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
     await db.transaction().execute(async (trx) => {
       await trx.insertInto('job_invitations').values({ id: iid, job_id: b.jobId, candidate_id: id, invited_by: req.actor!.userId, message: b.message ?? null }).execute();
       await audit(trx, auditCtx(req), { action: 'candidate.invited_to_apply', entityType: 'user', entityId: id, after: { jobId: b.jobId, organisationId: org.id } });
+      const { title } = await trx.selectFrom('jobs').select('title').where('id', '=', b.jobId).executeTakeFirstOrThrow();
+      await notify(trx, [id], 'job_invitation', { job: title, company: org.legal_name }, `/learn/jobs/${b.jobId}`);
     });
     reply.code(201);
     return { id: iid };

@@ -13,6 +13,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { auditCtx } from '../../app.js';
 import { audit } from '../../audit/service.js';
+import { notify } from '../../lib/notify.js';
 import { csvToRecords } from '../../lib/csv.js';
 import { conflict, invalid, notFound } from '../../lib/errors.js';
 import { iso, parse } from '../../lib/validate.js';
@@ -286,6 +287,8 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
           before: { verification_status: cp.verification_status },
           after: { verification_status: d.to, reason },
         });
+        const tpl = ({ verified: 'profile_verified', rejected: 'profile_rejected', needs_correction: 'profile_correction' } as const)[d.to];
+        await notify(trx, [id], tpl, { reason }, '/learn/profile');
       });
       return { id, verificationStatus: d.to };
     });

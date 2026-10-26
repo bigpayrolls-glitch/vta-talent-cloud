@@ -4,6 +4,7 @@ import { sql } from 'kysely';
 import { z } from 'zod';
 import { auditCtx } from '../../app.js';
 import { audit } from '../../audit/service.js';
+import { EMPLOYER_TEAM, notify, orgMembers } from '../../lib/notify.js';
 import { invalid, notFound } from '../../lib/errors.js';
 import { LINK_TTL_SECONDS, signLink } from '../../lib/storage.js';
 import { iso, parse } from '../../lib/validate.js';
@@ -121,6 +122,8 @@ export const hiringAdminRoutes: FastifyPluginAsync = async (app) => {
         .where('id', '=', id)
         .execute();
       await audit(trx, auditCtx(req), { action: `job.moderation.${b.action}`, entityType: 'job', entityId: id, before: { status: j.status }, after: { status: rule.to, reason: b.reason ?? null } });
+      const tpl = ({ publish: 'job_published', reject: 'job_rejected', pause: 'job_paused', close: null } as const)[b.action];
+      if (tpl) await notify(trx, await orgMembers(trx, j.organisation_id, EMPLOYER_TEAM), tpl, { job: j.title, reason: b.reason }, `/employer/jobs/${id}`);
     });
     return { ok: true, status: rule.to };
   });

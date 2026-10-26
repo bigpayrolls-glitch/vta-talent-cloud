@@ -115,7 +115,7 @@ export async function claimForUser(me: MeDto): Promise<void> {
   if (meta.owner && (meta.owner !== me.id || !isTrainer)) await wipeAll();
   if (!isTrainer) return;
   // Never the CSRF token (fetched fresh when online) and not the email address.
-  const kept: CachedMe = { id: me.id, name: me.name, email: null, phone: me.phone, status: me.status, roles: me.roles, portals: me.portals };
+  const kept: CachedMe = { id: me.id, name: me.name, email: null, phone: me.phone, status: me.status, roles: me.roles, portals: me.portals, hasPassword: me.hasPassword };
   await setMeta({ owner: me.id, me: kept });
   changed();
 }

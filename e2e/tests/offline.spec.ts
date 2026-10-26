@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { ids, signInPhone, withDb } from './helpers.js';
+import { expectNoHorizontalScroll, ids, signInPhone, withDb } from './helpers.js';
 
 /**
  * Phase 4 (TR-04, TR-08, TR-09, PWA): the pilot step "trainer records attendance, including one offline session,
@@ -64,6 +64,8 @@ test.describe.serial('offline attendance', () => {
     await expect(page.getByText('Saved on this phone, 4 waiting to sync')).toBeVisible();
     await expect(page.locator('li').filter({ hasText: 'Venkatesh Learner' }).getByText('Waiting to sync')).toBeVisible();
     await expect(header(page).getByRole('link', { name: /Offline, 4 waiting/ })).toBeVisible();
+    // The busiest header (sync status, notifications, account) still fits a phone.
+    await expectNoHorizontalScroll(page);
 
     // Still offline: the queue survives closing and reopening the app.
     await page.reload();

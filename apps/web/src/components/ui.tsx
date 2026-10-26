@@ -5,14 +5,16 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
  * Text wordmark. A placeholder until VTA supplies the master logo file (requirements §16:
  * do not recreate or distort the logo). Swap this component for the official asset.
  */
-export function Wordmark({ compact = false }: { compact?: boolean }) {
+/** `tight`: on narrow phones only the VTA mark shows, leaving room in a busy header. */
+export function Wordmark({ compact = false, tight = false }: { compact?: boolean; tight?: boolean }) {
+  const narrowHide = tight ? 'max-[479px]:hidden' : '';
   return (
     <span className="inline-flex items-center gap-2 select-none" aria-label="VTA Talent Cloud">
       <span className={`font-black tracking-tight text-brand italic ${compact ? 'text-2xl' : 'text-[28px]'}`} aria-hidden>
         VTA
       </span>
-      <span className="h-7 w-px bg-ink/30" aria-hidden />
-      <span className="flex flex-col leading-[1.05] text-ink" aria-hidden>
+      <span className={`h-7 w-px bg-ink/30 ${narrowHide}`} aria-hidden />
+      <span className={`flex flex-col leading-[1.05] text-ink ${narrowHide}`} aria-hidden>
         <span className="text-[11px] font-medium tracking-wide">TALENT</span>
         <span className="text-[13px] font-bold tracking-wide">CLOUD</span>
       </span>

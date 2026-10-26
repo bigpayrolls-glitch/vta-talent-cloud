@@ -5,6 +5,7 @@ import { sql } from 'kysely';
 import { z } from 'zod';
 import { auditCtx } from '../../app.js';
 import { audit } from '../../audit/service.js';
+import { notify, vtaReviewers } from '../../lib/notify.js';
 import type { DB } from '../../db/index.js';
 import type { Organisation } from '../../db/types.js';
 import { newId } from '../../lib/crypto.js';
@@ -121,6 +122,7 @@ export const companyRoutes: FastifyPluginAsync = async (app) => {
     await db.transaction().execute(async (trx) => {
       await trx.updateTable('organisations').set({ submitted_at: now, verification_status: 'pending', verification_reason: null, updated_at: now }).where('id', '=', org.id).execute();
       await audit(trx, auditCtx(req), { action: 'organisation.submitted', entityType: 'organisation', entityId: org.id, before: { verification_status: org.verification_status }, after: { verification_status: 'pending' } });
+      await notify(trx, await vtaReviewers(trx), 'org_submitted', { org: org.legal_name, type: 'employer' }, `/admin/organisations?verificationStatus=pending`);
     });
     return companyDto(await employerOrg(db, req));
   });

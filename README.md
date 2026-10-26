@@ -2,7 +2,18 @@
 
 A role-based automotive skills and workforce platform. One backend and one database serve four portals: **Learner**, **Employer**, **Training Partner** (including trainers) and **Admin**, plus a public front page.
 
-**Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data), Phase 3 (training operations), Phase 4 (offline attendance and the installable app), Phase 5 (Learner portal), Phase 6 (Employer portal and hiring), Phase 7 (partner programmes and reports) and Phase 8 (public site and organisation sign-up).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+**Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data), Phase 3 (training operations), Phase 4 (offline attendance and the installable app), Phase 5 (Learner portal), Phase 6 (Employer portal and hiring), Phase 7 (partner programmes and reports), Phase 8 (public site and organisation sign-up) and Phase 9 (notifications and account self-service).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+
+## What works in Phase 9
+
+| Area | What you can do |
+| --- | --- |
+| Notifications (SH-07) | A bell in every portal header with the unread count (checked every minute while the page is open) and a Notifications page: open one to go to the related page, or mark all as read. Learners hear about application steps, interviews, invitations to apply, enrolment, released results, certificates and profile verification. Trainers: batch assignments and results sent back. Employers: new and withdrawn applications, job decisions, company verification. Partners: verification and new programmes. VTA reviewers: companies, partners and jobs waiting for review, joinings to verify and account closure requests. The person who made a change is not notified about it; internal notes and reasons for rejecting an applicant are never included. |
+| Delivery | In-app only. Each notification records recipient, template, channel and delivery state (requirements §12) so SMS, WhatsApp or email can be added once a provider is chosen (D10). Wording lives in `packages/shared/src/notifications.ts`. |
+| Password reset | "Forgot password?" on sign-in, for email accounts (staff, employers, partners). Same reply whether or not the email exists; a link works once for 30 minutes and replaces any earlier one; at most 3 emails an hour; using it signs out every session and clears a lockout. |
+| Change password | From the account menu: needs the current password; other devices are signed out, this one stays signed in. |
+| Download my data | Learners download one JSON file with their account, profile, agreements, training, attendance, released results, certificates, applications (with what was shared) and document list. Logged. |
+| Close my account | A learner asks from Privacy (with an optional reason); their profile leaves employer search at once and VTA reviewers are notified. They can cancel. A Super Admin closes the account from the user's page: deactivated, signed out, open applications withdrawn. Records are kept, not erased, until VTA sets a retention rule. |
 
 ## What works in Phase 8
 
@@ -197,12 +208,12 @@ infra             Docker Compose for local services
 - No SMS or email provider: console stubs only (decision D10). Production start is refused until one is configured.
 - Uploaded files are stored on the API server's disk (`STORAGE_DIR`). An S3-compatible driver comes with the hosting decision (D10); the interface is ready for it.
 - Files are not virus-scanned yet and are labelled "not scanned" (D10).
-- No password reset yet. It needs an email provider, so it comes with the email work.
+- Password reset emails go nowhere until an email provider is chosen (D10); locally the link is in the API log, and on the staging copy it is shown on screen.
 - The privacy notice and terms are a plain-language DRAFT (version `2026-10-draft`), marked as such on screen. VTA must approve the wording and add contact details; changing `NOTICE_VERSION` then asks everyone to accept again.
 - Sign-up emails go nowhere until an email provider is chosen (D10); on the staging copy the confirmation link is shown on screen instead. Unconfirmed sign-ups stay listed (flagged) until VTA rejects them; there is no automatic clean-up yet.
 - The public front page links to no external VTA website, because its address is not confirmed; add it once VTA confirms.
-- No notifications yet (SH-07, Should): learners and employers see changes when they open the app. SMS/email follow the provider decision (D10).
-- Closing an account and exporting one's data are support requests for now (no self-service screen).
+- Notifications are in-app only; SMS, WhatsApp and email follow the provider decision (D10). They are not deleted yet (no retention rule).
+- Closing an account deactivates it and keeps the records; erasure and retention periods need VTA's decision (requirements §13, §15).
 - The issuer printed on certificates comes from `CREDENTIAL_ISSUER_NAME` (default "VTA Talent Cloud") until VTA confirms the legal entity (decision D8).
 - Offline covers attendance only (as the requirements scope it). Assessments, rosters' contact details and admin screens need a connection.
 - The offline store is not encrypted beyond what the phone itself provides; it is kept small instead (names, IDs, attendance). A shared phone should use separate sign-ins: signing in as someone else deletes it.

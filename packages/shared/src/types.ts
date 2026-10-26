@@ -22,6 +22,8 @@ export interface MeDto {
   roles: RoleAssignmentDto[];
   portals: Portal[];
   csrfToken: string;
+  /** Signs in with email and password (so can change or reset it). Phone sign-in accounts have none. */
+  hasPassword: boolean;
   /** Learners who have not accepted the current privacy notice and terms (Phase 5). */
   consentRequired?: boolean;
 }

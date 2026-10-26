@@ -99,14 +99,16 @@ export async function expectNoHorizontalScroll(page: Page) {
 /** Size of the API log now, so later reads only look at what was written after this point. */
 export const apiLogSize = () => readFileSync(path.join(here, '../.api.log'), 'utf8').length;
 
-/** Reads the newest development confirmation link for an organisation registration from the API log. */
-export async function latestSignupLink(name: string, after: number): Promise<string> {
+/** Reads the newest development email link of a kind ("Confirm registration", "Password reset") for a person from the API log. */
+export async function latestEmailLink(kind: string, name: string, after: number): Promise<string> {
   const log = path.join(here, '../.api.log');
   for (let i = 0; i < 40; i++) {
     const text = readFileSync(log, 'utf8').slice(after);
-    const m = [...text.matchAll(new RegExp(`Confirm registration for ${name}: (\\S+)`, 'g'))];
+    const m = [...text.matchAll(new RegExp(`${kind} for ${name}: (\\S+)`, 'g'))];
     if (m.length) return new URL(m.at(-1)![1]!).pathname;
     await new Promise((r) => setTimeout(r, 250));
   }
-  throw new Error('No confirmation link found in the API log');
+  throw new Error(`No "${kind}" link found in the API log`);
 }
+
+export const latestSignupLink = (name: string, after: number) => latestEmailLink('Confirm registration', name, after);
