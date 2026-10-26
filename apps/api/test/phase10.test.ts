@@ -1,4 +1,7 @@
+import { NOTICE_VERSION } from '@vta/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { runMaintenance } from '../src/db/maintenance.js';
+import { newId } from '../src/lib/crypto.js';
 import { EMAIL, loginEmail, loginPhone, PHONE, setup, type Client, type Ctx } from './helpers.js';
 
 /** Phase 10 fixes found in the pilot-readiness review. */
@@ -50,5 +53,56 @@ describe('AD-05 document verification', () => {
     expect((await c.centre!.post(`/admin/candidates/${learnerId}/documents/${docB}/review`, { decision: 'verified' })).status).toBe(403);
     const other = (await ctx.db.selectFrom('candidate_profiles').select('user_id').where('user_id', '!=', learnerId).executeTakeFirstOrThrow()).user_id;
     expect((await c.ops!.post(`/admin/candidates/${other}/documents/${docB}/review`, { decision: 'verified' })).status).toBe(404);
+  });
+});
+
+describe('maintenance job', () => {
+  const signup = (email: string, legalName: string) =>
+    ctx.app.inject({
+      method: 'POST',
+      url: '/api/v1/public/organisations/register',
+      remoteAddress: `10.77.0.${Math.floor(Math.random() * 200) + 1}`,
+      payload: { type: 'employer', legalName, sector: 'fleet', city: 'Pune', contactName: 'Old Signup', email, phone: '9876511111', acceptPrivacy: true, acceptTerms: true, noticeVersion: NOTICE_VERSION },
+    });
+
+  it('clears old codes, sessions and reset links, and closes sign-ups never confirmed in 30 days', async () => {
+    await signup('stale@signup.example', 'Stale Garage');
+    await signup('fresh@signup.example', 'Fresh Garage');
+    const stale = await ctx.db.selectFrom('organisations').select('id').where('legal_name', '=', 'Stale Garage').executeTakeFirstOrThrow();
+    await ctx.db.updateTable('organisations').set({ created_at: new Date(Date.now() - 31 * 86_400_000) }).where('id', '=', stale.id).execute();
+    await ctx.db.insertInto('otp_challenges').values({ id: newId(), phone: '+919811111111', code_hash: 'x', purpose: 'login', expires_at: new Date(Date.now() - 2 * 86_400_000), created_at: new Date(Date.now() - 2 * 86_400_000) } as never).execute();
+
+    const r = await runMaintenance(ctx.db);
+    expect(r.signupsClosed).toBe(1);
+    expect(r.otpChallengesDeleted).toBeGreaterThanOrEqual(1);
+    const org = await ctx.db.selectFrom('organisations').select(['verification_status', 'status', 'verification_reason']).where('id', '=', stale.id).executeTakeFirstOrThrow();
+    expect(org).toMatchObject({ verification_status: 'rejected', status: 'inactive' });
+    expect(org.verification_reason).toMatch(/Email not confirmed within 30 days/);
+    expect((await ctx.db.selectFrom('users').select('status').where('email', '=', 'stale@signup.example').executeTakeFirstOrThrow()).status).toBe('deactivated');
+    expect((await ctx.db.selectFrom('organisations').select('verification_status').where('legal_name', '=', 'Fresh Garage').executeTakeFirstOrThrow()).verification_status).toBe('pending');
+    // The old link no longer works.
+    const oldToken = ctx.mem.sentInvites.get('stale@signup.example')!.split('/invite/')[1];
+    expect((await ctx.app.inject({ method: 'GET', url: `/api/v1/auth/invitations/${oldToken}` })).statusCode).toBe(404);
+    // Running again changes nothing more.
+    expect((await runMaintenance(ctx.db)).signupsClosed).toBe(0);
+  });
+
+  it('registering again with that email reopens the sign-up with the new details', async () => {
+    ctx.mem.sentInvites.clear();
+    const r = await signup('stale@signup.example', 'Stale Garage Pvt Ltd');
+    expect(r.statusCode).toBe(202);
+    const token = ctx.mem.sentInvites.get('stale@signup.example')!.split('/invite/')[1]!;
+    const org = await ctx.db.selectFrom('organisations').select(['legal_name', 'verification_status', 'status']).where('contact_email', '=', 'stale@signup.example').execute();
+    expect(org).toEqual([{ legal_name: 'Stale Garage Pvt Ltd', verification_status: 'pending', status: 'active' }]);
+    const ok = await ctx.app.inject({ method: 'POST', url: `/api/v1/auth/invitations/${token}/accept`, payload: { password: 'A-strong-pass-42' } });
+    expect(ok.statusCode).toBe(200);
+  });
+
+  it('a deactivated account that was not an expired sign-up is never reopened', async () => {
+    ctx.mem.sentInvites.clear();
+    await ctx.db.updateTable('users').set({ status: 'deactivated' }).where('email', '=', EMAIL.partnerViewerA).execute();
+    expect((await signup(EMAIL.partnerViewerA, 'Sneaky Org')).statusCode).toBe(202);
+    expect(ctx.mem.sentInvites.size).toBe(0);
+    expect(await ctx.db.selectFrom('organisations').select('id').where('legal_name', '=', 'Sneaky Org').executeTakeFirst()).toBeUndefined();
   });
 });

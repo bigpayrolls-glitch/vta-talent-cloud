@@ -13,6 +13,8 @@
     "db:migrate": "tsx --env-file-if-exists=../../.env src/db/migrate.ts",
     "db:seed": "tsx --env-file-if-exists=../../.env src/db/seed.ts",
     "perf": "tsx src/db/perf.ts",
+    "backup": "tsx --env-file-if-exists=../../.env src/db/backup-drill.ts",
+    "maintenance": "tsx --env-file-if-exists=../../.env src/db/maintenance.ts",
     "db:reset": "tsx --env-file-if-exists=../../.env src/db/migrate.ts --reset && tsx --env-file-if-exists=../../.env src/db/seed.ts"
   },
   "dependencies": {

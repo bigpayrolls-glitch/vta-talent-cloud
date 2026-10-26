@@ -32,6 +32,52 @@ export const signupRoutes: FastifyPluginAsync = async (app) => {
     if (b.nickname) return done();
 
     const existing = await db.selectFrom('users').select(['id', 'name', 'status']).where('email', '=', b.email).executeTakeFirst();
+
+    // A sign-up closed by the maintenance job (never confirmed) is reopened with the new details.
+    if (existing?.status === 'deactivated') {
+      const expired = await db
+        .selectFrom('role_assignments as ra')
+        .innerJoin('organisations as o', 'o.id', 'ra.organisation_id')
+        .select(['o.id', 'ra.id as assignment_id'])
+        .where('ra.user_id', '=', existing.id)
+        .where('o.registration_source', '=', 'self')
+        .where('o.status', '=', 'inactive')
+        .where('o.submitted_at', 'is', null)
+        .where('o.verification_reason', 'like', 'Email not confirmed within%')
+        .executeTakeFirst();
+      if (!expired) return done();
+      let token = '';
+      await db.transaction().execute(async (trx) => {
+        await trx
+          .updateTable('organisations')
+          .set({
+            type: b.type,
+            partner_subtype: b.type === 'partner' ? (b.partnerSubtype ?? null) : null,
+            sector: b.type === 'employer' ? (b.sector ?? null) : null,
+            legal_name: b.legalName,
+            city: b.city,
+            contact_name: b.contactName,
+            contact_phone: b.phone,
+            verification_status: 'pending',
+            verification_reason: null,
+            status: 'active',
+            duplicate_of: await findDuplicateOrg(trx as unknown as DB, expired.id, b.legalName, undefined, b.type),
+            updated_at: new Date(),
+          })
+          .where('id', '=', expired.id)
+          .execute();
+        await trx.updateTable('role_assignments').set({ role: b.type === 'employer' ? 'employer_admin' : 'partner_admin' }).where('id', '=', expired.assignment_id).execute();
+        await trx.updateTable('users').set({ status: 'invited', name: b.contactName, updated_at: new Date() }).where('id', '=', existing.id).execute();
+        for (const purpose of ['privacy_notice', 'terms'] as const) {
+          await recordConsent(trx, { userId: existing.id, purpose, granted: true, noticeVersion: NOTICE_VERSION, source: 'self', recordedBy: existing.id });
+        }
+        await audit(trx, auditCtx(req), { action: 'organisation.signup_reopened', entityType: 'organisation', entityId: expired.id, after: { userId: existing.id, legal_name: b.legalName } });
+        token = await createInvitation(trx as unknown as DB, existing.id, existing.id);
+      });
+      await app.providers.email.sendSignupConfirmation(b.email, b.contactName, link(token));
+      return done(token);
+    }
+
     if (existing) {
       // Only an unconfirmed self-registration gets a new link; any other account is left alone.
       const pending = await db

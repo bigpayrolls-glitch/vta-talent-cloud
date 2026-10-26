@@ -13,3 +13,4 @@ apps/api/.storage/
 # Vercel build output and local link
 .vercel/
 .claude/worktrees/
+backups/
