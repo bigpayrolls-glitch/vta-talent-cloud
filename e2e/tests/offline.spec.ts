@@ -129,7 +129,8 @@ test.describe.serial('offline attendance', () => {
     await row.getByRole('button', { name: 'Use my mark' }).click();
     await expect(page.getByText('Nothing waiting.')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('heading', { name: /Needs your choice/ })).toHaveCount(0);
-    expect((await savedMarks(DATE)).find((m) => m.name === 'Ravi Kumar')?.status).toBe('late');
+    // The screen can clear a moment before the server's write is visible here, so wait for it.
+    await expect.poll(async () => (await savedMarks(DATE)).find((m) => m.name === 'Ravi Kumar')?.status, { timeout: 10_000 }).toBe('late');
   });
 
   test('signing out needs a connection, then deletes the offline data from the phone', async ({ page, context }) => {

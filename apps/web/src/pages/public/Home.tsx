@@ -113,7 +113,7 @@ export function PublicHomePage() {
               <Link to={a.to} className="btn-primary mt-6 h-11 w-full">
                 {a.cta}
               </Link>
-              <p className="mt-2 text-center text-xs text-muted">{a.note}</p>
+              <p className="mt-2 min-h-8 text-center text-xs text-muted">{a.note}</p>
             </article>
           ))}
         </div>

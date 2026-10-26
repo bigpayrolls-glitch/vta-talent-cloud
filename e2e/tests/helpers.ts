@@ -24,6 +24,8 @@ export async function signInEmail(page: Page, email: string) {
   await page.getByLabel('Password').fill(passwordOf(email));
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).not.toHaveURL(/\/login$/);
+  // Let the portal finish loading, so a test's first click is not lost while the page is still settling.
+  await page.waitForLoadState('networkidle');
 }
 
 /** Reads the newest development OTP code for this number from the API log. */
@@ -70,6 +72,8 @@ export async function signInPhone(page: Page, tenDigits: string) {
   await page.getByLabel('6-digit code').fill(code);
   await page.getByRole('button', { name: 'Verify and sign in' }).click();
   await expect(page).not.toHaveURL(/\/login$/);
+  // Let the portal finish loading, so a test's first click is not lost while the page is still settling.
+  await page.waitForLoadState('networkidle');
 }
 
 export const EMAIL = {

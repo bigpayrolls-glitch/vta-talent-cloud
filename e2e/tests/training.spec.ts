@@ -76,7 +76,11 @@ test.describe.serial('training operations', () => {
   test('the trainer sees only their own batches, with phone numbers', async ({ page }) => {
     await signInPhone(page, '9900000103');
     await expect(page).toHaveURL(/\/partner$/);
-    await page.getByRole('link', { name: 'Batches and rosters' }).click();
+    // The home page can still be settling when the link is first clicked; retry until it navigates.
+    await expect(async () => {
+      await page.getByRole('link', { name: 'Batches and rosters' }).click();
+      await expect(page).toHaveURL(/\/partner\/batches$/, { timeout: 2_000 });
+    }).toPass({ timeout: 10_000 });
     await expect(page.getByRole('link', { name: /EV Mysuru Battery January 2027/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /2W Peenya/ })).toHaveCount(0);
     await page.getByRole('link', { name: /EV Mysuru Battery January 2027/ }).click();

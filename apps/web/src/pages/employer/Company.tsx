@@ -52,7 +52,11 @@ export function CompanyPage() {
         <div className="min-w-0 flex-1">
           <p className="text-sm text-muted">Verification</p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
-            <StatusBadge status={c.verificationStatus} label={STATUS_TEXT[c.verificationStatus]} />
+            {c.verificationStatus === 'pending' && !c.submittedAt ? (
+              <StatusBadge status="not_sent" label="Not sent to VTA yet" />
+            ) : (
+              <StatusBadge status={c.verificationStatus} label={STATUS_TEXT[c.verificationStatus]} />
+            )}
             {c.submittedAt && c.verificationStatus === 'pending' && <span className="text-sm text-muted">Sent {formatDate(c.submittedAt)}</span>}
           </div>
           {c.verificationReason && <p className="mt-2 text-sm">VTA&apos;s note: {c.verificationReason}</p>}
