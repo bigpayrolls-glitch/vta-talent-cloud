@@ -7,14 +7,15 @@ import {
   Briefcase,
   CalendarCheck,
   ClipboardCheck,
-  FileText,
   Home,
   LayoutDashboard,
   Search,
   User,
   Users,
 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Link, Outlet } from 'react-router';
+import { api } from '../lib/api';
 import { PortalLayout, type NavItem } from '../components/PortalLayout';
 import { firstName, useAuth } from '../lib/auth';
 
@@ -56,8 +57,7 @@ const PLANS: Record<Exclude<Portal, 'admin'>, PortalPlan> = {
       { to: '/partner/batches', label: 'Batches', icon: Users, bottom: true },
     ],
     coming: [
-      { label: 'Attendance, including offline', phase: 'Phase 3–4', icon: CalendarCheck },
-      { label: 'Assessments', phase: 'Phase 3', icon: FileText },
+      { label: 'Attendance without a connection', phase: 'Phase 4', icon: CalendarCheck },
       { label: 'Programmes, beneficiaries and reports', phase: 'Phase 7', icon: BarChart3 },
     ],
   },
@@ -103,6 +103,8 @@ export function PortalHomeContent({ portal }: { portal: Exclude<Portal, 'admin'>
         )}
       </section>
 
+      {portal === 'partner' && me?.roles.some((r) => r.role === 'trainer') && <TrainerToday />}
+
       {portal === 'partner' && (
         <Link to="/partner/batches" className="card mt-6 flex items-center gap-4 px-5 py-4 hover:border-brand">
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand">
@@ -110,7 +112,7 @@ export function PortalHomeContent({ portal }: { portal: Exclude<Portal, 'admin'>
           </span>
           <span className="min-w-0 flex-1">
             <span className="block font-semibold">Batches and rosters</span>
-            <span className="block text-sm text-muted">See your batches, dates and who is enrolled</span>
+            <span className="block text-sm text-muted">Batches, attendance, assessments and who is enrolled</span>
           </span>
           <ArrowRight className="size-5 text-brand" aria-hidden />
         </Link>
@@ -134,5 +136,30 @@ export function PortalHomeContent({ portal }: { portal: Exclude<Portal, 'admin'>
         </ul>
       </section>
     </>
+  );
+}
+
+/** For trainers: today's active batches with a direct way into attendance. */
+function TrainerToday() {
+  const q = useQuery({
+    queryKey: ['batches', 'trainer-today'],
+    queryFn: () => api.get<{ items: { id: string; name: string; centre: { name: string }; enrolled: number }[] }>('/batches?status=active&pageSize=10'),
+  });
+  if (!q.data?.items.length) return null;
+  return (
+    <section className="mt-6">
+      <h2 className="text-xl font-bold">Today</h2>
+      <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+        {q.data.items.map((b) => (
+          <li key={b.id} className="card flex flex-wrap items-center gap-3 px-5 py-4">
+            <span className="min-w-0 flex-1">
+              <span className="block font-semibold">{b.name}</span>
+              <span className="block text-sm text-muted">{b.centre.name}, {b.enrolled} enrolled</span>
+            </span>
+            <Link to={`/partner/batches/${b.id}?tab=attendance`} className="btn-primary btn-sm">Take attendance</Link>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

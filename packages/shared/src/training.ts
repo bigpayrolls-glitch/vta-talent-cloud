@@ -132,3 +132,72 @@ export const DOCUMENT_KIND_LABEL: Record<(typeof DOCUMENT_KINDS)[number], string
 /** File rules (T-06; VTA to confirm). */
 export const UPLOAD_MAX_BYTES = 10 * 1024 * 1024;
 export const UPLOAD_TYPES = { 'application/pdf': 'PDF', 'image/jpeg': 'JPG', 'image/png': 'PNG' } as const;
+
+// ---------------------------------------------------------------------------
+// Phase 3: attendance, assessments, credentials
+// ---------------------------------------------------------------------------
+
+export const ATTENDANCE_STATUSES = ['present', 'absent', 'late', 'excused'] as const;
+export type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number];
+export const ATTENDANCE_LABEL: Record<AttendanceStatus, string> = { present: 'Present', absent: 'Absent', late: 'Late', excused: 'Excused' };
+
+export const attendanceSchema = z.object({
+  date: z.iso.date('Choose a date'),
+  marks: z
+    .array(z.object({ candidateId: uuidSchema, status: z.enum(ATTENDANCE_STATUSES), clientOpId: uuidSchema.optional() }))
+    .min(1, 'Mark at least one candidate')
+    .max(500),
+});
+
+/**
+ * Attendance percentage (R-06, completion rule): present or late sessions divided by sessions held,
+ * leaving out sessions where the candidate was excused. Null when nothing countable has been held yet.
+ */
+export function attendancePct(counts: { present: number; late: number; absent: number; excused: number }): number | null {
+  const countable = counts.present + counts.late + counts.absent;
+  if (countable === 0) return null;
+  return Math.round(((counts.present + counts.late) / countable) * 1000) / 10;
+}
+
+export const CRITERION_OUTCOMES = ['pass', 'fail', 'not_assessed'] as const;
+export const RESULT_STATUSES = ['draft', 'submitted', 'returned', 'approved', 'rejected'] as const;
+
+export const assessmentSchema = z.object({
+  scores: z
+    .array(
+      z.object({
+        criterionId: uuidSchema,
+        score: z.coerce.number().int().min(0, 'Not below 0').nullable().optional(),
+        outcome: z.enum(CRITERION_OUTCOMES),
+        comment: z.string().trim().max(500).optional(),
+      }),
+    )
+    .min(1)
+    .max(40),
+  trainerComment: z.string().trim().max(1000).optional(),
+});
+
+/**
+ * Overall result (course pass rule, D9): total marks at or above the pass mark AND every required
+ * criterion passed. Criteria not assessed count as 0 marks.
+ */
+export function assessmentOutcome(
+  criteria: { id: string; maxScore: number; required: boolean }[],
+  scores: { criterionId: string; score?: number | null; outcome: string }[],
+  passMarkPct: number,
+): { total: number; max: number; pct: number; outcome: 'pass' | 'fail'; requiredFailed: string[] } {
+  const byId = new Map(scores.map((s) => [s.criterionId, s]));
+  const max = criteria.reduce((s, c) => s + c.maxScore, 0);
+  const total = criteria.reduce((s, c) => {
+    const sc = byId.get(c.id);
+    return s + (sc && sc.outcome !== 'not_assessed' ? (sc.score ?? 0) : 0);
+  }, 0);
+  const requiredFailed = criteria.filter((c) => c.required && byId.get(c.id)?.outcome !== 'pass').map((c) => c.id);
+  const pct = max ? Math.round((total / max) * 1000) / 10 : 0;
+  return { total, max, pct, outcome: pct >= passMarkPct && requiredFailed.length === 0 ? 'pass' : 'fail', requiredFailed };
+}
+
+export const CREDENTIAL_TYPE_LABEL = { course_completion: 'Course completion record' } as const;
+/** Fixed wording on every credential and on the public verification page (requirements §13, decision D8). */
+export const CREDENTIAL_DISCLAIMER =
+  'This is a VTA Talent Cloud record that the holder completed this course and passed its assessment. It is not a government, NSDC or ASDC qualification.';

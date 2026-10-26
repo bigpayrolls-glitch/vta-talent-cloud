@@ -10,6 +10,7 @@ import { newId } from '../../lib/crypto.js';
 import { invalid, notFound } from '../../lib/errors.js';
 import { iso, parse } from '../../lib/validate.js';
 import { batchManageScope, batchReadScope, batchVisible, inScope, rosterShowsContact, type BatchScope } from '../../policy/index.js';
+import { attendanceByCandidate, emptyStats } from '../operations/common.js';
 
 type Executor = Kysely<Database> | Transaction<Database>;
 const idParam = z.object({ id: uuidSchema });
@@ -154,9 +155,28 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
       rq = rq.where((eb) => eb.or([eb('u.name', 'ilike', like), eb('cp.candidate_code', 'ilike', like)]));
     }
     const rows = await rq.orderBy(sql`e.status = 'withdrawn'`).orderBy('u.name').execute();
+    // R-06: attendance so far, result status and credential, so the roster can flag who is at risk.
+    const course = await db.selectFrom('courses').select('attendance_threshold_pct').where('id', '=', batch.course_id).executeTakeFirstOrThrow();
+    const { sessionsHeld, byCandidate } = await attendanceByCandidate(db, id);
+    const results = rows.length
+      ? await db.selectFrom('assessment_results').select(['enrolment_id', 'status', 'outcome']).where('enrolment_id', 'in', rows.map((r) => r.id)).where('status', '!=', 'rejected').execute()
+      : [];
+    const creds = rows.length
+      ? await db.selectFrom('credentials').select(['enrolment_id', 'id']).where('enrolment_id', 'in', rows.map((r) => r.id)).where('status', '=', 'active').execute()
+      : [];
     return {
       showContact,
-      items: rows.map((r) => ({
+      sessionsHeld,
+      thresholdPct: course.attendance_threshold_pct,
+      items: rows.map((r) => {
+        const att = byCandidate.get(r.candidate_id) ?? emptyStats(sessionsHeld);
+        const res = results.find((x) => x.enrolment_id === r.id);
+        return {
+        attendance: { pct: att.pct, present: att.present, late: att.late, absent: att.absent, excused: att.excused, unmarked: att.unmarked },
+        belowThreshold: r.status === 'enrolled' && att.pct !== null && att.pct < course.attendance_threshold_pct,
+        assessmentStatus: res?.status ?? 'not_started',
+        assessmentOutcome: res && (res.status === 'submitted' || res.status === 'approved') ? res.outcome : null,
+        credentialId: creds.find((x) => x.enrolment_id === r.id)?.id ?? null,
         enrolmentId: r.id,
         status: r.status,
         enrolledAt: iso(r.enrolled_at),
@@ -166,7 +186,8 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
         name: r.name,
         verificationStatus: r.verification_status,
         ...(showContact && { phone: r.phone }),
-      })),
+        };
+      }),
     };
   });
 
@@ -248,8 +269,27 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
           .set({ status: t.to, ...(reason && { cancel_reason: reason }), updated_at: new Date() })
           .where('id', '=', id)
           .execute();
-        await audit(trx, auditCtx(req), { action: `batch.${t.to}`, entityType: 'batch', entityId: id, before: { status: cur.status }, after: { status: t.to, reason } });
-        return { id, status: t.to };
+
+        // Completing a batch decides each candidate's completion from attendance (course threshold).
+        let completion: { completed: number; notCompleted: number } | undefined;
+        if (t.to === 'completed') {
+          const course = await trx.selectFrom('courses').select('attendance_threshold_pct').where('id', '=', cur.course_id).executeTakeFirstOrThrow();
+          const { byCandidate } = await attendanceByCandidate(trx, id);
+          const enrolled = await trx.selectFrom('enrolments').select(['id', 'candidate_id']).where('batch_id', '=', id).where('status', '=', 'enrolled').execute();
+          completion = { completed: 0, notCompleted: 0 };
+          for (const e of enrolled) {
+            const pct = byCandidate.get(e.candidate_id)?.pct ?? null;
+            const done = course.attendance_threshold_pct === 0 || (pct !== null && pct >= course.attendance_threshold_pct);
+            await trx
+              .updateTable('enrolments')
+              .set({ status: done ? 'completed' : 'not_completed', attendance_pct: pct, updated_at: new Date() })
+              .where('id', '=', e.id)
+              .execute();
+            completion[done ? 'completed' : 'notCompleted']++;
+          }
+        }
+        await audit(trx, auditCtx(req), { action: `batch.${t.to}`, entityType: 'batch', entityId: id, before: { status: cur.status }, after: { status: t.to, reason, ...(completion && { completion }) } });
+        return { id, status: t.to, ...(completion && { completion }) };
       });
     });
   }

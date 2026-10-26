@@ -22,11 +22,11 @@ const names = (r: { body: { items: { name: string }[] } }) => r.body.items.map((
 
 describe('batch visibility', () => {
   it('each role lists exactly the batches it should', async () => {
-    expect(names(await c.opsAdmin!.get('/batches'))).toEqual(['2W Peenya October 2026', '4W Bengaluru November 2026', 'EV Mysuru November 2026']);
-    expect(names(await c.partnerAdminA!.get('/batches'))).toEqual(['2W Peenya October 2026']);
-    expect(names(await c.partnerViewerA!.get('/batches'))).toEqual(['2W Peenya October 2026']);
+    expect(names(await c.opsAdmin!.get('/batches'))).toEqual(['2W Peenya July 2026', '2W Peenya October 2026', '4W Bengaluru November 2026', 'EV Mysuru November 2026']);
+    expect(names(await c.partnerAdminA!.get('/batches'))).toEqual(['2W Peenya July 2026', '2W Peenya October 2026']);
+    expect(names(await c.partnerViewerA!.get('/batches'))).toEqual(['2W Peenya July 2026', '2W Peenya October 2026']);
     expect(names(await c.partnerAdminB!.get('/batches'))).toEqual(['EV Mysuru November 2026']);
-    expect(names(await c.trainerA!.get('/batches'))).toEqual(['2W Peenya October 2026']);
+    expect(names(await c.trainerA!.get('/batches'))).toEqual(['2W Peenya July 2026', '2W Peenya October 2026']);
     expect(names(await c.trainerVta!.get('/batches'))).toEqual(['4W Bengaluru November 2026']);
     expect(names(await c.centreAdmin!.get('/batches'))).toEqual(['4W Bengaluru November 2026']);
   });

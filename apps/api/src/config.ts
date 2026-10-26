@@ -16,6 +16,8 @@ const envSchema = z.object({
   /** Where uploaded files are kept. Only 'local' exists until hosting is chosen (D10). */
   STORAGE_DRIVER: z.enum(['local']).default('local'),
   STORAGE_DIR: z.string().default('.storage'),
+  /** Name printed as the issuer on credentials and the verify page (decision D8: the legal entity). */
+  CREDENTIAL_ISSUER_NAME: z.string().trim().min(2).max(120).default('VTA Talent Cloud'),
   /** Secret for signing file download links. Required in production; random per start in development. */
   FILE_SIGNING_SECRET: z.preprocess(
     (v) => (v === '' ? undefined : v),

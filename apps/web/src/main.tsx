@@ -19,6 +19,8 @@ const router = createBrowserRouter([
   { path: '/invite/:token', element: <AcceptInvitation /> },
   { path: '/choose-portal', element: <ChoosePortal /> },
   { path: '/no-access', element: <NoAccess /> },
+  // Public: the page a certificate's QR code opens. No sign-in.
+  { path: '/verify/:code', lazy: () => import('./pages/VerifyPage').then((m) => ({ Component: m.VerifyPage })) },
   {
     path: '/admin',
     // Admin screens load as a separate bundle, so learners on mobile never download them.
@@ -48,6 +50,9 @@ const router = createBrowserRouter([
       { path: 'candidates/:id', lazy: () => import('./pages/training/Candidates').then((m) => ({ Component: m.CandidateDetailPage })) },
       { path: 'batches', lazy: () => import('./pages/training/Batches').then((m) => ({ Component: () => <m.BatchesPage base="/admin/batches" /> })) },
       { path: 'batches/:id', lazy: () => import('./pages/training/Batches').then((m) => ({ Component: () => <m.BatchDetailPage base="/admin/batches" /> })) },
+      { path: 'assessments', lazy: () => import('./pages/operations/ReviewQueue').then((m) => ({ Component: m.ReviewQueuePage })) },
+      { path: 'credentials', lazy: () => import('./pages/operations/Credentials').then((m) => ({ Component: m.CredentialsPage })) },
+      { path: 'credentials/:id', lazy: () => import('./pages/operations/Credentials').then((m) => ({ Component: m.CredentialDetailPage })) },
     ],
   },
   { path: '/employer/*', element: <RequirePortal portal="employer"><PortalHome portal="employer" /></RequirePortal> },

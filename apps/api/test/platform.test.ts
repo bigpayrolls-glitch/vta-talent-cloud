@@ -28,7 +28,8 @@ describe('Phase 1 test 4: every API route declares a permission', () => {
       'POST /api/v1/auth/login',
       'POST /api/v1/auth/otp/request',
       'POST /api/v1/auth/otp/verify',
-    ]);
+      'GET /api/v1/public/credentials/:code', // QR verification page, approved fields only (AD-07)
+    ].sort());
   });
 
   it('the app refuses to start if a route forgets its permission', async () => {

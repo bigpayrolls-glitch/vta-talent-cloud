@@ -31,5 +31,18 @@ test.describe('on a phone', () => {
     await page.getByRole('link', { name: /2W Peenya October 2026/ }).click();
     await expect(page.getByText('Venkatesh Learner')).toBeVisible();
     await expectNoHorizontalScroll(page);
+    // Attendance is taken on a phone: the four buttons per person must fit without sideways scrolling.
+    await page.getByRole('tab', { name: 'Attendance' }).click();
+    await expect(page.getByRole('group', { name: 'Attendance for Venkatesh Learner' })).toBeVisible();
+    await expectNoHorizontalScroll(page);
+    await page.getByRole('tab', { name: 'Assessments' }).click();
+    await expect(page.getByText('Venkatesh Learner')).toBeVisible();
+    await expectNoHorizontalScroll(page);
+  });
+
+  test('the public certificate check page fits a phone', async ({ page }) => {
+    await page.goto('/verify/aaaabbbbccccddddeeeeffffgggghhhh');
+    await expect(page.getByText('No certificate found')).toBeVisible();
+    await expectNoHorizontalScroll(page);
   });
 });

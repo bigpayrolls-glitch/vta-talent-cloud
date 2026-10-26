@@ -40,6 +40,8 @@ export default defineConfig({
         APP_ORIGIN: `http://localhost:${WEB_PORT}`,
         STORAGE_DIR: `${process.cwd()}/.storage`,
         NO_COLOR: '1',
+        // Demo data uses fixed 2026 dates; pin the API's "today" so these tests do not age.
+        VTA_TODAY: '2026-10-26',
       },
     },
     {

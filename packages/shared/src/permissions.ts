@@ -41,6 +41,16 @@ export const PERMISSIONS = {
   'document.upload': ['super_admin', 'ops_admin'],
   /** Getting a download link. The record-level check happens in the files route. */
   'document.read': ['super_admin', 'ops_admin', 'centre_admin'],
+
+  // Phase 3: training operations
+  /** Recording attendance and assessments: only the trainer assigned to the batch (checked per batch). */
+  'attendance.record': ['trainer'],
+  'assessment.record': ['trainer'],
+  /** Authorised reviewers (AD-06). Never the person who submitted the result (enforced per result). */
+  'assessment.review': ['super_admin', 'ops_admin'],
+  'credential.issue': ['super_admin', 'ops_admin'],
+  'credential.revoke': ['super_admin', 'ops_admin'],
+  'credential.read': ['super_admin', 'ops_admin', 'centre_admin'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof PERMISSIONS;

@@ -15,6 +15,7 @@ import { adminRoutes } from './routes/admin.js';
 import { sharedRoutes } from './routes/shared.js';
 import { healthRoutes } from './routes/health.js';
 import { trainingRoutes } from './routes/training/index.js';
+import { operationsRoutes } from './routes/operations/index.js';
 import { localStorage, type Storage } from './lib/storage.js';
 import { UPLOAD_MAX_BYTES } from '@vta/shared';
 import type { AuditContext } from './audit/service.js';
@@ -158,6 +159,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
       await api.register(adminRoutes, { prefix: '/admin' });
       await api.register(sharedRoutes);
       await api.register(trainingRoutes);
+      await api.register(operationsRoutes);
     },
     { prefix: '/api/v1' },
   );

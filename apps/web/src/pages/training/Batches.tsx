@@ -1,8 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { batchSchema, BATCH_STATUSES, type Page } from '@vta/shared';
-import { ArrowLeft, CalendarDays, MapPin, Plus, UserRound, Users } from 'lucide-react';
+import { ArrowLeft, Award, CalendarDays, MapPin, Plus, UserRound, Users } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { AssessmentsTab, ResultChip } from '../operations/AssessmentsTab';
+import { AttendanceTab } from '../operations/AttendanceTab';
 import { dateRange, SearchBox, Select, SkillTags } from '../../components/form';
 import { useToast } from '../../components/toast';
 import { EmptyState, ErrorNote, Field, formatDate, formatPhone, Modal, PageHeader, Pagination, Spinner, StatusBadge } from '../../components/ui';
@@ -38,6 +40,17 @@ interface RosterRow {
   name: string;
   verificationStatus: string;
   phone?: string;
+  attendance: { pct: number | null; present: number; late: number; absent: number; excused: number; unmarked: number };
+  belowThreshold: boolean;
+  assessmentStatus: string;
+  assessmentOutcome: 'pass' | 'fail' | null;
+  credentialId: string | null;
+}
+interface RosterResponse {
+  showContact: boolean;
+  sessionsHeld: number;
+  thresholdPct: number;
+  items: RosterRow[];
 }
 
 const STATUS_LABEL: Record<string, string> = { planned: 'Planned', active: 'Active', completed: 'Completed', cancelled: 'Cancelled' };
@@ -223,10 +236,13 @@ export function BatchDetailPage({ base }: { base: string }) {
   const [withdrawing, setWithdrawing] = useState<RosterRow | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [issued, setIssued] = useState<{ issuedTo: string[]; skipped: { name: string; reason: string }[] } | null>(null);
+  const [params, setParams] = useSearchParams();
+  const tab = (params.get('tab') ?? 'roster') as 'roster' | 'attendance' | 'assessments';
   const batch = useQuery({ queryKey: ['batch', id], queryFn: () => api.get<BatchDetail>(`/batches/${id}`) });
   const roster = useQuery({
     queryKey: ['batch', id, 'roster', search],
-    queryFn: () => api.get<{ showContact: boolean; items: RosterRow[] }>(`/batches/${id}/roster${qs({ q: search })}`),
+    queryFn: () => api.get<RosterResponse>(`/batches/${id}/roster${qs({ q: search })}`),
     placeholderData: (p) => p,
   });
   if (batch.isLoading) return <Spinner />;
@@ -242,13 +258,30 @@ export function BatchDetailPage({ base }: { base: string }) {
   };
   const move = async (path: 'start' | 'complete', done: string) => {
     try {
-      await api.post(`/admin/batches/${b.id}/${path}`);
+      const r = await api.post<{ completion?: { completed: number; notCompleted: number } }>(`/admin/batches/${b.id}/${path}`);
       await refresh();
-      toast('success', done);
+      toast('success', r.completion ? `${done}: ${r.completion.completed} completed, ${r.completion.notCompleted} below the attendance needed` : done);
     } catch (e) {
       toast('error', (e as Error).message);
     }
   };
+  const issueCertificates = async () => {
+    try {
+      const r = await api.post<{ issuedTo: string[]; skipped: { name: string; reason: string }[] }>(`/admin/batches/${b.id}/credentials`);
+      await refresh();
+      setIssued(r);
+    } catch (e) {
+      toast('error', (e as Error).message);
+    }
+  };
+  const setTab = (t: string) => {
+    const n = new URLSearchParams(params);
+    if (t === 'roster') n.delete('tab');
+    else n.set('tab', t);
+    setParams(n, { replace: true });
+  };
+  const atRisk = roster.data?.items.filter((r) => r.belowThreshold).length ?? 0;
+  const people = (roster.data?.items ?? []).map((r) => ({ candidateId: r.candidateId, name: r.name, code: r.code, status: r.status }));
 
   return (
     <div>
@@ -265,6 +298,12 @@ export function BatchDetailPage({ base }: { base: string }) {
           <p className="mt-1 text-muted">{b.course.title}</p>
           {b.cancelReason && <p className="mt-1 text-sm text-muted">Cancelled: {b.cancelReason}</p>}
         </div>
+        {base.startsWith('/admin') && b.status === 'completed' && can('credential.issue') && (
+          <button className="btn-primary" onClick={() => void issueCertificates()}>
+            <Award className="size-4" aria-hidden />
+            Issue certificates
+          </button>
+        )}
         {manage && open && (
           <div className="flex flex-wrap gap-2">
             {b.status === 'planned' && <button className="btn-primary" onClick={() => void move('start', 'Batch started')}>Start batch</button>}
@@ -285,7 +324,30 @@ export function BatchDetailPage({ base }: { base: string }) {
         </div>
       </div>
 
-      <section className="card mt-6 overflow-hidden">
+      <div role="tablist" aria-label="Batch sections" className="mt-6 flex gap-1 overflow-x-auto border-b border-line">
+        {([
+          ['roster', 'Roster'],
+          ['attendance', 'Attendance'],
+          ['assessments', 'Assessments'],
+        ] as const).map(([key, label]) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            className={`-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold ${tab === key ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'}`}
+          >
+            {label}
+            {key === 'roster' && atRisk > 0 && <span className="ml-2 rounded-full bg-warning-tint px-1.5 py-0.5 text-xs text-warning">{atRisk} at risk</span>}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'attendance' && <div className="mt-4"><AttendanceTab batchId={b.id} people={people} batchStatus={b.status} /></div>}
+      {tab === 'assessments' && <div className="mt-4"><AssessmentsTab batchId={b.id} /></div>}
+
+      {tab === 'roster' && (
+      <section className="card mt-4 overflow-hidden">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
           <h2 className="font-semibold">Roster</h2>
           <div className="flex flex-1 flex-wrap justify-end gap-2">
@@ -320,6 +382,23 @@ export function BatchDetailPage({ base }: { base: string }) {
                     {r.status === 'withdrawn' && r.withdrawReason ? `. Withdrawn: ${r.withdrawReason}` : `. Enrolled ${formatDate(r.enrolledAt)}`}
                   </p>
                 </div>
+                <span className="flex flex-wrap items-center gap-2 text-[13px]">
+                  {r.attendance.pct !== null && (
+                    <span className={`rounded-md px-1.5 py-0.5 font-semibold ${r.belowThreshold ? 'bg-warning-tint text-warning' : 'bg-surface text-ink'}`} title="Attendance so far">
+                      {r.attendance.pct}%{r.belowThreshold ? ' below needed' : ''}
+                    </span>
+                  )}
+                  {r.assessmentStatus !== 'not_started' && <ResultChip status={r.assessmentStatus} outcome={r.assessmentOutcome} />}
+                  {r.credentialId &&
+                    (base.startsWith('/admin') && can('credential.read') ? (
+                      <Link to={`/admin/credentials/${r.credentialId}`} className="inline-flex items-center gap-1 font-semibold text-success hover:underline">
+                        <Award className="size-3.5" aria-hidden />
+                        Certificate
+                      </Link>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 font-semibold text-success"><Award className="size-3.5" aria-hidden />Certificate</span>
+                    ))}
+                </span>
                 <StatusBadge status={r.status} />
                 {manage && open && r.status === 'enrolled' && (
                   <button className="btn-secondary btn-sm" onClick={() => setWithdrawing(r)}>Withdraw</button>
@@ -329,9 +408,36 @@ export function BatchDetailPage({ base }: { base: string }) {
           </ul>
         )}
         {roster.data && !roster.data.showContact && <p className="border-t border-line px-5 py-3 text-[13px] text-muted">Contact details are shown to the batch trainer and VTA staff only.</p>}
+        {roster.data && roster.data.sessionsHeld > 0 && (
+          <p className="border-t border-line px-5 py-3 text-[13px] text-muted">
+            Attendance over {roster.data.sessionsHeld} {roster.data.sessionsHeld === 1 ? 'session' : 'sessions'} so far. {roster.data.thresholdPct}% is needed to complete the course; excused sessions are not counted.
+          </p>
+        )}
       </section>
+      )}
 
       {enrolling && <EnrolModal batch={b} onClose={() => setEnrolling(false)} onDone={refresh} />}
+      {issued && (
+        <Modal open onClose={() => setIssued(null)} title="Certificates" footer={<button className="btn-primary" onClick={() => setIssued(null)}>Done</button>}>
+          <div className="space-y-4 text-sm">
+            <p className="font-semibold">{issued.issuedTo.length === 0 ? 'No new certificates issued.' : `${issued.issuedTo.length} issued: ${issued.issuedTo.join(', ')}.`}</p>
+            {issued.skipped.length > 0 && (
+              <div>
+                <p className="font-medium">Not issued</p>
+                <ul className="mt-1 divide-y divide-line rounded-lg border border-line">
+                  {issued.skipped.map((x) => (
+                    <li key={x.name} className="flex justify-between gap-3 px-3 py-2">
+                      <span>{x.name}</span>
+                      <span className="text-right text-muted">{x.reason}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="text-[13px] text-muted">A certificate needs all three: attendance to complete the course, an approved assessment, and a pass.</p>
+          </div>
+        </Modal>
+      )}
       {editing && <EditBatchModal batch={b} onClose={() => setEditing(false)} onDone={refresh} />}
       {withdrawing && (
         <ReasonModal
