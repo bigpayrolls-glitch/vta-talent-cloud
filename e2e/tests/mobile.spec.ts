@@ -68,6 +68,22 @@ test.describe('on a phone', () => {
     }
   });
 
+  test('employer and learner hiring screens fit a phone', async ({ page }) => {
+    await signInEmail(page, EMAIL.employerAdminA);
+    for (const path of ['/employer', '/employer/jobs', '/employer/jobs/new', '/employer/candidates', '/employer/company', '/employer/team']) {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+      await expectNoHorizontalScroll(page);
+    }
+    await page.context().clearCookies();
+    await signInPhone(page, '9900000201');
+    for (const path of ['/learn/jobs', '/learn/applications']) {
+      await page.goto(path);
+      await page.waitForLoadState('networkidle');
+      await expectNoHorizontalScroll(page);
+    }
+  });
+
   test('the public certificate check page fits a phone', async ({ page }) => {
     await page.goto('/verify/aaaabbbbccccddddeeeeffffgggghhhh');
     await expect(page.getByText('No certificate found')).toBeVisible();

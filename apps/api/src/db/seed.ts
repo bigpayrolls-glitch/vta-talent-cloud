@@ -115,6 +115,7 @@ export async function seed(db: DB): Promise<SeedResult> {
   await person('employerAdminA', 'Rahul Employer A', { email: 'employer-a@demo.vta.local' }, [{ role: 'employer_admin', org: 'employerA' }]);
   await person('recruiterA', 'Divya Recruiter A', { email: 'recruiter-a@demo.vta.local' }, [{ role: 'employer_recruiter', org: 'employerA' }]);
   await person('employerAdminB', 'Kiran Employer B', { email: 'employer-b@demo.vta.local' }, [{ role: 'employer_admin', org: 'employerB' }]);
+  await person('employerAdminPending', 'Meera Employer Pending', { email: 'employer-pending@demo.vta.local' }, [{ role: 'employer_admin', org: 'employerPending' }]);
   await person('partnerAdminA', 'Farah Partner A', { email: 'partner-a@demo.vta.local' }, [{ role: 'partner_admin', org: 'partnerA' }]);
   await person('partnerViewerA', 'Sanjay Viewer A', { email: 'viewer-a@demo.vta.local' }, [{ role: 'partner_viewer', org: 'partnerA' }]);
   await person('partnerAdminB', 'Lakshmi Partner B', { email: 'partner-b@demo.vta.local' }, [{ role: 'partner_admin', org: 'partnerB' }]);
@@ -329,7 +330,70 @@ export async function seed(db: DB): Promise<SeedResult> {
       .values({ id: newId(), user_id: ids.learner!, purpose, granted: true, notice_version: version, source: 'self', recorded_by: ids.learner! })
       .execute();
   }
-  await db.updateTable('candidate_profiles').set({ preferred_work_area: 'Bengaluru North (Peenya, Yeshwanthpur)', availability: 'Weekdays' }).where('user_id', '=', ids.learner!).execute();
+  await db.updateTable('candidate_profiles').set({ searchable: true, preferred_work_area: 'Bengaluru North (Peenya, Yeshwanthpur)', availability: 'Weekdays' }).where('user_id', '=', ids.learner!).execute();
+
+  // ---- Phase 6: employers, jobs and an application (all invented) ----
+  const company = async (key: string, sector: string, city: string, contact: [string, string, string]) =>
+    db
+      .updateTable('organisations')
+      .set({ sector, city, contact_name: contact[0], contact_email: contact[1], contact_phone: contact[2], description: 'Demo company for the VTA Talent Cloud pilot.' })
+      .where('id', '=', ids[key]!)
+      .execute();
+  await company('employerA', 'service_workshop', 'Bengaluru', ['Rahul Employer A', 'employer-a@demo.vta.local', '+919900000301']);
+  await company('employerB', 'dealership', 'Mysuru', ['Kiran Employer B', 'employer-b@demo.vta.local', '+919900000302']);
+  await db.updateTable('organisations').set({ sector: 'ev_service', city: 'Bengaluru' }).where('id', '=', ids.employerPending!).execute();
+
+  const job = async (key: string, org: string, by: string, status: 'draft' | 'pending_review' | 'published', v: { title: string; skill: '2W' | '4W' | 'EV'; city: string; closing: string; salary?: [number, number] }) => {
+    ids[key] = newId();
+    await db
+      .insertInto('jobs')
+      .values({
+        id: ids[key],
+        organisation_id: ids[org]!,
+        title: v.title,
+        skill_area: v.skill,
+        skills: v.skill === 'EV' ? ['Battery diagnostics', 'Motor controllers'] : ['Engine servicing', 'Brakes', 'Electrical basics'],
+        min_experience_months: 6,
+        city: v.city,
+        location: v.city === 'Bengaluru' ? 'Peenya Industrial Area' : null,
+        salary_min: v.salary?.[0] ?? null,
+        salary_max: v.salary?.[1] ?? null,
+        openings: 3,
+        shift: 'Day shift, 6 days a week',
+        description: 'Service and repair customer vehicles in our workshop, following the service checklist and safety rules. Training on our tools is given.',
+        closing_date: v.closing,
+        vta_certificate_preferred: true,
+        status,
+        created_by: ids[by]!,
+        submitted_at: status === 'draft' ? null : new Date(),
+        published_at: status === 'published' ? new Date() : null,
+        moderated_by: status === 'published' ? ids.opsAdmin! : null,
+        moderated_at: status === 'published' ? new Date() : null,
+      })
+      .execute();
+  };
+  await job('job2wA', 'employerA', 'employerAdminA', 'published', { title: 'Two-wheeler service technician', skill: '2W', city: 'Bengaluru', closing: '2026-12-15', salary: [16000, 22000] });
+  await job('jobDraftA', 'employerA', 'recruiterA', 'draft', { title: 'Senior two-wheeler technician', skill: '2W', city: 'Bengaluru', closing: '2026-12-31' });
+  await job('jobEvB', 'employerB', 'employerAdminB', 'pending_review', { title: 'EV service technician', skill: 'EV', city: 'Mysuru', closing: '2026-12-20', salary: [18000, 26000] });
+
+  // Anitha applied to Sunrise's job and was shortlisted.
+  ids.applicationAnitha = newId();
+  await db
+    .insertInto('job_applications')
+    .values({
+      id: ids.applicationAnitha,
+      job_id: ids.job2wA!,
+      candidate_id: ids.cand2!,
+      status: 'shortlisted',
+      consent_snapshot: JSON.stringify({ sharedAt: new Date().toISOString(), noticeVersion: NOTICE_VERSION, employer: 'Sunrise Two-Wheeler Service (demo)', job: 'Two-wheeler service technician', fields: ['Name', 'Mobile number', 'City and preferred work area', 'Skills, experience, education, languages and availability'], certificates: [], documents: [] }),
+    })
+    .execute();
+  for (const [from, to, by, kind] of [[null, 'applied', 'cand2', 'candidate'], ['applied', 'shortlisted', 'recruiterA', 'employer']] as const) {
+    await db.insertInto('application_events').values({ id: newId(), application_id: ids.applicationAnitha, from_status: from, to_status: to, actor_id: ids[by]!, actor_kind: kind }).execute();
+  }
+  for (const purpose of ['privacy_notice', 'terms'] as const) {
+    await db.insertInto('consent_events').values({ id: newId(), user_id: ids.cand2!, purpose, granted: true, notice_version: NOTICE_VERSION, source: 'self', recorded_by: ids.cand2! }).execute();
+  }
 
   return { credentials, ids };
 }

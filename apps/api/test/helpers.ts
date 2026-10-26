@@ -126,6 +126,7 @@ export const EMAIL = {
   employerAdminA: 'employer-a@demo.vta.local',
   recruiterA: 'recruiter-a@demo.vta.local',
   employerAdminB: 'employer-b@demo.vta.local',
+  employerAdminPending: 'employer-pending@demo.vta.local',
   partnerAdminA: 'partner-a@demo.vta.local',
   partnerViewerA: 'viewer-a@demo.vta.local',
   partnerAdminB: 'partner-b@demo.vta.local',

@@ -8,6 +8,7 @@ import { useToast } from '../../components/toast';
 import { api, qs } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useForm } from '../../lib/useForm';
+import { CompanyVerificationDetails } from './Hiring';
 
 interface OrgRow {
   id: string;
@@ -237,6 +238,7 @@ function OrgModal({ org, onClose }: { org: OrgRow; onClose: () => void }) {
         <dt className="text-muted">Verified</dt>
         <dd>{formatDate(org.verifiedAt)}</dd>
       </dl>
+      {org.type === 'employer' && <CompanyVerificationDetails orgId={org.id} />}
 
       {can('organisation.verify') && !decision && (
         <div className="mt-6 flex flex-wrap gap-2 border-t border-line pt-5">

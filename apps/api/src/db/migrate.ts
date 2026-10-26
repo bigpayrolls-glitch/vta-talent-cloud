@@ -9,6 +9,7 @@ import * as m0002 from './migrations/0002_training.js';
 import * as m0003 from './migrations/0003_operations.js';
 import * as m0004 from './migrations/0004_offline_sync.js';
 import * as m0005 from './migrations/0005_learner.js';
+import * as m0006 from './migrations/0006_hiring.js';
 
 /** Explicit list: add each new migration here in order. Works the same from source and from the bundled build. */
 const MIGRATIONS: Record<string, Migration> = {
@@ -17,6 +18,7 @@ const MIGRATIONS: Record<string, Migration> = {
   '0003_operations': m0003,
   '0004_offline_sync': m0004,
   '0005_learner': m0005,
+  '0006_hiring': m0006,
 };
 
 const provider: MigrationProvider = { getMigrations: async () => MIGRATIONS };

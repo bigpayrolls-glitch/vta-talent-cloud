@@ -66,9 +66,22 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     const dups = await db.selectFrom('candidate_profiles').select(sql<string>`count(*)`.as('n')).where('duplicate_of', 'is not', null).executeTakeFirstOrThrow();
     const trainersPending = await db.selectFrom('trainer_profiles').select(sql<string>`count(*)`.as('n')).where('verification_status', '=', 'pending').executeTakeFirstOrThrow();
 
+    // Phase 6 hiring figures (AD-01). "Joined" counts only recorded joinings; VTA-verified ones are shown separately.
+    const jobRows = await db.selectFrom('jobs').select(['status', sql<string>`count(*)`.as('n')]).groupBy('status').execute();
+    const jobs = Object.fromEntries(jobRows.map((r) => [r.status, Number(r.n)]));
+    const openJobs = await db.selectFrom('jobs').select(sql<string>`count(*)`.as('n')).where('status', '=', 'published').where('closing_date', '>=', sql<string>`(now() at time zone 'Asia/Kolkata')::date`).executeTakeFirstOrThrow();
+    const appRows = await db.selectFrom('job_applications').select(['status', 'outcome_verification', sql<string>`count(*)`.as('n')]).groupBy(['status', 'outcome_verification']).execute();
+    const apps = (status?: string, v?: string) => appRows.filter((r) => (!status || r.status === status) && (!v || r.outcome_verification === v)).reduce((a, r) => a + Number(r.n), 0);
+
     return {
       asOf,
       scope: 'platform',
+      hiring: {
+        openJobs: Number(openJobs.n),
+        applications: apps(),
+        joinedRecorded: apps('joined'),
+        joinedVerified: apps('joined', 'verified'),
+      },
       learners: { active: byRole.learner ?? 0 },
       trainers: { active: byRole.trainer ?? 0 },
       employers: { total: orgs('employer'), verified: orgs('employer', 'verified') },
@@ -95,6 +108,8 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
         candidatesPendingVerification: (cand.pending ?? 0) + (cand.needs_correction ?? 0),
         possibleDuplicates: Number(dups.n),
         trainersPendingVerification: Number(trainersPending.n),
+        jobsPendingReview: jobs.pending_review ?? 0,
+        outcomesToVerify: apps('joined', 'unverified') + apps('not_joined', 'unverified'),
       },
     };
   });

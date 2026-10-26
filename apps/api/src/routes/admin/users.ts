@@ -63,7 +63,7 @@ async function assertCanManage(db: DB, actor: Actor, target: User): Promise<void
   if (targetIsSuper && !isSuperAdmin(actor)) throw forbidden('Only a Super Admin can change a Super Admin account.');
 }
 
-async function createInvitation(db: DB, userId: string, invitedBy: string): Promise<string> {
+export async function createInvitation(db: DB, userId: string, invitedBy: string): Promise<string> {
   const token = randomToken();
   await db
     .updateTable('invitations')

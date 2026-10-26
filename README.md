@@ -2,7 +2,20 @@
 
 A role-based automotive skills and workforce platform. One backend and one database serve four portals: **Learner**, **Employer**, **Training Partner** (including trainers) and **Admin**. A public website follows in Phase 8.
 
-**Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data), Phase 3 (training operations), Phase 4 (offline attendance and the installable app) and Phase 5 (Learner portal).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+**Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data), Phase 3 (training operations), Phase 4 (offline attendance and the installable app), Phase 5 (Learner portal) and Phase 6 (Employer portal and hiring).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+
+## What works in Phase 6
+
+| Area | What you can do |
+| --- | --- |
+| Company (EM-01, EM-02) | The employer admin completes the company profile (sector, city, contact, optional GSTIN), uploads registration documents and sends it to VTA. VTA sees the profile, documents and any possible duplicate (same GSTIN or name) in the organisation dialog, then verifies, rejects or asks for more. Until verified, jobs can be drafted but not sent for review, and candidate search is closed. The verified name and GSTIN are locked. |
+| Team (EM-02) | The employer admin invites recruiters by email and removes them (access ends at once). Recruiters post jobs, search and manage applicants; only admins change the company and team. |
+| Jobs (EM-03, AD-09) | Post a job: skill area, skills, experience, city and area, optional monthly salary range, openings, shift, description, closing date, "VTA certificate preferred". VTA reviews each job and publishes, rejects, pauses or closes it with a reason the employer sees. Editing a live job sends it back for review. Employers can pause, resume and close. |
+| Learners find and apply (EE-07, EE-08) | Learners see published jobs from verified employers until the closing date, filter by skill, city or words, and apply after seeing exactly what the employer will see. The application keeps a snapshot of what was shared and when; a second active application to the same job is refused (also by the database). |
+| Tracking (EE-09) | Status, timeline and interview time and place. Interview notes and how it went stay with the employer. A learner can withdraw; the employer then stops seeing their contact details and documents. |
+| Pipeline (EM-05 to EM-08, EM-10) | Applied → shortlisted → interview → offer → joined (with joining date, not in the future) or did not join; "not selected" until then. Each move is timestamped with who made it. Opening an applicant's contact details or a shared document is logged. Interview notes are never written to the audit log. |
+| Search (EM-04, EM-05) | Only VTA-verified learners who turned on "employers can find my profile". Filters: skill, city or preferred area, experience, VTA certificate. Results show first name and surname initial, no contact details; opening a profile is logged. Employers can invite a person to apply; the learner sees the invitation on their Jobs page. |
+| Outcomes (EM-08) and reports (EM-09, AD-01) | VTA confirms recorded joinings (an offer alone is never a joining) or flags them with a note. Employer dashboard counts applicants, shortlisted, interviews, offers and joinings per job; the admin dashboard adds open jobs, applications, and recorded vs VTA-confirmed joinings. |
 
 ## What works in Phase 5
 
@@ -107,14 +120,14 @@ The demo data also has three courses (2W, 4W and EV), nine candidates (one flagg
 ## Tests
 
 ```bash
-pnpm test        # 205 tests: API (real PostgreSQL), shared rules, the phone's offline store
-pnpm e2e         # 33 browser tests (Playwright): desktop and phone sizes, including offline
+pnpm test        # 230 tests: API (real PostgreSQL), shared rules, the phone's offline store
+pnpm e2e         # 41 browser tests (Playwright): desktop and phone sizes, including offline
 pnpm lint
 pnpm typecheck
 pnpm build
 ```
 
-API tests use the database in `TEST_DATABASE_URL` (`vta_test`) and reset it for each file. Browser tests reset `vta_e2e`, start their own API (port 3100) and web app (port 5174), and drive Chromium through real journeys: sign-in by email and phone, course to batch to enrolment, CSV import, document upload and download, what a partner and a trainer can see, attendance to assessment to review to certificate to QR check, phone-size layout, self-registration and the Learner portal, and an offline session (the browser is cut off, attendance is taken, the app is reopened offline, then it syncs and a conflict is resolved). Browser tests run the built app with its service worker, as in production.
+API tests use the database in `TEST_DATABASE_URL` (`vta_test`) and reset it for each file. Browser tests reset `vta_e2e`, start their own API (port 3100) and web app (port 5174), and drive Chromium through real journeys: sign-in by email and phone, course to batch to enrolment, CSV import, document upload and download, what a partner and a trainer can see, attendance to assessment to review to certificate to QR check, phone-size layout, self-registration and the Learner portal, the hiring journey from vacancy to VTA-confirmed joining, and an offline session (the browser is cut off, attendance is taken, the app is reopened offline, then it syncs and a conflict is resolved). Browser tests run the built app with its service worker, as in production.
 
 The demo data uses fixed 2026 dates, so both test suites pin the API's "today" to 26 October 2026 with `VTA_TODAY`. Browser tests also set `VTA_RELAX_RATE_LIMITS=1`, which lifts the per-IP sign-in limits for requests from the same machine only (per-number code limits and lockout still apply). Both settings are ignored in production. First time on a new machine: `pnpm --filter @vta/e2e exec playwright install chromium`.
 
@@ -163,7 +176,8 @@ infra             Docker Compose for local services
 - Files are not virus-scanned yet and are labelled "not scanned" (D10).
 - No password reset yet. It needs an email provider, so it comes with the email work.
 - The privacy notice and terms are a plain-language DRAFT (version `2026-10-draft`), marked as such on screen. VTA must approve the wording and add contact details; changing `NOTICE_VERSION` then asks everyone to accept again.
-- Job search, applying and application tracking (EE-07 to EE-09) move to Phase 6 with employer vacancies, so both sides are built and tested together.
+- Employers are invited by VTA; a public "register your company" form comes with the public website (Phase 8).
+- No notifications yet (SH-07, Should): learners and employers see changes when they open the app. SMS/email follow the provider decision (D10).
 - Closing an account and exporting one's data are support requests for now (no self-service screen).
 - The issuer printed on certificates comes from `CREDENTIAL_ISSUER_NAME` (default "VTA Talent Cloud") until VTA confirms the legal entity (decision D8).
 - Offline covers attendance only (as the requirements scope it). Assessments, rosters' contact details and admin screens need a connection.
@@ -186,5 +200,6 @@ infra             Docker Compose for local services
 - **D8 certificates:** "Course completion record", issued by `CREDENTIAL_ISSUER_NAME`; the check page shows name, course, issue date, issuer and status only.
 - **Review:** only Super Admins and Operations Admins review results and issue certificates.
 - **Unassessed criteria** count as zero marks; every required criterion must be assessed before submitting.
+- **Hiring:** only VTA-verified, opted-in learners appear in search; contact details are shared only through an application. VTA reviews every job before it is published.
 - **Consent:** employer search is off until the learner turns it on; staff cannot accept the notice on a learner's behalf.
 - **Offline conflicts:** the mark taken last (by capture time) wins automatically; if the saved mark is newer than the phone's, the trainer chooses. Offline roster kept for 14 days without a refresh.

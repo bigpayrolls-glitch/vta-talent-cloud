@@ -1,4 +1,4 @@
-import { Award, BookOpen, Building2, ClipboardCheck, GraduationCap, History, LayoutDashboard, MapPin, UserCog, Users, UsersRound } from 'lucide-react';
+import { Award, BookOpen, Briefcase, Building2, ClipboardCheck, GraduationCap, Handshake, History, LayoutDashboard, MapPin, UserCog, Users, UsersRound } from 'lucide-react';
 import { Outlet } from 'react-router';
 import { PortalLayout, type NavItem } from '../../components/PortalLayout';
 import { useAuth } from '../../lib/auth';
@@ -12,6 +12,8 @@ export function AdminLayout() {
     ...(can('batch.read') ? [{ to: '/admin/batches', label: 'Batches', icon: UsersRound, bottom: true }] : []),
     ...(can('assessment.review') ? [{ to: '/admin/assessments', label: 'Assessment review', icon: ClipboardCheck }] : []),
     ...(can('credential.read') ? [{ to: '/admin/credentials', label: 'Certificates', icon: Award }] : []),
+    ...(can('job.moderate') ? [{ to: '/admin/jobs', label: 'Jobs', icon: Briefcase }] : []),
+    ...(can('hiring.read') ? [{ to: '/admin/outcomes', label: 'Hiring outcomes', icon: Handshake }] : []),
     ...(can('course.read') ? [{ to: '/admin/courses', label: 'Courses', icon: BookOpen, bottom: true }] : []),
     ...(can('trainer.read') ? [{ to: '/admin/trainers', label: 'Trainers', icon: UserCog }] : []),
     { to: '/admin/centres', label: 'Centres', icon: MapPin },

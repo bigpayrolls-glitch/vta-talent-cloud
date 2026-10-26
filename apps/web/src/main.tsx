@@ -7,7 +7,7 @@ import { UpdatePrompt } from './components/UpdatePrompt';
 import { AuthProvider } from './lib/auth';
 import { AcceptInvitation, ChoosePortal, HomeRedirect, NoAccess, NotFound, RequirePortal } from './pages/AccessPages';
 import { LoginPage } from './pages/LoginPage';
-import { PartnerLayout, PortalHome, PortalHomeContent } from './pages/PortalHomes';
+import { PartnerLayout, PortalHomeContent } from './pages/PortalHomes';
 import './styles.css';
 
 const queryClient = new QueryClient({
@@ -54,9 +54,37 @@ const router = createBrowserRouter([
       { path: 'assessments', lazy: () => import('./pages/operations/ReviewQueue').then((m) => ({ Component: m.ReviewQueuePage })) },
       { path: 'credentials', lazy: () => import('./pages/operations/Credentials').then((m) => ({ Component: m.CredentialsPage })) },
       { path: 'credentials/:id', lazy: () => import('./pages/operations/Credentials').then((m) => ({ Component: m.CredentialDetailPage })) },
+      { path: 'jobs', lazy: () => import('./pages/admin/Hiring').then((m) => ({ Component: m.JobModerationPage })) },
+      { path: 'jobs/:id', lazy: () => import('./pages/admin/Hiring').then((m) => ({ Component: m.JobModerationDetailPage })) },
+      { path: 'outcomes', lazy: () => import('./pages/admin/Hiring').then((m) => ({ Component: m.HiringOutcomesPage })) },
     ],
   },
-  { path: '/employer/*', element: <RequirePortal portal="employer"><PortalHome portal="employer" /></RequirePortal> },
+  {
+    path: '/employer',
+    lazy: async () => {
+      const { EmployerLayout } = await import('./pages/employer/EmployerLayout');
+      return {
+        Component: () => (
+          <RequirePortal portal="employer">
+            <EmployerLayout />
+          </RequirePortal>
+        ),
+      };
+    },
+    children: [
+      { index: true, lazy: () => import('./pages/employer/Dashboard').then((m) => ({ Component: m.EmployerDashboard })) },
+      { path: 'jobs', lazy: () => import('./pages/employer/Jobs').then((m) => ({ Component: m.EmployerJobsPage })) },
+      { path: 'jobs/new', lazy: () => import('./pages/employer/Jobs').then((m) => ({ Component: m.JobFormPage })) },
+      { path: 'jobs/:id', lazy: () => import('./pages/employer/Jobs').then((m) => ({ Component: m.EmployerJobDetailPage })) },
+      { path: 'jobs/:id/edit', lazy: () => import('./pages/employer/Jobs').then((m) => ({ Component: m.JobFormPage })) },
+      { path: 'applications/:id', lazy: () => import('./pages/employer/Application').then((m) => ({ Component: m.EmployerApplicationPage })) },
+      { path: 'candidates', lazy: () => import('./pages/employer/Candidates').then((m) => ({ Component: m.CandidateSearchPage })) },
+      { path: 'candidates/:id', lazy: () => import('./pages/employer/Candidates').then((m) => ({ Component: m.CandidateProfilePage })) },
+      { path: 'company', lazy: () => import('./pages/employer/Company').then((m) => ({ Component: m.CompanyPage })) },
+      { path: 'team', lazy: () => import('./pages/employer/Company').then((m) => ({ Component: m.TeamPage })) },
+      { path: '*', element: <NotFound /> },
+    ],
+  },
   // Phase 5: self-registration and the public notice pages.
   { path: '/register', lazy: () => import('./pages/RegisterPage').then((m) => ({ Component: m.RegisterPage })) },
   { path: '/privacy', lazy: () => import('./pages/public/NoticePages').then((m) => ({ Component: m.PrivacyPage })) },
@@ -82,6 +110,10 @@ const router = createBrowserRouter([
       { path: 'profile', lazy: () => import('./pages/learner/Profile').then((m) => ({ Component: m.ProfilePage })) },
       { path: 'documents', lazy: () => import('./pages/learner/Documents').then((m) => ({ Component: m.DocumentsPage })) },
       { path: 'privacy', lazy: () => import('./pages/learner/PrivacySettings').then((m) => ({ Component: m.PrivacySettingsPage })) },
+      { path: 'jobs', lazy: () => import('./pages/learner/Jobs').then((m) => ({ Component: m.JobsPage })) },
+      { path: 'jobs/:id', lazy: () => import('./pages/learner/Jobs').then((m) => ({ Component: m.JobDetailPage })) },
+      { path: 'applications', lazy: () => import('./pages/learner/Jobs').then((m) => ({ Component: m.ApplicationsPage })) },
+      { path: 'applications/:id', lazy: () => import('./pages/learner/Jobs').then((m) => ({ Component: m.ApplicationDetailPage })) },
       { path: '*', element: <NotFound /> },
     ],
   },

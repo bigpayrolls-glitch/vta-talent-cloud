@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, BookOpen, Building2, ClipboardList, GraduationCap, Handshake, MapPin, UserCog, UsersRound } from 'lucide-react';
+import { ArrowRight, BookOpen, Briefcase, Building2, ClipboardList, GraduationCap, Handshake, MapPin, UserCog, UsersRound } from 'lucide-react';
 import { Link } from 'react-router';
 import { ErrorNote, formatDate, Spinner } from '../../components/ui';
 import { api } from '../../lib/api';
@@ -22,7 +22,10 @@ interface PlatformDashboard {
     candidatesVerified: number;
     candidatesTotal: number;
   };
+  hiring: { openJobs: number; applications: number; joinedRecorded: number; joinedVerified: number };
   awaitingAction: {
+    jobsPendingReview: number;
+    outcomesToVerify: number;
     usersPendingApproval: number;
     organisationsPendingVerification: number;
     candidatesPendingVerification: number;
@@ -74,6 +77,8 @@ function PlatformView({ d }: { d: PlatformDashboard }) {
     { n: a.possibleDuplicates, label: plural(a.possibleDuplicates, 'possible duplicate profile to review', 'possible duplicate profiles to review'), to: '/admin/candidates?duplicates=true' },
     { n: a.trainersPendingVerification, label: plural(a.trainersPendingVerification, 'trainer to verify', 'trainers to verify'), to: '/admin/trainers?verificationStatus=pending' },
     { n: a.organisationsPendingVerification, label: plural(a.organisationsPendingVerification, 'organisation waiting for verification', 'organisations waiting for verification'), to: '/admin/organisations?verificationStatus=pending' },
+    { n: a.jobsPendingReview, label: plural(a.jobsPendingReview, 'job to review', 'jobs to review'), to: '/admin/jobs?status=pending_review' },
+    { n: a.outcomesToVerify, label: plural(a.outcomesToVerify, 'hiring outcome to confirm', 'hiring outcomes to confirm'), to: '/admin/outcomes' },
     { n: a.usersPendingApproval, label: plural(a.usersPendingApproval, 'user waiting for approval', 'users waiting for approval'), to: '/admin/users?status=pending' },
   ].filter((t) => t.n > 0);
   const t = d.training;
@@ -91,6 +96,11 @@ function PlatformView({ d }: { d: PlatformDashboard }) {
         <Tile icon={MapPin} label="Centres" value={d.centres.active} to="/admin/centres" small />
         <Tile icon={Handshake} label="Training partners" value={d.partners.total} note={`${d.partners.verified} verified`} to="/admin/organisations?type=partner" small />
         <Tile icon={Building2} label="Employers" value={d.employers.total} note={`${d.employers.verified} verified`} to="/admin/organisations?type=employer" small />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Tile icon={Briefcase} label="Open jobs" value={d.hiring.openJobs} note="Published, not past closing date" to="/admin/jobs?status=published" small />
+        <Tile icon={ClipboardList} label="Applications" value={d.hiring.applications} note="All time" small />
+        <Tile icon={Handshake} label="Joinings recorded" value={d.hiring.joinedRecorded} note={`${d.hiring.joinedVerified} confirmed by VTA`} to="/admin/outcomes?verification=" small />
       </div>
 
       <section className="mt-8">
@@ -112,7 +122,7 @@ function PlatformView({ d }: { d: PlatformDashboard }) {
         )}
       </section>
 
-      <p className="mt-8 text-sm text-muted">Attendance, assessment and hiring figures join this dashboard as those features are built.</p>
+      <p className="mt-8 text-sm text-muted">&ldquo;Joinings recorded&rdquo; are reported by employers; only confirmed ones should be quoted as verified hiring outcomes.</p>
     </>
   );
 }

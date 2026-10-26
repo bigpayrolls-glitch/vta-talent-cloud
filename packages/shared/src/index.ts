@@ -5,3 +5,4 @@ export * from './types.js';
 export * from './training.js';
 export * from './offline.js';
 export * from './learner.js';
+export * from './hiring.js';
