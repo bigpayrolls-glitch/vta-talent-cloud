@@ -40,7 +40,9 @@ export function LoginPage() {
           draggable={false}
         />
         <div className="relative z-10 flex flex-1 flex-col px-12 py-[clamp(20px,5vh,48px)] xl:px-14">
-          <Wordmark tagline large={false} />
+          <Link to="/" aria-label="AutoTalent Grid home" className="inline-block w-fit rounded-lg">
+            <Wordmark tagline large={false} />
+          </Link>
           <div className="mt-[clamp(16px,5vh,56px)]">
             <p className="text-[clamp(28px,min(3.2vw,5.4vh),52px)] font-black leading-[1.12] tracking-[-0.02em] whitespace-nowrap text-ink">
               Build Skills.
@@ -75,7 +77,9 @@ export function LoginPage() {
 
       <main className="flex flex-col bg-white px-5 py-[clamp(12px,3vh,24px)] sm:px-10">
         <div className="lg:hidden">
-          <Wordmark tagline />
+          <Link to="/" aria-label="AutoTalent Grid home" className="inline-block w-fit rounded-lg">
+            <Wordmark tagline />
+          </Link>
         </div>
         <div className="mx-auto my-auto w-full max-w-[520px] py-[clamp(12px,4vh,40px)]">
           <h1 className="text-[clamp(28px,4.6vh,38px)] font-black tracking-[-0.02em] text-ink">Welcome back</h1>
