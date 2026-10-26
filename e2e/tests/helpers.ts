@@ -24,6 +24,8 @@ export async function signInEmail(page: Page, email: string) {
   await page.getByLabel('Password').fill(passwordOf(email));
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).not.toHaveURL(/\/login$/);
+  // Let the portal finish loading, so a test's first click is not lost while the page is still settling.
+  await page.waitForLoadState('networkidle');
 }
 
 /** Reads the newest development OTP code for this number from the API log. */
@@ -70,6 +72,8 @@ export async function signInPhone(page: Page, tenDigits: string) {
   await page.getByLabel('6-digit code').fill(code);
   await page.getByRole('button', { name: 'Verify and sign in' }).click();
   await expect(page).not.toHaveURL(/\/login$/);
+  // Let the portal finish loading, so a test's first click is not lost while the page is still settling.
+  await page.waitForLoadState('networkidle');
 }
 
 export const EMAIL = {
@@ -90,4 +94,19 @@ export const EMAIL = {
 export async function expectNoHorizontalScroll(page: Page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow, 'page scrolls sideways').toBeLessThanOrEqual(1);
+}
+
+/** Size of the API log now, so later reads only look at what was written after this point. */
+export const apiLogSize = () => readFileSync(path.join(here, '../.api.log'), 'utf8').length;
+
+/** Reads the newest development confirmation link for an organisation registration from the API log. */
+export async function latestSignupLink(name: string, after: number): Promise<string> {
+  const log = path.join(here, '../.api.log');
+  for (let i = 0; i < 40; i++) {
+    const text = readFileSync(log, 'utf8').slice(after);
+    const m = [...text.matchAll(new RegExp(`Confirm registration for ${name}: (\\S+)`, 'g'))];
+    if (m.length) return new URL(m.at(-1)![1]!).pathname;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error('No confirmation link found in the API log');
 }

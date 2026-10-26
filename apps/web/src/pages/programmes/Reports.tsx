@@ -145,7 +145,11 @@ export function PartnerOrganisationPage() {
         <div className="min-w-0 flex-1">
           <p className="text-sm text-muted">Verification</p>
           <div className="mt-1">
-            <StatusBadge status={o.verificationStatus} label={o.verificationStatus === 'verified' ? 'Verified by VTA' : undefined} />
+            {o.verificationStatus === 'pending' && !o.submittedAt ? (
+              <StatusBadge status="not_sent" label="Not sent to VTA yet" />
+            ) : (
+              <StatusBadge status={o.verificationStatus} label={o.verificationStatus === 'verified' ? 'Verified by VTA' : undefined} />
+            )}
           </div>
           {o.verificationReason && <p className="mt-2 text-sm">VTA&apos;s note: {o.verificationReason}</p>}
         </div>

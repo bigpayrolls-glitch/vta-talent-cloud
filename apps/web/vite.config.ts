@@ -25,7 +25,7 @@ export default defineConfig({
         name: 'VTA Talent Cloud',
         short_name: 'VTA',
         description: 'Training, attendance, assessments and certificates for automotive technicians.',
-        start_url: '/',
+        start_url: '/login', // installed app opens to sign-in (signed-in people go on to their portal), not the public home
         scope: '/',
         display: 'standalone',
         orientation: 'portrait',

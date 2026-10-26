@@ -79,6 +79,7 @@ export interface OrganisationsTable {
   duplicate_of: ColumnType<string | null, string | null | undefined, string | null>;
   submitted_at: ColumnType<Date | null, Date | null | undefined, Date | null>;
   programme_interests: ColumnType<string | null, string | null | undefined, string | null>;
+  registration_source: ColumnType<'vta' | 'self', 'vta' | 'self' | undefined, 'vta' | 'self'>;
   created_at: Timestamp;
   updated_at: Timestamp;
 }

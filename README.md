@@ -1,8 +1,19 @@
 # VTA Talent Cloud
 
-A role-based automotive skills and workforce platform. One backend and one database serve four portals: **Learner**, **Employer**, **Training Partner** (including trainers) and **Admin**. A public website follows in Phase 8.
+A role-based automotive skills and workforce platform. One backend and one database serve four portals: **Learner**, **Employer**, **Training Partner** (including trainers) and **Admin**, plus a public front page.
 
-**Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data), Phase 3 (training operations), Phase 4 (offline attendance and the installable app), Phase 5 (Learner portal), Phase 6 (Employer portal and hiring) and Phase 7 (partner programmes and reports).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+**Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data), Phase 3 (training operations), Phase 4 (offline attendance and the installable app), Phase 5 (Learner portal), Phase 6 (Employer portal and hiring), Phase 7 (partner programmes and reports) and Phase 8 (public site and organisation sign-up).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+
+## What works in Phase 8
+
+| Area | What you can do |
+| --- | --- |
+| Public home (`/`) | Says what the platform does for learners, employers and training partners, with a way in for each, and a box to check a certificate by its code or link. No figures or claims: those need VTA's evidence. Signed-in people go straight to their portal. The installed app now opens on sign-in instead. |
+| Employer sign-up (EM-01) | `/join/employer`: registered name, sector, city, the contact's name, work email and mobile, and acceptance of the notice and terms. Creates the company (pending) and its admin (not active), and emails a link to confirm the email and set a password. The admin then lands on the company profile to add details and a registration document and send it to VTA, the same as a company VTA added. |
+| Partner sign-up (PA-01) | `/join/partner`: the same, with partner type instead of sector. A new partner sees no programmes until VTA links it (PA-02). |
+| Safeguards | The reply is the same whether or not the email already has an account (no way to find out who is registered). Registering again before confirming sends a fresh link and voids the old one. 5 sign-ups a minute per address; a hidden field catches simple bots. A name matching an existing organisation is flagged "possible duplicate" for VTA, not refused. Nothing is visible to learners or other organisations until VTA verifies it. |
+| VTA view | Organisations show "Registered themselves", "Email not confirmed", "Profile not sent yet" and "Possible duplicate". Sign-ups are in the audit log. |
+| Notices | The public privacy notice and terms gain a short section for organisations (still DRAFT for VTA's approval). |
 
 ## What works in Phase 7
 
@@ -188,7 +199,8 @@ infra             Docker Compose for local services
 - Files are not virus-scanned yet and are labelled "not scanned" (D10).
 - No password reset yet. It needs an email provider, so it comes with the email work.
 - The privacy notice and terms are a plain-language DRAFT (version `2026-10-draft`), marked as such on screen. VTA must approve the wording and add contact details; changing `NOTICE_VERSION` then asks everyone to accept again.
-- Employers are invited by VTA; a public "register your company" form comes with the public website (Phase 8).
+- Sign-up emails go nowhere until an email provider is chosen (D10); on the staging copy the confirmation link is shown on screen instead. Unconfirmed sign-ups stay listed (flagged) until VTA rejects them; there is no automatic clean-up yet.
+- The public front page links to no external VTA website, because its address is not confirmed; add it once VTA confirms.
 - No notifications yet (SH-07, Should): learners and employers see changes when they open the app. SMS/email follow the provider decision (D10).
 - Closing an account and exporting one's data are support requests for now (no self-service screen).
 - The issuer printed on certificates comes from `CREDENTIAL_ISSUER_NAME` (default "VTA Talent Cloud") until VTA confirms the legal entity (decision D8).

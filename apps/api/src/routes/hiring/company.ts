@@ -42,14 +42,14 @@ export function companyDto(o: Organisation) {
   };
 }
 
-/** Another employer with the same GSTIN or the same name (ignoring case and spacing): flag for VTA (EM-01). */
-async function findDuplicateOrg(db: DB, id: string, legalName: string, gstin?: string): Promise<string | null> {
+/** Another organisation of the same type with the same GSTIN or the same name (ignoring case and spacing): flag for VTA (EM-01). */
+export async function findDuplicateOrg(db: DB, id: string, legalName: string, gstin?: string, type: 'employer' | 'partner' = 'employer'): Promise<string | null> {
   const norm = legalName.trim().replace(/\s+/g, ' ').toLowerCase();
   const row = await db
     .selectFrom('organisations')
     .select('id')
     .where('id', '!=', id)
-    .where('type', '=', 'employer')
+    .where('type', '=', type)
     .where((eb) =>
       eb.or([
         eb(sql`lower(regexp_replace(trim(legal_name), '\\s+', ' ', 'g'))`, '=', norm),

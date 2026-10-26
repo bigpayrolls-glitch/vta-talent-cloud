@@ -37,7 +37,7 @@ test.describe.serial('offline attendance', () => {
     await page.goto('/login');
     const href = await page.locator('link[rel="manifest"]').getAttribute('href');
     const manifest = await (await request.get(href!)).json();
-    expect(manifest).toMatchObject({ name: 'VTA Talent Cloud', short_name: 'VTA', display: 'standalone', start_url: '/', theme_color: '#B5121B' });
+    expect(manifest).toMatchObject({ name: 'VTA Talent Cloud', short_name: 'VTA', display: 'standalone', start_url: '/login', theme_color: '#B5121B' });
     for (const icon of manifest.icons) expect((await request.get(icon.src)).headers()['content-type']).toBe('image/png');
     expect(manifest.icons.map((i: { sizes: string }) => i.sizes)).toEqual(expect.arrayContaining(['192x192', '512x512']));
     expect(manifest.icons.some((i: { purpose?: string }) => i.purpose === 'maskable')).toBe(true);
@@ -129,7 +129,8 @@ test.describe.serial('offline attendance', () => {
     await row.getByRole('button', { name: 'Use my mark' }).click();
     await expect(page.getByText('Nothing waiting.')).toBeVisible({ timeout: 15_000 });
     await expect(page.getByRole('heading', { name: /Needs your choice/ })).toHaveCount(0);
-    expect((await savedMarks(DATE)).find((m) => m.name === 'Ravi Kumar')?.status).toBe('late');
+    // The screen can clear a moment before the server's write is visible here, so wait for it.
+    await expect.poll(async () => (await savedMarks(DATE)).find((m) => m.name === 'Ravi Kumar')?.status, { timeout: 10_000 }).toBe('late');
   });
 
   test('signing out needs a connection, then deletes the offline data from the phone', async ({ page, context }) => {

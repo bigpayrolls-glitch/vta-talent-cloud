@@ -88,7 +88,14 @@ export function LoginPage() {
             <Link to="/register" className="font-semibold text-brand underline">
               Create an account
             </Link>
-            . Employers, partners and trainers are invited by VTA.
+.
+          </p>
+          <p className="mt-2 text-sm text-muted">
+            Employer or training partner?{' '}
+            <Link to="/join/employer" className="font-semibold text-brand underline">
+              Register your organisation
+            </Link>
+            . Trainers are added by their partner or VTA.
           </p>
         </div>
       </main>
