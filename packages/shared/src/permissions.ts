@@ -26,6 +26,21 @@ export const PERMISSIONS = {
   'organisation.read': ['super_admin', 'ops_admin', 'employer_admin', 'employer_recruiter', 'partner_admin', 'partner_viewer', 'trainer'],
   'organisation.members.read': ['super_admin', 'ops_admin', 'employer_admin', 'partner_admin'],
   'centre.read': ['super_admin', 'ops_admin', 'centre_admin', 'partner_admin', 'partner_viewer', 'trainer'],
+
+  // Phase 2: training master data
+  'course.read': ['super_admin', 'ops_admin', 'centre_admin', 'partner_admin', 'partner_viewer', 'trainer'],
+  'course.manage': ['super_admin', 'ops_admin'],
+  'trainer.read': ['super_admin', 'ops_admin', 'centre_admin', 'partner_admin'],
+  'trainer.manage': ['super_admin', 'ops_admin'],
+  'candidate.read': ['super_admin', 'ops_admin', 'centre_admin'],
+  'candidate.manage': ['super_admin', 'ops_admin'],
+  /** Batch reads are scoped: admins all, centre admins their centres, partners their centres, trainers their own batches. */
+  'batch.read': ['super_admin', 'ops_admin', 'centre_admin', 'partner_admin', 'partner_viewer', 'trainer'],
+  /** Creating batches and enrolling candidates. Centre admins only at their own centres. */
+  'batch.manage': ['super_admin', 'ops_admin', 'centre_admin'],
+  'document.upload': ['super_admin', 'ops_admin'],
+  /** Getting a download link. The record-level check happens in the files route. */
+  'document.read': ['super_admin', 'ops_admin', 'centre_admin'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof PERMISSIONS;

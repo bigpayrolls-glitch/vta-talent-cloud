@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 
 const envSchema = z.object({
@@ -12,9 +13,17 @@ const envSchema = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform((v) => v === 'true'),
+  /** Where uploaded files are kept. Only 'local' exists until hosting is chosen (D10). */
+  STORAGE_DRIVER: z.enum(['local']).default('local'),
+  STORAGE_DIR: z.string().default('.storage'),
+  /** Secret for signing file download links. Required in production; random per start in development. */
+  FILE_SIGNING_SECRET: z.preprocess(
+    (v) => (v === '' ? undefined : v),
+    z.string().min(32, 'FILE_SIGNING_SECRET must be at least 32 characters').optional(),
+  ),
 });
 
-export type Config = z.infer<typeof envSchema> & { databaseUrl: string };
+export type Config = Omit<z.infer<typeof envSchema>, 'FILE_SIGNING_SECRET'> & { databaseUrl: string; fileSigningSecret: string };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const parsed = envSchema.parse(env);
@@ -24,9 +33,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       throw new Error('Console SMS/email providers are not allowed when NODE_ENV=production. Configure a real provider.');
     }
     if (!parsed.COOKIE_SECURE) throw new Error('COOKIE_SECURE must be true in production.');
+    if (!parsed.FILE_SIGNING_SECRET) throw new Error('FILE_SIGNING_SECRET is required in production.');
   }
+  const { FILE_SIGNING_SECRET, ...rest } = parsed;
   return {
-    ...parsed,
+    ...rest,
     databaseUrl: parsed.NODE_ENV === 'test' ? parsed.TEST_DATABASE_URL : parsed.DATABASE_URL,
+    fileSigningSecret: FILE_SIGNING_SECRET ?? randomBytes(32).toString('base64url'),
   };
 }

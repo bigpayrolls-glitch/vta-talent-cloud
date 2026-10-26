@@ -7,3 +7,5 @@ coverage/
 *.log
 .DS_Store
 apps/api/.seed-credentials.txt
+apps/api/.storage/
+.storage/

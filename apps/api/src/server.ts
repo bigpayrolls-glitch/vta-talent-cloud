@@ -1,4 +1,4 @@
-import { buildApp } from './app.js';
+import { buildApp, LOG_SERIALIZERS } from './app.js';
 import { loadConfig } from './config.js';
 import { createDb } from './db/index.js';
 
@@ -9,7 +9,7 @@ const app = await buildApp({
   config,
   logger:
     config.NODE_ENV === 'development'
-      ? { level: 'info', transport: { target: 'pino-pretty', options: { ignore: 'pid,hostname' } }, redact: ['req.headers.cookie', 'req.headers["x-csrf-token"]'] }
+      ? { level: 'info', transport: { target: 'pino-pretty', options: { ignore: 'pid,hostname' } }, redact: ['req.headers.cookie', 'req.headers["x-csrf-token"]'], serializers: LOG_SERIALIZERS }
       : undefined,
 });
 

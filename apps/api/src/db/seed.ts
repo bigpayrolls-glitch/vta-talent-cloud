@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import type { Role } from '@vta/shared';
 import { loadConfig } from '../config.js';
 import { hashPassword, newId } from '../lib/crypto.js';
+import { sql } from 'kysely';
 import { createDb, type DB } from './index.js';
 
 /**
@@ -16,6 +17,8 @@ import { createDb, type DB } from './index.js';
 
 // pnpm runs scripts from apps/api, so the file lands there (git-ignored).
 const CREDENTIALS_FILE = path.resolve(process.cwd(), '.seed-credentials.txt');
+
+const PHONE_LEARNER = '+919900000201';
 
 const genPassword = () => `Vta-${randomBytes(9).toString('base64url')}`;
 
@@ -115,13 +118,121 @@ export async function seed(db: DB): Promise<SeedResult> {
   await person('partnerViewerA', 'Sanjay Viewer A', { email: 'viewer-a@demo.vta.local' }, [{ role: 'partner_viewer', org: 'partnerA' }]);
   await person('partnerAdminB', 'Lakshmi Partner B', { email: 'partner-b@demo.vta.local' }, [{ role: 'partner_admin', org: 'partnerB' }]);
   await person('trainerA', 'Prakash Trainer', { phone: '+919900000101' }, [{ role: 'trainer', org: 'partnerA', centre: 'centrePartnerA' }]);
-  await person('learner', 'Venkatesh Learner', { phone: '+919900000201' }, [{ role: 'learner' }]);
+  await person('learner', 'Venkatesh Learner', { phone: PHONE_LEARNER }, [{ role: 'learner' }]);
   // A user with two roles, to demonstrate the portal switcher.
   await person('multiRole', 'Nisha Multi-role', { email: 'multi@demo.vta.local' }, [
     { role: 'ops_admin' },
     { role: 'partner_viewer', org: 'partnerB' },
   ]);
   await person('pendingUser', 'Arjun Pending', { email: 'pending@demo.vta.local' }, [], 'pending');
+
+  // ---- Phase 2: training master data (all invented) ----
+  await person('trainerVta', 'Suresh VTA Trainer', { phone: '+919900000102' }, [{ role: 'trainer', centre: 'centreVta' }]);
+  await person('trainerB', 'Imran Trainer B', { phone: '+919900000103' }, [{ role: 'trainer', org: 'partnerB', centre: 'centrePartnerB' }]);
+  await person('trainerPending', 'Kavya New Trainer', { phone: '+919900000104' }, [{ role: 'trainer', org: 'partnerA', centre: 'centrePartnerA' }]);
+  for (const [key, specs, status] of [
+    ['trainerA', ['2W'], 'verified'],
+    ['trainerVta', ['4W', 'EV'], 'verified'],
+    ['trainerB', ['EV'], 'verified'],
+    ['trainerPending', ['2W'], 'pending'],
+  ] as const) {
+    await db
+      .insertInto('trainer_profiles')
+      .values({ user_id: ids[key]!, specialisations: [...specs], verification_status: status, verified_at: status === 'verified' ? new Date() : null })
+      .execute();
+  }
+
+  const course = async (key: string, title: string, code: string, skill: '2W' | '4W' | 'EV', months: number, criteria: [string, number, boolean][]) => {
+    ids[key] = newId();
+    await db
+      .insertInto('courses')
+      .values({
+        id: ids[key],
+        code,
+        title,
+        skill_area: skill,
+        level: 'beginner_to_advanced',
+        delivery_mode: 'blended',
+        duration_value: months,
+        duration_unit: 'months',
+        training_hours: months * 80,
+        attendance_threshold_pct: 75,
+        pass_mark_pct: 60,
+        status: 'active',
+      })
+      .execute();
+    await db
+      .insertInto('assessment_criteria')
+      .values(criteria.map(([label, max, required], i) => ({ id: newId(), course_id: ids[key]!, label, max_score: max, required, sort_order: i })))
+      .execute();
+  };
+  await course('course2w', '2W Service Technician', '2W-ST-01', '2W', 3, [
+    ['Engine servicing', 30, true],
+    ['Electrical diagnosis', 30, true],
+    ['Brakes and suspension', 20, false],
+    ['Workshop safety', 20, true],
+  ]);
+  await course('course4w', '4W Service Technician', '4W-ST-01', '4W', 4, [
+    ['Engine and diagnostics', 40, true],
+    ['Air conditioning', 30, false],
+    ['Workshop safety', 30, true],
+  ]);
+  await course('courseEv', 'EV Technician', 'EV-T-01', 'EV', 4, [
+    ['Battery systems', 40, true],
+    ['High-voltage safety', 30, true],
+    ['Motor and controller diagnostics', 30, false],
+  ]);
+
+  const candidate = async (key: string, name: string, phone: string, dob: string, city: string, skills: string[], status: 'pending' | 'verified', existingUser = false) => {
+    if (!existingUser) {
+      ids[key] = newId();
+      await db.insertInto('users').values({ id: ids[key], name, phone, phone_verified_at: null, date_of_birth: dob, status: 'invited' }).execute();
+      await db.insertInto('role_assignments').values({ id: newId(), user_id: ids[key], role: 'learner', granted_by: null }).execute();
+    } else {
+      await db.updateTable('users').set({ date_of_birth: dob }).where('id', '=', ids[key]!).execute();
+    }
+    const { rows } = await sql<{ n: string }>`select nextval('candidate_code_seq') as n`.execute(db);
+    await db
+      .insertInto('candidate_profiles')
+      .values({
+        user_id: ids[key]!,
+        candidate_code: `VTA${String(new Date().getUTCFullYear()).slice(-2)}${String(rows[0]!.n).padStart(5, '0')}`,
+        city,
+        state: 'Karnataka',
+        skill_areas: skills as ('2W' | '4W' | 'EV')[],
+        experience_months: 6,
+        languages: ['Kannada', 'English'],
+        verification_status: status,
+        verified_at: status === 'verified' ? new Date() : null,
+        source: 'admin',
+      })
+      .execute();
+  };
+  await candidate('learner', 'Venkatesh Learner', PHONE_LEARNER, '2003-04-12', 'Bengaluru', ['2W'], 'verified', true);
+  await candidate('cand1', 'Ravi Kumar', '+919900000211', '2002-08-01', 'Bengaluru', ['2W'], 'verified');
+  await candidate('cand2', 'Anitha Gowda', '+919900000212', '2001-01-15', 'Bengaluru', ['2W', 'EV'], 'verified');
+  await candidate('cand3', 'Mohammed Shafi', '+919900000213', '2000-11-30', 'Tumakuru', ['2W'], 'verified');
+  await candidate('cand4', 'Deepa Rao', '+919900000214', '2003-06-21', 'Bengaluru', ['4W'], 'verified');
+  await candidate('cand5', 'Naveen Shetty', '+919900000215', '1999-03-09', 'Mysuru', ['EV'], 'verified');
+  await candidate('cand6', 'Pooja Naik', '+919900000216', '2004-02-02', 'Mysuru', ['EV', '4W'], 'verified');
+  await candidate('cand7', 'Kiran Patil', '+919900000217', '2002-12-12', 'Hubballi', ['4W'], 'pending');
+  // Same name and date of birth as cand1: flagged as a possible duplicate for review.
+  await candidate('cand8', 'Ravi Kumar', '+919900000218', '2002-08-01', 'Bengaluru', ['2W'], 'pending');
+  await db.updateTable('candidate_profiles').set({ duplicate_of: ids.cand1! }).where('user_id', '=', ids.cand8!).execute();
+
+  const batch = async (key: string, name: string, courseKey: string, centreKey: string, trainerKey: string, start: string, end: string, status: 'planned' | 'active', enrol: string[]) => {
+    ids[key] = newId();
+    await db
+      .insertInto('batches')
+      .values({ id: ids[key], name, course_id: ids[courseKey]!, centre_id: ids[centreKey]!, trainer_id: ids[trainerKey]!, start_date: start, end_date: end, capacity: 20, status })
+      .execute();
+    for (const c of enrol) {
+      await db.insertInto('enrolments').values({ id: newId(), candidate_id: ids[c]!, batch_id: ids[key], status: 'enrolled' }).execute();
+    }
+  };
+  await batch('batchA', '2W Peenya October 2026', 'course2w', 'centrePartnerA', 'trainerA', '2026-10-12', '2027-01-12', 'active', ['learner', 'cand1', 'cand2', 'cand3']);
+  await batch('batchVta', '4W Bengaluru November 2026', 'course4w', 'centreVta', 'trainerVta', '2026-11-16', '2027-03-16', 'planned', ['cand4']);
+  await batch('batchB', 'EV Mysuru November 2026', 'courseEv', 'centrePartnerB', 'trainerB', '2026-11-23', '2027-03-23', 'planned', ['cand5', 'cand6']);
 
   return { credentials, ids };
 }

@@ -23,6 +23,9 @@ jobs:
       TEST_DATABASE_URL: postgres://vta:vta_dev@localhost:5432/vta_test
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: the secret scan checks every commit in a pull request.
+          fetch-depth: 0
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -39,3 +42,39 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  e2e:
+    name: Browser tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: vta
+          POSTGRES_PASSWORD: vta_dev
+          POSTGRES_DB: vta_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U vta" --health-interval 5s --health-retries 10
+    env:
+      CI: true
+      E2E_DATABASE_URL: postgres://vta:vta_dev@localhost:5432/vta_e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @vta/e2e exec playwright install --with-deps chromium
+      - run: pnpm e2e
+      - name: Keep the report when something fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+          retention-days: 7

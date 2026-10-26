@@ -1,0 +1,67 @@
+import { expect, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const here = path.dirname(fileURLToPath(import.meta.url));
+const data = JSON.parse(readFileSync(path.join(here, '../.auth/credentials.json'), 'utf8')) as {
+  credentials: { login: string; password?: string }[];
+  ids: Record<string, string>;
+};
+
+export const ids = data.ids;
+
+export function passwordOf(email: string): string {
+  const c = data.credentials.find((x) => x.login === email);
+  if (!c?.password) throw new Error(`No demo password for ${email}`);
+  return c.password;
+}
+
+export async function signInEmail(page: Page, email: string) {
+  await page.goto('/login');
+  await page.getByLabel('Email').fill(email);
+  await page.getByLabel('Password').fill(passwordOf(email));
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page).not.toHaveURL(/\/login$/);
+}
+
+/** Reads the newest development OTP code for this number from the API log. */
+async function latestOtp(phoneEnding: string, after: number): Promise<string> {
+  const log = path.join(here, '../.api.log');
+  for (let i = 0; i < 40; i++) {
+    const text = readFileSync(log, 'utf8').slice(after);
+    const matches = [...text.matchAll(/OTP code: (\d{6})/g)];
+    if (matches.length && text.includes(phoneEnding)) return matches.at(-1)![1]!;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error('No OTP code found in the API log');
+}
+
+export async function signInPhone(page: Page, tenDigits: string) {
+  const logSize = readFileSync(path.join(here, '../.api.log'), 'utf8').length;
+  await page.goto('/login');
+  await page.getByRole('tab', { name: 'Mobile number' }).click();
+  await page.getByLabel('Mobile number').fill(tenDigits);
+  await page.getByRole('button', { name: 'Send code' }).click();
+  await expect(page.getByLabel('6-digit code')).toBeVisible();
+  const code = await latestOtp(tenDigits.slice(-2), logSize);
+  await page.getByLabel('6-digit code').fill(code);
+  await page.getByRole('button', { name: 'Verify and sign in' }).click();
+  await expect(page).not.toHaveURL(/\/login$/);
+}
+
+export const EMAIL = {
+  superAdmin: 'superadmin@demo.vta.local',
+  opsAdmin: 'ops@demo.vta.local',
+  centreAdmin: 'centre@demo.vta.local',
+  employerAdminA: 'employer-a@demo.vta.local',
+  partnerAdminA: 'partner-a@demo.vta.local',
+  partnerViewerA: 'viewer-a@demo.vta.local',
+  multi: 'multi@demo.vta.local',
+};
+
+/** True when the page has no horizontal scrolling (responsive check). */
+export async function expectNoHorizontalScroll(page: Page) {
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow, 'page scrolls sideways').toBeLessThanOrEqual(1);
+}

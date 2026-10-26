@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "version": "0.1.0",
-  "description": "VTA Talent Cloud — role-based automotive skills and workforce platform (Phase 1: foundation + Admin Portal)",
+  "description": "VTA Talent Cloud — role-based automotive skills and workforce platform (Phase 2: training master data)",
   "packageManager": "pnpm@10.28.0",
   "engines": {
     "node": ">=22"
@@ -16,7 +16,8 @@
     "test": "pnpm -r test",
     "db:migrate": "pnpm --filter @vta/api db:migrate",
     "db:seed": "pnpm --filter @vta/api db:seed",
-    "db:reset": "pnpm --filter @vta/api db:reset"
+    "db:reset": "pnpm --filter @vta/api db:reset",
+    "e2e": "pnpm --filter @vta/e2e e2e"
   },
   "devDependencies": {
     "eslint": "^9.39.5",

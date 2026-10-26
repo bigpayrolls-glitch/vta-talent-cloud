@@ -10,7 +10,7 @@ describe('roles and portals', () => {
 
   it('trainers work inside the Training Partner portal (design decision, 24 Oct 2026)', () => {
     expect(ROLE_PORTAL.trainer).toBe('partner');
-    expect(ROLE_SCOPE.trainer).toEqual({ organisation: 'partner', centre: true });
+    expect(ROLE_SCOPE.trainer).toEqual({ organisation: 'partner', centre: true, organisationFromCentre: true });
   });
 
   it('a multi-role user gets each portal once, in a fixed order', () => {

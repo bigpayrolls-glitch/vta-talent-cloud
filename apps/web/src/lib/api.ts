@@ -44,7 +44,29 @@ export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body: unknown = {}) => request<T>('POST', path, body),
   patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
+  put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
 };
+
+/** Uploads a file as the raw request body (the API checks its real type and size). */
+export async function uploadFile<T>(path: string, file: File): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/v1${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/octet-stream', 'x-csrf-token': csrfToken, accept: 'application/json' },
+      body: file,
+      credentials: 'same-origin',
+    });
+  } catch {
+    throw new ApiError(0, 'INTERNAL', 'Cannot reach the server. Check your connection and try again.');
+  }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const e = (data as ApiErrorBody | null)?.error;
+    throw new ApiError(res.status, e?.code ?? 'INTERNAL', e?.message ?? 'Upload failed.', e?.fields ?? {});
+  }
+  return data as T;
+}
 
 /** Builds a query string, dropping empty values. */
 export function qs(params: Record<string, string | number | undefined | null>): string {
