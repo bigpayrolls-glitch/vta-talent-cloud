@@ -1,4 +1,4 @@
-import { partnerProfileSchema, reportFilterSchema, UPLOAD_MAX_BYTES, UPLOAD_TYPES, uuidSchema } from '@vta/shared';
+import { inviteRecruiterSchema, partnerProfileSchema, reportFilterSchema, UPLOAD_MAX_BYTES, UPLOAD_TYPES, uuidSchema } from '@vta/shared';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
@@ -9,7 +9,9 @@ import { notify, vtaReviewers } from '../../lib/notify.js';
 import type { Organisation } from '../../db/types.js';
 import { newId } from '../../lib/crypto.js';
 import { toCsv } from '../../lib/csv.js';
-import { forbidden, invalid, notFound } from '../../lib/errors.js';
+import { conflict, forbidden, invalid, notFound } from '../../lib/errors.js';
+import type { DB } from '../../db/index.js';
+import { createInvitation } from '../admin/users.js';
 import { LINK_TTL_SECONDS, safeFileName, signLink, sniffMime } from '../../lib/storage.js';
 import { iso, parse } from '../../lib/validate.js';
 import { cohortMetrics, metricRate } from './metrics.js';
@@ -200,5 +202,65 @@ export const partnerRoutes: FastifyPluginAsync = async (app) => {
       ...metrics.map((m) => [m.label, m.value, m.denominator ? `${m.denominator.value} (${m.denominator.label})` : '', metricRate(m) ?? '', m.basis.replace('_', ' '), m.definition]),
     ]);
     return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', 'attachment; filename="cohort-report.csv"').header('cache-control', 'private, no-store').send(csv);
+  });
+
+  // ---- PA-07: the partner admin invites and removes viewers (read-only users for the same organisation) ----
+
+  const teamOf = (organisationId: string) =>
+    db
+      .selectFrom('role_assignments as ra')
+      .innerJoin('users as u', 'u.id', 'ra.user_id')
+      .select(['ra.id as assignment_id', 'ra.role', 'u.id', 'u.name', 'u.email', 'u.status', 'u.last_login_at'])
+      .where('ra.organisation_id', '=', organisationId)
+      .where('ra.role', 'in', ['partner_admin', 'partner_viewer'])
+      .where('ra.revoked_at', 'is', null)
+      .orderBy('u.name')
+      .execute();
+
+  app.get('/partner/team', { config: { permission: 'partner.profile' } }, async (req) => ({
+    items: (await teamOf(orgId(req))).map((m) => ({
+      assignmentId: m.assignment_id,
+      userId: m.id,
+      name: m.name,
+      email: m.email,
+      role: m.role,
+      status: m.status,
+      lastLoginAt: iso(m.last_login_at),
+      isMe: m.id === req.actor!.userId,
+    })),
+  }));
+
+  /** Viewers see the organisation's programmes, reports and documents but cannot change anything. */
+  app.post('/partner/team', { config: { permission: 'partner.profile' } }, async (req, reply) => {
+    const b = parse(inviteRecruiterSchema, req.body);
+    const organisationId = orgId(req);
+    const email = b.email.toLowerCase();
+    if (await db.selectFrom('users').select('id').where('email', '=', email).executeTakeFirst()) throw conflict('Someone already uses this email', { email: 'Already in use' });
+    const id = newId();
+    let token = '';
+    await db.transaction().execute(async (trx) => {
+      await trx.insertInto('users').values({ id, name: b.name, email, status: 'invited' }).execute();
+      await trx.insertInto('role_assignments').values({ id: newId(), user_id: id, role: 'partner_viewer', organisation_id: organisationId, granted_by: req.actor!.userId }).execute();
+      await audit(trx, auditCtx(req), { action: 'partner.viewer_invited', entityType: 'organisation', entityId: organisationId, after: { userId: id, name: b.name, email, role: 'partner_viewer' } });
+      token = await createInvitation(trx as unknown as DB, id, req.actor!.userId);
+    });
+    const link = `${app.config.APP_ORIGIN}/invite/${token}`;
+    await app.providers.email.sendInvitation(email, b.name, link);
+    reply.code(201);
+    return { id, devInviteUrl: app.providers.devEcho ? link : undefined };
+  });
+
+  app.post('/partner/team/:id/remove', { config: { permission: 'partner.profile' } }, async (req) => {
+    const { id } = parse(z.object({ id: uuidSchema }), req.params);
+    const organisationId = orgId(req);
+    const ra = await db.selectFrom('role_assignments').selectAll().where('id', '=', id).where('organisation_id', '=', organisationId).where('revoked_at', 'is', null).executeTakeFirst();
+    if (!ra || (ra.role !== 'partner_viewer' && ra.role !== 'partner_admin')) throw notFound('Team member');
+    if (ra.user_id === req.actor!.userId) throw forbidden('You cannot remove yourself.');
+    if (ra.role === 'partner_admin') throw forbidden('Only VTA can remove a partner admin.');
+    await db.transaction().execute(async (trx) => {
+      await trx.updateTable('role_assignments').set({ revoked_at: new Date(), revoked_by: req.actor!.userId }).where('id', '=', id).execute();
+      await audit(trx, auditCtx(req), { action: 'partner.viewer_removed', entityType: 'organisation', entityId: organisationId, before: { userId: ra.user_id, role: ra.role } });
+    });
+    return { ok: true };
   });
 };

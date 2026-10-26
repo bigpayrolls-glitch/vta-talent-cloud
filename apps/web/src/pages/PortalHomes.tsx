@@ -6,6 +6,7 @@ import {
   CalendarCheck,
   LayoutDashboard,
   RefreshCw,
+  UserCog,
   Users,
 } from 'lucide-react';
 import { useEffect } from 'react';
@@ -36,12 +37,14 @@ export function PartnerLayout() {
     if (isTrainer) startAutoSync();
   }, [isTrainer]);
   const isPartner = !!me?.roles.some((r) => r.role === 'partner_admin' || r.role === 'partner_viewer');
+  const isPartnerAdmin = !!me?.roles.some((r) => r.role === 'partner_admin');
   const nav: NavItem[] = [
     PLANS.partner.nav[0]!,
     ...(isPartner ? [{ to: '/partner/programmes', label: 'Programmes', icon: BarChart3, bottom: true }] : []),
     PLANS.partner.nav[1]!,
     ...(isTrainer ? [{ to: '/partner/sync', label: 'Sync', icon: RefreshCw, bottom: true }] : []),
     ...(isPartner ? [{ to: '/partner/organisation', label: 'Organisation', icon: Building2 }] : []),
+    ...(isPartnerAdmin ? [{ to: '/partner/team', label: 'Team', icon: UserCog }] : []),
   ];
   return (
     <PortalLayout portal="partner" nav={nav} headerExtra={isTrainer ? <SyncIndicator /> : undefined}>

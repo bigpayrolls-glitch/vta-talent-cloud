@@ -9,6 +9,7 @@ import { EmptyState, ErrorNote, Field, formatPhone, Modal, PageHeader, Paginatio
 import { api, qs } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useForm } from '../../lib/useForm';
+import { ChangePhoneButton } from '../admin/ChangePhone';
 import { useListParams } from '../../lib/useListParams';
 
 interface TrainerCentre {
@@ -213,7 +214,10 @@ export function TrainerDetailPage() {
             <h1 className="text-[26px] font-bold tracking-tight">{t.name}</h1>
             <StatusBadge status={t.verificationStatus} />
           </div>
-          <p className="mt-1 text-muted">{[formatPhone(t.phone), t.email].filter(Boolean).join(', ')}</p>
+          <p className="mt-1 text-muted">
+            {[formatPhone(t.phone), t.email].filter(Boolean).join(', ')}
+            <ChangePhoneButton userId={t.id} name={t.name} phone={t.phone} className="ml-2 text-sm font-medium text-brand hover:underline" />
+          </p>
           {t.verificationReason && t.verificationStatus !== 'verified' && <p className="mt-1 text-sm text-warning">Reason: {t.verificationReason}</p>}
         </div>
         {manage && (

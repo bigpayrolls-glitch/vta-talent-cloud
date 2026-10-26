@@ -81,7 +81,7 @@ Everything is well under the 2.5-second target. The cohort report, audit log and
 | Site down | Check `/api/v1/health/ready`. If the database is unreachable, check the database host's status page and the connection settings. |
 | Someone locked out | After 5 wrong passwords an account is locked for 15 minutes. A password reset clears the lock. |
 | Lost access to an account (staff, employer, partner) | They use "Forgot password?". If the email is wrong, a Super Admin corrects it or invites them again. |
-| A learner lost their phone number | **Gap:** there is no screen to change a learner's number yet (the number is how they sign in). Until one is built, a developer changes `users.phone` after VTA has checked who they are, and records why. |
+| A learner or trainer lost their phone number | After checking who they are, an Operations or Super Admin opens their candidate, trainer or user page and chooses **Change mobile number**, noting how they checked. They are signed out everywhere and sign in with a code to the new number. |
 | A secret may have leaked | Change `FILE_SIGNING_SECRET` (all download links stop working at once) and redeploy. To sign everyone out, delete all rows in `sessions`. |
 | Data restored from a backup | Run the drill steps above against the restored copy before switching to it. |
 | A learner asks for their data or to close their account | They can do both themselves under Privacy. A Super Admin completes closures from the user's page. |

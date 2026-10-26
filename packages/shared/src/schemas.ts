@@ -102,3 +102,9 @@ export const changePasswordSchema = z
 
 /** Phase 9: a learner asks VTA to close their account (the reason is optional). */
 export const closureRequestSchema = z.object({ reason: z.string().trim().max(500).optional() });
+
+/** Phase 11: VTA changes the mobile number someone signs in with, after checking who they are. */
+export const changePhoneSchema = z.object({
+  phone: phoneSchema,
+  reason: z.string().trim().min(3, 'Say how you checked who they are').max(500),
+});

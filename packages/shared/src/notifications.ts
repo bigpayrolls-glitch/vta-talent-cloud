@@ -36,6 +36,7 @@ export const NOTIFICATION_TEMPLATES = {
   document_rejected: { title: (p) => `VTA could not accept "${p.title}"`, body: (p) => `VTA's note: ${p.reason}. You can upload a clearer copy.` },
   profile_rejected: { title: () => 'VTA could not verify your profile', body: (p) => `VTA's note: ${p.reason}` },
   profile_correction: { title: () => 'VTA asked you to correct your profile', body: (p) => `VTA's note: ${p.reason}` },
+  phone_changed: { title: () => 'Your mobile number was changed', body: (p) => `VTA changed the number you sign in with to ${p.phone}. If you did not ask for this, contact VTA straight away.` },
   // Trainers
   batch_assigned: { title: (p) => `You're the trainer for ${p.batch}`, body: (p) => `${p.course}, starting ${p.start}.` },
   result_returned: { title: (p) => `${p.learner}'s result in ${p.batch} needs changes`, body: (p) => `VTA's note: ${p.reason}` },

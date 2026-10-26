@@ -150,6 +150,7 @@ const router = createBrowserRouter([
       { path: 'programmes', lazy: () => import('./pages/programmes/Programmes').then((m) => ({ Component: () => <m.ProgrammesPage base="/partner/programmes" /> })) },
       { path: 'programmes/:id', lazy: () => import('./pages/programmes/Programmes').then((m) => ({ Component: () => <m.ProgrammeDetailPage base="/partner/programmes" /> })) },
       { path: 'organisation', lazy: () => import('./pages/programmes/Reports').then((m) => ({ Component: m.PartnerOrganisationPage })) },
+      { path: 'team', lazy: () => import('./pages/employer/Company').then((m) => ({ Component: m.PartnerTeamPage })) },
       // Phase 4: trainer screens that work offline.
       { path: 'attendance/:id', lazy: () => import('./pages/trainer/TakeAttendance').then((m) => ({ Component: m.TakeAttendancePage })) },
       { path: 'sync', lazy: () => import('./pages/trainer/SyncStatus').then((m) => ({ Component: m.SyncStatusPage })) },
