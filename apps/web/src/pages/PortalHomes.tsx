@@ -1,9 +1,7 @@
 import { PORTAL_LABEL, ROLE_LABEL, type Portal } from '@vta/shared';
 import {
   ArrowRight,
-  Award,
   BarChart3,
-  BookOpen,
   Briefcase,
   CalendarCheck,
   ClipboardCheck,
@@ -11,7 +9,6 @@ import {
   LayoutDashboard,
   RefreshCw,
   Search,
-  User,
   Users,
 } from 'lucide-react';
 import { useEffect } from 'react';
@@ -37,12 +34,7 @@ const PLANS: Record<Exclude<Portal, 'admin'>, PortalPlan> = {
   learn: {
     greeting: 'Keep learning. Build your career.',
     nav: [{ to: '/learn', label: 'Home', icon: Home, bottom: true, end: true }],
-    coming: [
-      { label: 'My profile and privacy choices', phase: 'Phase 5', icon: User },
-      { label: 'My courses and learning progress', phase: 'Phase 5', icon: BookOpen },
-      { label: 'Assessment results and certificates', phase: 'Phase 5', icon: Award },
-      { label: 'Find jobs and track applications', phase: 'Phase 5', icon: Briefcase },
-    ],
+    coming: [{ label: 'Find jobs and track applications', phase: 'Phase 6', icon: Briefcase }],
   },
   employer: {
     greeting: 'Find skilled and certified technicians.',

@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { Role } from '@vta/shared';
+import { NOTICE_VERSION, type Role } from '@vta/shared';
 import { loadConfig } from '../config.js';
 import { hashPassword, newId } from '../lib/crypto.js';
 import { sql } from 'kysely';
@@ -319,6 +319,17 @@ export async function seed(db: DB): Promise<SeedResult> {
     })
     .execute();
   ids.credentialRaviCode = verificationCode;
+
+  // ---- Phase 5: consent records (invented) ----
+  // Venkatesh (the demo learner) accepted the notice and terms and chose to be searchable.
+  // Ravi and the other candidates were added by staff and are asked to accept on their first sign-in.
+  for (const [purpose, version] of [['privacy_notice', NOTICE_VERSION], ['terms', NOTICE_VERSION], ['profile_searchable', null]] as const) {
+    await db
+      .insertInto('consent_events')
+      .values({ id: newId(), user_id: ids.learner!, purpose, granted: true, notice_version: version, source: 'self', recorded_by: ids.learner! })
+      .execute();
+  }
+  await db.updateTable('candidate_profiles').set({ preferred_work_area: 'Bengaluru North (Peenya, Yeshwanthpur)', availability: 'Weekdays' }).where('user_id', '=', ids.learner!).execute();
 
   return { credentials, ids };
 }

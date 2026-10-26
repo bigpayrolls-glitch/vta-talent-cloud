@@ -45,6 +45,8 @@ export const PERMISSIONS = {
   // Phase 3: training operations
   /** Recording attendance and assessments: only the trainer assigned to the batch (checked per batch). */
   'attendance.record': ['trainer'],
+  /** Phase 5: a learner's own profile, documents, consents, learning, results and certificates. */
+  'learner.self': ['learner'],
   'assessment.record': ['trainer'],
   /** Authorised reviewers (AD-06). Never the person who submitted the result (enforced per result). */
   'assessment.review': ['super_admin', 'ops_admin'],

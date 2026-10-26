@@ -1,0 +1,99 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { CONSENT_LABEL } from '@vta/shared';
+import { ExternalLink } from 'lucide-react';
+import { useState } from 'react';
+import { useToast } from '../../components/toast';
+import { ErrorNote, PageHeader, Spinner } from '../../components/ui';
+import { api, ApiError } from '../../lib/api';
+import type { ConsentView, LearnerProfile } from './types';
+
+const when = (iso: string) => new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+
+/** EE-10 / SH-05: the learner controls whether employers can find them, and sees every consent they have given. */
+export function PrivacySettingsPage() {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const profile = useQuery({ queryKey: ['me', 'profile'], queryFn: () => api.get<LearnerProfile>('/me/profile') });
+  const consents = useQuery({ queryKey: ['me', 'consents'], queryFn: () => api.get<ConsentView>('/me/consents') });
+  const [busy, setBusy] = useState(false);
+  if (profile.isLoading || consents.isLoading) return <Spinner />;
+  if (profile.isError || consents.isError) return <ErrorNote message="Could not load your privacy settings." />;
+  const searchable = profile.data!.searchable;
+
+  const set = async (granted: boolean) => {
+    setBusy(true);
+    try {
+      await api.post('/me/consents', { purpose: 'profile_searchable', granted });
+      await qc.invalidateQueries({ queryKey: ['me'] });
+      toast('success', granted ? 'Employers can now find your profile' : 'Employers can no longer find your profile');
+    } catch (e) {
+      toast('error', e instanceof ApiError ? e.message : 'Could not save');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <PageHeader title="Privacy" description="Choose who can find you, and see what you have agreed to." />
+      <section className="card px-5 py-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h2 id="searchable-label" className="font-semibold">
+              Employers can find my profile
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              When on, employers on VTA Talent Cloud can find your profile in search (from Phase 6): your name, city, skills, experience, languages, availability, VTA certificates,
+              and the documents you let employers see. Your phone number and date of birth are not shown until you apply for a job.
+            </p>
+            <p className="mt-2 text-sm text-muted">Turning it off stops future sharing. It cannot recall what an employer has already seen.</p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={searchable}
+            aria-labelledby="searchable-label"
+            disabled={busy}
+            onClick={() => void set(!searchable)}
+            className={`relative inline-flex h-8 w-14 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 ${searchable ? 'bg-brand' : 'bg-line'}`}
+          >
+            <span className={`inline-block size-6 rounded-full bg-white shadow transition-transform ${searchable ? 'translate-x-7' : 'translate-x-1'}`} />
+          </button>
+        </div>
+        <p className="mt-3 text-sm font-medium" aria-live="polite">
+          Now: {searchable ? 'On, employers can find you' : 'Off, employers cannot find you'}
+        </p>
+      </section>
+
+      <section className="card mt-6 px-5 py-5">
+        <h2 className="font-semibold">What you agreed to</h2>
+        <ul className="mt-2 space-y-1 text-sm">
+          <li>
+            <a href="/privacy" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-brand underline">
+              Privacy notice <ExternalLink className="size-3.5" aria-hidden />
+            </a>
+          </li>
+          <li>
+            <a href="/terms" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-brand underline">
+              Terms of use <ExternalLink className="size-3.5" aria-hidden />
+            </a>
+          </li>
+        </ul>
+        <h3 className="mt-5 text-sm font-semibold text-muted">History</h3>
+        <ul className="mt-2 divide-y divide-line text-sm">
+          {consents.data!.history.map((h) => (
+            <li key={h.id} className="flex flex-wrap justify-between gap-x-4 gap-y-0.5 py-2">
+              <span>
+                {CONSENT_LABEL[h.purpose]}: <span className="font-semibold">{h.purpose === 'profile_searchable' ? (h.granted ? 'turned on' : 'turned off') : 'accepted'}</span>
+                {h.noticeVersion && <span className="text-muted"> (version {h.noticeVersion})</span>}
+                {h.source === 'migration' && <span className="text-muted"> (set before this record was kept)</span>}
+              </span>
+              <span className="text-muted">{when(h.at)}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-4 text-[13px] text-muted">To close your account or ask about your data, contact VTA support.</p>
+      </section>
+    </>
+  );
+}

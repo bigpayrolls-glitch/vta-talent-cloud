@@ -27,7 +27,8 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Enter your password').max(128),
 });
 
-export const otpRequestSchema = z.object({ phone: phoneSchema });
+/** `register` sends a code to any number (to create an account); `login` only to registered numbers. */
+export const otpRequestSchema = z.object({ phone: phoneSchema, purpose: z.enum(['login', 'register']).default('login') });
 export const otpVerifySchema = z.object({
   phone: phoneSchema,
   code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),

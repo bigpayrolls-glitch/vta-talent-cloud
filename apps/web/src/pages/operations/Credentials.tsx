@@ -1,11 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Copy, ExternalLink, Printer } from 'lucide-react';
-import QRCode from 'qrcode';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { SearchBox, Select } from '../../components/form';
 import { useToast } from '../../components/toast';
 import { EmptyState, ErrorNote, formatDate, PageHeader, Pagination, Spinner, StatusBadge, Wordmark } from '../../components/ui';
+import { useQr } from '../../lib/useQr';
 import { api, qs } from '../../lib/api';
 import { useListParams } from '../../lib/useListParams';
 import { ReasonModal } from '../training/Trainers';
@@ -80,15 +80,6 @@ export function CredentialsPage() {
       </div>
     </div>
   );
-}
-
-function useQr(text: string) {
-  const [src, setSrc] = useState('');
-  useEffect(() => {
-    if (!text) return;
-    void QRCode.toDataURL(text, { margin: 1, width: 280, color: { dark: '#202124', light: '#ffffff' } }).then(setSrc);
-  }, [text]);
-  return src;
 }
 
 export function CredentialDetailPage() {

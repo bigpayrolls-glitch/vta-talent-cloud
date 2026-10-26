@@ -39,7 +39,7 @@ export interface OtpChallengesTable {
   id: string;
   phone: string;
   code_hash: string;
-  purpose: 'login';
+  purpose: 'login' | 'register';
   expires_at: Date;
   attempts: Generated<number>;
   consumed_at: Date | null;
@@ -176,6 +176,7 @@ export interface CandidateProfilesTable {
   verified_at: Date | null;
   duplicate_of: string | null;
   source: 'admin' | 'import' | 'self';
+  preferred_work_area: ColumnType<string | null, string | null | undefined, string | null>;
   created_by: string | null;
   created_at: Timestamp;
   updated_at: Timestamp;
@@ -226,6 +227,7 @@ export interface DocumentsTable {
   sha256: string;
   verification_status: Generated<'pending' | 'verified' | 'rejected'>;
   scan_status: Generated<'not_scanned' | 'clean' | 'infected'>;
+  visibility: Generated<'private' | 'employers'>;
   uploaded_by: string | null;
   deleted_at: Date | null;
   created_at: Timestamp;
@@ -252,6 +254,17 @@ export interface AttendanceRecordsTable {
   client_captured_at: Date | null;
   received_at: Timestamp;
   updated_at: Timestamp;
+}
+
+export interface ConsentEventsTable {
+  id: string;
+  user_id: string;
+  purpose: 'privacy_notice' | 'terms' | 'profile_searchable';
+  granted: boolean;
+  notice_version: string | null;
+  recorded_by: string | null;
+  source: 'self' | 'staff' | 'migration';
+  created_at: Timestamp;
 }
 
 export interface AttendanceSyncOpsTable {
@@ -332,6 +345,7 @@ export interface Database {
   attendance_sessions: AttendanceSessionsTable;
   attendance_records: AttendanceRecordsTable;
   attendance_sync_ops: AttendanceSyncOpsTable;
+  consent_events: ConsentEventsTable;
   assessment_results: AssessmentResultsTable;
   assessment_scores: AssessmentScoresTable;
   credentials: CredentialsTable;

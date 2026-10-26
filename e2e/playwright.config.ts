@@ -43,6 +43,8 @@ export default defineConfig({
         NO_COLOR: '1',
         // Demo data uses fixed 2026 dates; pin the API's "today" so these tests do not age.
         VTA_TODAY: '2026-10-26',
+        // Many sign-ins a minute from this one machine; ignored in production.
+        VTA_RELAX_RATE_LIMITS: '1',
       },
     },
     {

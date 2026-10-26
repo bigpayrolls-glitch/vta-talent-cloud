@@ -16,6 +16,7 @@ import { sharedRoutes } from './routes/shared.js';
 import { healthRoutes } from './routes/health.js';
 import { trainingRoutes } from './routes/training/index.js';
 import { operationsRoutes } from './routes/operations/index.js';
+import { learnerRoutes } from './routes/learner/routes.js';
 import { localStorage, type Storage } from './lib/storage.js';
 import { UPLOAD_MAX_BYTES } from '@vta/shared';
 import type { AuditContext } from './audit/service.js';
@@ -89,7 +90,13 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     contentSecurityPolicy: { directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] } },
     hsts: opts.config.COOKIE_SECURE ? { maxAge: 31_536_000, includeSubDomains: true } : false,
   });
-  await app.register(rateLimit, { global: false });
+  // Browser tests sign in many times a minute from one machine. VTA_RELAX_RATE_LIMITS lifts the per-IP limits
+  // for this machine only, and is ignored in production. Per-number OTP limits and account lockout still apply.
+  const relaxLocal = process.env.VTA_RELAX_RATE_LIMITS === '1' && opts.config.NODE_ENV !== 'production';
+  await app.register(rateLimit, {
+    global: false,
+    ...(relaxLocal ? { allowList: (req: { ip: string }) => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.ip) } : {}),
+  });
 
   // File uploads arrive as the raw file body (no multipart parsing), capped at the upload limit.
   app.addContentTypeParser(
@@ -160,6 +167,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
       await api.register(sharedRoutes);
       await api.register(trainingRoutes);
       await api.register(operationsRoutes);
+      await api.register(learnerRoutes);
     },
     { prefix: '/api/v1' },
   );
