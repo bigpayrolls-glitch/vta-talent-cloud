@@ -92,7 +92,7 @@ export function LoginPage() {
                 className={`flex h-[52px] flex-col items-center justify-center rounded-lg leading-tight transition-colors ${method === m ? 'bg-white text-[#C8101A] shadow-sm' : 'text-ink/70 hover:text-ink'}`}
               >
                 <span className="text-[15px] font-semibold">{m === 'email' ? 'Email' : 'Mobile number'}</span>
-                <span className={`text-xs ${method === m ? 'text-ink/70' : 'text-ink/55'}`}>{m === 'email' ? 'Employers, partners and staff' : 'Learners and trainers'}</span>
+                <span className="text-xs text-ink/70">{m === 'email' ? 'Employers, partners and staff' : 'Learners and trainers'}</span>
               </button>
             ))}
           </div>
