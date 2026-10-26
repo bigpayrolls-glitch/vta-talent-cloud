@@ -29,7 +29,7 @@ test.describe('accessibility (axe, WCAG 2.2 AA)', () => {
     await page.getByRole('button', { name: 'Register and confirm my email' }).click();
     await check(page, 'join with errors');
     await page.goto('/login');
-    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByRole('button', { name: 'Sign in', exact: true }).click();
     await check(page, 'login with errors');
   });
 

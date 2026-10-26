@@ -11,7 +11,7 @@ import { useForm } from '../lib/useForm';
 export function Centered({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col px-5 py-8">
-      <Wordmark compact />
+      <Wordmark tagline />
       <main className="mx-auto my-auto w-full max-w-md py-10">{children}</main>
     </div>
   );

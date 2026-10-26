@@ -21,8 +21,8 @@ export function passwordOf(email: string): string {
 export async function signInEmail(page: Page, email: string) {
   await page.goto('/login');
   await page.getByLabel('Email').fill(email);
-  await page.getByLabel('Password').fill(passwordOf(email));
-  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.getByLabel('Password', { exact: true }).fill(passwordOf(email));
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page).not.toHaveURL(/\/login$/);
   // Let the portal finish loading, so a test's first click is not lost while the page is still settling.
   await page.waitForLoadState('networkidle');
@@ -66,7 +66,7 @@ export async function signInPhone(page: Page, tenDigits: string) {
   await page.goto('/login');
   await page.getByRole('tab', { name: 'Mobile number' }).click();
   await page.getByLabel('Mobile number').fill(tenDigits);
-  await page.getByRole('button', { name: 'Send code' }).click();
+  await page.getByRole('button', { name: 'Send OTP' }).click();
   await expect(page.getByLabel('6-digit code')).toBeVisible();
   const code = await latestOtp(tenDigits.slice(-2), logSize);
   await page.getByLabel('6-digit code').fill(code);

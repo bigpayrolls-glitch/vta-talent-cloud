@@ -12,9 +12,9 @@ import { Wordmark } from '../../components/ui';
 function Shell({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="min-h-dvh bg-white">
-      <header className="flex h-16 items-center border-b border-line px-4 lg:px-6">
+      <header className="flex h-[72px] items-center border-b border-line px-4 lg:px-6">
         <Link to="/" aria-label="AutoTalent Grid home">
-          <Wordmark compact />
+          <Wordmark tagline />
         </Link>
       </header>
       <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
