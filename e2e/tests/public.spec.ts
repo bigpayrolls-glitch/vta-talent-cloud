@@ -6,21 +6,34 @@ import { apiLogSize, expectNoHorizontalScroll, ids, latestSignupLink } from './h
 test('the public home page offers each kind of user a way in, and fits a phone', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 800 });
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Build Skills.');
-  await expect(page.getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', '/register');
-  await expect(page.getByRole('link', { name: 'Register your company' }).first()).toHaveAttribute('href', '/join/employer');
-  await expect(page.getByRole('link', { name: 'Register your organisation' })).toHaveAttribute('href', '/join/partner');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Move to a Job.');
+  await expect(page.getByRole('link', { name: 'Create a learner account' })).toHaveAttribute('href', '/register');
+  await expect(page.getByRole('link', { name: 'Employers: register your company' })).toHaveAttribute('href', '/join/employer');
+  await expect(page.getByRole('link', { name: 'Training partners: register your organisation' })).toHaveAttribute('href', '/join/partner');
+  await expect(page.getByRole('link', { name: 'Trainers: sign in' })).toHaveAttribute('href', '/login');
   await expectNoHorizontalScroll(page);
 });
 
+for (const [width, height] of [[1536, 1024], [1440, 900], [1366, 768], [1280, 720]]) {
+  test(`on a ${width}x${height} screen the home page fits without scrolling`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.goto('/');
+    await page.waitForLoadState('networkidle');
+    const { scroll, client } = await page.evaluate(() => ({ scroll: document.documentElement.scrollHeight, client: document.documentElement.clientHeight }));
+    expect(scroll).toBeLessThanOrEqual(client);
+    await expect(page.getByRole('contentinfo')).toBeInViewport({ ratio: 1 });
+  });
+}
+
 test('a certificate code typed on the home page opens its check page', async ({ page }) => {
   await page.goto('/');
-  const box = page.getByLabel('Certificate code');
+  await page.getByRole('button', { name: 'Check a certificate' }).first().click();
+  const box = page.getByRole('dialog').getByLabel('Certificate code');
   await box.fill('not-a-code');
-  await page.getByRole('button', { name: 'Check' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Check', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('32 letters and numbers');
   await box.fill(`https://example.invalid/verify/${ids.credentialRaviCode}`);
-  await page.getByRole('button', { name: 'Check' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Check', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`/verify/${ids.credentialRaviCode}$`));
 });
 

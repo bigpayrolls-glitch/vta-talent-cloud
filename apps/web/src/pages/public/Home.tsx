@@ -1,46 +1,46 @@
-import { ArrowRight, BadgeCheck, Briefcase, Building2, ClipboardCheck, GraduationCap, HandHeart, QrCode, ShieldCheck } from 'lucide-react';
+import {
+  ArrowRight,
+  BadgeCheck,
+  Briefcase,
+  Building2,
+  ClipboardCheck,
+  GraduationCap,
+  Lock,
+  Presentation,
+  QrCode,
+  ScanLine,
+  ShieldCheck,
+  Users,
+} from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
-import { Spinner, Wordmark } from '../../components/ui';
+import { Modal, Spinner, Wordmark } from '../../components/ui';
 import { homePathFor, useAuth } from '../../lib/auth';
 
 /**
- * Phase 8: the public front door. It describes only what this platform does today, with no figures or
- * claims (those need evidence from VTA first). VTA's existing website stays the place for the wider story.
+ * The public front door, laid out to the brand design of 26 Oct 2026: on a laptop or desktop it fits one screen.
+ * It describes only what the platform does today: no figures, video or claims that need evidence first.
  * Signed-in people go straight to their portal.
  */
-const JOURNEY = [
-  { icon: GraduationCap, title: 'Train', body: 'Join a batch at an AutoTalent Grid or partner centre.' },
-  { icon: ClipboardCheck, title: 'Get assessed', body: 'Your trainer assesses each skill; AutoTalent Grid reviews the result.' },
-  { icon: BadgeCheck, title: 'Earn a record', body: 'A completion record anyone can check with its QR code.' },
-  { icon: Briefcase, title: 'Find work', body: 'Apply to jobs from employers AutoTalent Grid has verified.' },
+const ROLES = [
+  { icon: GraduationCap, title: 'Learners', body: 'Learn skills and apply for jobs.', to: '/register', img: '/role-learner.webp', tint: 'bg-[#FDECEE]', cta: 'Learners: create an account' },
+  { icon: Building2, title: 'Employers', body: 'Find skilled technicians.', to: '/join/employer', img: '/role-employer.webp', tint: 'bg-[#EAF1FB]', cta: 'Employers: register your company' },
+  { icon: Users, title: 'Training partners', body: 'Run training and assessments.', to: '/join/partner', img: '/role-partner.webp', tint: 'bg-[#FDF3E4]', cta: 'Training partners: register your organisation' },
+  { icon: Presentation, title: 'Trainers', body: 'Teach and assess skills.', to: '/login', img: '/role-trainer.webp', tint: 'bg-[#E8F4EE]', cta: 'Trainers: sign in' },
 ];
 
-const AUDIENCES = [
-  {
-    icon: GraduationCap,
-    title: 'Learners and technicians',
-    points: ['Your courses, attendance and results in one place', 'Certificates you can share', 'Jobs from verified employers; you choose who sees your profile'],
-    cta: 'Create an account',
-    to: '/register',
-    note: 'With your mobile number.',
-  },
-  {
-    icon: Building2,
-    title: 'Employers',
-    points: ['Post jobs, reviewed by AutoTalent Grid before they go live', 'Find trained technicians who have opted in', 'Shortlist, interview and record who you hired'],
-    cta: 'Register your company',
-    to: '/join/employer',
-    note: 'AutoTalent Grid verifies your company first.',
-  },
-  {
-    icon: HandHeart,
-    title: 'Training partners and sponsors',
-    points: ['Run batches, attendance and assessments', 'Programme dashboards with clear definitions', 'Reports to download for your sponsors'],
-    cta: 'Register your organisation',
-    to: '/join/partner',
-    note: 'For OEMs, CSR sponsors, NGOs, colleges and training providers.',
-  },
+const STEPS = [
+  { icon: GraduationCap, title: 'Learn', body: 'Join a course.' },
+  { icon: ClipboardCheck, title: 'Get assessed', body: 'Show your skills.' },
+  { icon: BadgeCheck, title: 'Build your record', body: 'Keep it in one place.' },
+  { icon: Briefcase, title: 'Apply for jobs', body: 'Connect with employers.' },
+];
+
+const TRUST = [
+  { icon: ShieldCheck, title: 'Verified employers', body: 'Checked before they hire' },
+  { icon: ClipboardCheck, title: 'Reviewed jobs', body: 'Checked before going live' },
+  { icon: QrCode, title: 'Checkable certificates', body: 'Check one by its QR code' },
+  { icon: Lock, title: 'Your choice', body: 'You decide who sees your profile' },
 ];
 
 export function PublicHomePage() {
@@ -49,99 +49,145 @@ export function PublicHomePage() {
   if (me) return <Navigate to={homePathFor(me)} replace />;
 
   return (
-    <PublicShell>
-      <section className="relative overflow-hidden border-b border-line bg-gradient-to-br from-brand-tint via-[#fff5f5] to-white">
-        <img src="/login-hero.webp" alt="" className="pointer-events-none absolute right-0 bottom-0 hidden h-[94%] w-auto select-none min-[1100px]:block min-[1500px]:right-[calc((100vw-1500px)/2)]" draggable={false} />
-        <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="relative z-10 py-12 lg:py-24">
-            <p className="text-sm font-semibold tracking-wide text-brand uppercase">Skills and jobs for automotive technicians</p>
-            <h1 className="mt-3 text-[clamp(30px,8.6vw,38px)] leading-[1.1] font-black tracking-[-0.02em] sm:text-[52px] min-[1100px]:whitespace-nowrap">
-              Build Skills.
+    <PublicShell fit>
+      <div className="flex flex-col lg:h-full">
+        <section className="relative overflow-hidden bg-gradient-to-r from-brand-tint via-[#fdf1f1] to-white lg:min-h-0 lg:flex-1">
+          <img src="/home-hero.webp" alt="" className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[60%] object-cover object-top select-none lg:block" draggable={false} />
+          <div className="relative z-10 mx-auto flex h-full max-w-[1440px] flex-col justify-center px-5 py-10 sm:px-8 lg:px-12 lg:py-6">
+            <p className="text-[13px] font-bold tracking-wide text-[#D7141C] uppercase lg:[@media(max-height:820px)]:hidden">Automotive skills. Real opportunities.</p>
+            <h1 className="mt-3 text-[clamp(34px,3.6vh+1.05vw,60px)] leading-[1.05] font-black tracking-[-0.025em] text-ink">
+              Learn. <span className="text-[#D7141C]">Get Assessed.</span>
               <br />
-              <span className="text-[#D7141C]">Connect with Employers.</span>
-              <br />
-              Grow Your Career.
+              Move to a Job.
             </h1>
-            <p className="mt-5 max-w-lg text-lg text-ink/75">
-              One connected platform for automotive training, verified skills and employment opportunities, for learners, employers and the partners who train them.
+            <p className="mt-3 max-w-[520px] text-[clamp(16px,1.6vh+0.5vw,22px)] leading-snug text-ink/70">
+              A simple platform for learners, training partners and automotive employers.
             </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <Link to="/register" className="btn-primary h-12 bg-[#C8101A] px-6 text-base hover:bg-brand-hover">
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row lg:[@media(max-height:820px)]:mt-4">
+              <Link to="/register" className="btn-primary h-12 bg-[#C8101A] px-7 text-base hover:bg-brand-hover">
                 Create a learner account
-                <ArrowRight className="size-4" aria-hidden />
+                <ArrowRight className="size-5" aria-hidden />
               </Link>
-              <Link to="/login" className="btn-secondary h-12 px-6 text-base">
-                Sign in
+              <Link to="/join/employer" className="btn h-12 border border-[#D7141C] bg-white px-7 text-base text-ink hover:bg-brand-tint">
+                Register your company
               </Link>
             </div>
           </div>
-        </div>
-      </section>
+          <img src="/home-hero.webp" alt="" className="h-52 w-full object-cover object-[70%_25%] sm:h-72 lg:hidden" />
+        </section>
 
-      <section className="border-b border-line bg-white">
-        <ol className="mx-auto grid max-w-6xl gap-3 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4" aria-label="How it works">
-          {JOURNEY.map((s, i) => (
-            <li key={s.title} className="card flex items-start gap-4 p-4 sm:p-5">
-              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-[#C8101A] text-white">
-                <s.icon className="size-5" aria-hidden />
+        <section aria-label="Who it is for" className="mx-auto grid w-full max-w-[1440px] shrink-0 grid-cols-1 gap-3 px-5 pt-4 sm:grid-cols-2 sm:px-8 lg:grid-cols-4 lg:px-12">
+          {ROLES.map((r) => (
+            <Link key={r.title} to={r.to} aria-label={r.cta} className={`group relative flex h-[clamp(118px,15vh,158px)] overflow-hidden rounded-2xl ${r.tint} p-4 ring-1 ring-black/5 transition hover:shadow-md`}>
+              <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-white text-[#D7141C] shadow-sm">
+                <r.icon className="size-6" strokeWidth={1.75} aria-hidden />
               </span>
-              <span className="min-w-0">
-                <span className="block text-xs font-semibold text-muted">Step {i + 1}</span>
-                <span className="block font-bold">{s.title}</span>
-                <span className="block text-sm text-muted">{s.body}</span>
+              <span className="ml-3 flex max-w-[56%] flex-col pt-0.5">
+                <span className="block text-lg font-bold text-ink">{r.title}</span>
+                <span className="mt-1 block text-[14px] leading-snug text-ink/70">{r.body}</span>
+                <span className="mt-auto grid size-8 shrink-0 place-items-center self-start rounded-full bg-[#D7141C] text-white shadow transition group-hover:translate-x-0.5" aria-hidden>
+                  <ArrowRight className="size-4" />
+                </span>
               </span>
-            </li>
+              <img src={r.img} alt="" className="absolute right-0 bottom-0 h-[96%] w-auto select-none" draggable={false} />
+            </Link>
           ))}
-        </ol>
-      </section>
+        </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:py-20" aria-labelledby="who">
-        <h2 id="who" className="text-[28px] font-bold tracking-tight sm:text-[32px]">
-          One platform, a portal for each of you
-        </h2>
-        <p className="mt-2 max-w-2xl text-muted">Sign in once and you land in the portal for your role. Each one shows only what that role is allowed to see.</p>
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {AUDIENCES.map((a) => (
-            <article key={a.title} className="card flex flex-col p-6">
-              <span className="grid size-12 place-items-center rounded-xl bg-brand-tint text-brand">
-                <a.icon className="size-6" aria-hidden />
-              </span>
-              <h3 className="mt-4 text-lg font-bold">{a.title}</h3>
-              <ul className="mt-3 flex-1 space-y-2 text-[15px]">
-                {a.points.map((p) => (
-                  <li key={p} className="flex gap-2">
-                    <span className="mt-2 size-1.5 shrink-0 rounded-full bg-brand" aria-hidden />
-                    <span>{p}</span>
-                  </li>
-                ))}
-              </ul>
-              <Link to={a.to} className="btn-primary mt-6 h-11 w-full">
-                {a.cta}
-              </Link>
-              <p className="mt-2 min-h-8 text-center text-xs text-muted">{a.note}</p>
-            </article>
-          ))}
-        </div>
-        <p className="mt-6 text-sm text-muted">Trainers are added by their training partner or by AutoTalent Grid, and sign in with their mobile number.</p>
-      </section>
+        <section aria-labelledby="how" className="mx-auto w-full max-w-[1440px] shrink-0 px-5 py-[clamp(12px,2.2vh,24px)] sm:px-8 lg:px-12">
+          <h2 id="how" className="text-[26px] font-bold tracking-tight text-ink">
+            How it works
+          </h2>
+          <ol className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {STEPS.map((s, i) => (
+              <li key={s.title} className="flex items-center gap-4">
+                <span className="grid size-[clamp(56px,8vh,80px)] shrink-0 place-items-center rounded-full bg-brand-tint text-[#D7141C]">
+                  <s.icon className="size-8" strokeWidth={1.75} aria-hidden />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[17px] font-bold text-ink">
+                    {i + 1}. {s.title}
+                  </span>
+                  <span className="block text-[15px] text-ink/70">{s.body}</span>
+                </span>
+                {i < STEPS.length - 1 && <ArrowRight className="hidden size-6 shrink-0 text-[#D7141C] lg:block" aria-hidden />}
+              </li>
+            ))}
+          </ol>
+        </section>
 
-      <section className="border-y border-line bg-surface/60">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-14 sm:px-6 lg:grid-cols-2 lg:py-16">
-          <div className="flex gap-4">
-            <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-white text-ink shadow-sm">
-              <ShieldCheck className="size-6" aria-hidden />
-            </span>
-            <div>
-              <h2 className="text-xl font-bold">Checked by AutoTalent Grid</h2>
-              <p className="mt-2 text-muted">
-                AutoTalent Grid verifies learner profiles, employers and training partners before they take part in hiring or programmes, and reviews every job before it is published. Employers see a learner&apos;s profile only if the learner allows it.
-              </p>
-            </div>
-          </div>
-          <CertificateCheck />
-        </div>
-      </section>
+        <section aria-label="Checked by AutoTalent Grid" className="shrink-0 bg-surface">
+          <ul className="mx-auto grid max-w-[1440px] gap-4 px-5 py-4 sm:grid-cols-2 sm:px-8 lg:grid-cols-4 lg:divide-x lg:divide-line lg:px-12">
+            {TRUST.map((t) => (
+              <li key={t.title} className="flex items-center gap-3 lg:justify-center lg:px-4">
+                <t.icon className="size-8 shrink-0 text-[#D7141C]" strokeWidth={1.6} aria-hidden />
+                <span>
+                  <span className="block font-bold text-ink">{t.title}</span>
+                  <span className="block text-sm text-ink/70">{t.body}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
     </PublicShell>
+  );
+}
+
+/** Header and footer for the public pages. `fit`: on a laptop or desktop the page fills exactly one screen. */
+export function PublicShell({ children, fit = false }: { children: ReactNode; fit?: boolean }) {
+  const [checkOpen, setCheckOpen] = useState(false);
+  return (
+    <div className={`flex min-h-dvh flex-col bg-white ${fit ? 'lg:h-dvh lg:min-h-[700px]' : ''}`}>
+      <header className="sticky top-0 z-20 shrink-0 border-b border-line bg-white/95 backdrop-blur">
+        <div className="mx-auto flex h-[72px] max-w-[1440px] items-center justify-between gap-3 px-4 sm:px-8 lg:px-12">
+          <Link to="/" aria-label="AutoTalent Grid home">
+            <span className="sm:hidden">
+              <Wordmark compact />
+            </span>
+            <span className="hidden sm:inline">
+              <Wordmark tagline />
+            </span>
+          </Link>
+          <nav aria-label="Main" className="hidden items-center gap-8 text-[15px] font-medium text-ink lg:flex">
+            <Link to="/register" className="hover:text-[#C8101A]">For Learners</Link>
+            <Link to="/join/employer" className="hover:text-[#C8101A]">For Employers</Link>
+            <Link to="/join/partner" className="hover:text-[#C8101A]">For Training Partners</Link>
+          </nav>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button type="button" onClick={() => setCheckOpen(true)} className="btn hidden h-11 border border-[#D7141C] bg-white px-4 text-sm text-ink hover:bg-brand-tint sm:inline-flex">
+              <ScanLine className="size-5 text-[#D7141C]" aria-hidden />
+              Check a certificate
+            </button>
+            <Link to="/login" className="btn-primary h-11 bg-[#C8101A] px-5 hover:bg-brand-hover">
+              Sign in
+              <ArrowRight className="size-4" aria-hidden />
+            </Link>
+          </div>
+        </div>
+      </header>
+      <main className={`flex-1 ${fit ? 'lg:min-h-0' : ''}`}>{children}</main>
+      <footer className="shrink-0 border-t border-line bg-white">
+        <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-5 py-4 sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:px-12">
+          <Wordmark tagline />
+          <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-ink/75">
+            <Link to="/register" className="hover:text-ink">For Learners</Link>
+            <Link to="/join/employer" className="hover:text-ink">For Employers</Link>
+            <Link to="/join/partner" className="hover:text-ink">For Training Partners</Link>
+            <button type="button" onClick={() => setCheckOpen(true)} className="hover:text-ink">Check a certificate</button>
+            <Link to="/privacy" className="hover:text-ink">Privacy notice</Link>
+            <Link to="/terms" className="hover:text-ink">Terms of use</Link>
+          </nav>
+          <p className="text-sm text-ink/70">
+            A product of
+            <br className="hidden lg:block" /> Big Payrolls Solution Pvt. Ltd.
+          </p>
+        </div>
+      </footer>
+      <Modal open={checkOpen} onClose={() => setCheckOpen(false)} title="Check a certificate">
+        <CertificateCheck />
+      </Modal>
+    </div>
   );
 }
 
@@ -154,7 +200,6 @@ function CertificateCheck() {
     <form
       id="check"
       noValidate
-      className="card p-5 sm:p-6"
       onSubmit={(e) => {
         e.preventDefault();
         const code = value.trim().toLowerCase().split('/').filter(Boolean).pop() ?? '';
@@ -165,11 +210,7 @@ function CertificateCheck() {
         navigate(`/verify/${code}`);
       }}
     >
-      <div className="flex items-center gap-2">
-        <QrCode className="size-5 text-brand" aria-hidden />
-        <h2 className="text-xl font-bold">Check a certificate</h2>
-      </div>
-      <p className="mt-1 text-sm text-muted">Scan the QR code on the certificate, or enter its code here.</p>
+      <p className="text-sm text-muted">Scan the QR code on the certificate, or enter its code here.</p>
       <label htmlFor="cert-code" className="sr-only">
         Certificate code
       </label>
@@ -201,46 +242,3 @@ function CertificateCheck() {
   );
 }
 
-export function PublicShell({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-dvh flex-col bg-white">
-      <header className="sticky top-0 z-20 border-b border-line bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-          <Link to="/" aria-label="AutoTalent Grid home">
-            <span className="sm:hidden">
-              <Wordmark compact />
-            </span>
-            <span className="hidden sm:inline">
-              <Wordmark tagline />
-            </span>
-          </Link>
-          <nav aria-label="Main" className="flex items-center gap-1 sm:gap-2">
-            <a href="/#check" className="hidden rounded-lg px-3 py-2 text-sm font-medium text-muted hover:text-ink sm:block">
-              Check a certificate
-            </a>
-            <Link to="/login" className="btn-secondary h-10 px-4">
-              Sign in
-            </Link>
-          </nav>
-        </div>
-      </header>
-      <main className="flex-1">{children}</main>
-      <footer className="bg-ink text-white/80">
-        <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-start sm:justify-between sm:px-6">
-          <div>
-            <Wordmark tagline inverse />
-            <p className="mt-3 max-w-xs text-sm text-white/60">One platform. Every step from learning to employment.</p>
-          </div>
-          <nav aria-label="Footer" className="grid grid-cols-2 gap-x-10 gap-y-2 text-sm">
-            <Link to="/register" className="hover:text-white">Create a learner account</Link>
-            <Link to="/privacy" className="hover:text-white">Privacy notice</Link>
-            <Link to="/join/employer" className="hover:text-white">Register your company</Link>
-            <Link to="/terms" className="hover:text-white">Terms of use</Link>
-            <Link to="/join/partner" className="hover:text-white">Register a training partner</Link>
-            <Link to="/login" className="hover:text-white">Sign in</Link>
-          </nav>
-        </div>
-      </footer>
-    </div>
-  );
-}
