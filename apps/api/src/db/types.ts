@@ -240,6 +240,9 @@ export interface DocumentsTable {
   programme_id: ColumnType<string | null, string | null | undefined, string | null>;
   category: ColumnType<string | null, string | null | undefined, string | null>;
   uploaded_by: string | null;
+  reviewed_by: ColumnType<string | null, string | null | undefined, string | null>;
+  reviewed_at: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  review_reason: ColumnType<string | null, string | null | undefined, string | null>;
   deleted_at: Date | null;
   created_at: Timestamp;
 }

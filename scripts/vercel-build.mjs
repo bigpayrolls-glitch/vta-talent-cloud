@@ -4,7 +4,7 @@
 //   3. bundles the API into one Vercel Function served at /api/*.
 // Run by Vercel ("buildCommand" in vercel.json). Needs DATABASE_URL and the other settings in docs/deploy-vercel.md.
 import { execSync } from 'node:child_process';
-import { cpSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -64,6 +64,7 @@ writeFileSync(
 );
 
 console.log('\n▶ Static files and routes');
+const webHeaders = Object.fromEntries(Object.entries(JSON.parse(readFileSync(path.join(root, 'apps/web/security-headers.json'), 'utf8'))).filter(([k]) => k !== '//'));
 cpSync(path.join(root, 'apps/web/dist'), path.join(out, 'static'), { recursive: true });
 writeFileSync(
   path.join(out, 'config.json'),
@@ -71,6 +72,8 @@ writeFileSync(
     {
       version: 3,
       routes: [
+        // Phase 10: security headers on every page and file (the API sets its own, stricter ones).
+        { src: '/(?!api/)(.*)', headers: { ...webHeaders, 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' }, continue: true },
         // The service worker and manifest must always be fresh, so new versions are found.
         { src: '/(sw\\.js|manifest\\.webmanifest)', headers: { 'cache-control': 'no-cache' }, continue: true },
         { src: '/assets/(.*)', headers: { 'cache-control': 'public, max-age=31536000, immutable' }, continue: true },

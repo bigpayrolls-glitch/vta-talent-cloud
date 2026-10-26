@@ -201,3 +201,8 @@ export const CREDENTIAL_TYPE_LABEL = { course_completion: 'Course completion rec
 /** Fixed wording on every credential and on the public verification page (requirements §13, decision D8). */
 export const CREDENTIAL_DISCLAIMER =
   'This is a VTA Talent Cloud record that the holder completed this course and passed its assessment. It is not a government, NSDC or ASDC qualification.';
+
+/** Phase 10 (AD-05): VTA's decision on one of a candidate's documents. */
+export const documentReviewSchema = z
+  .object({ decision: z.enum(['verified', 'rejected']), reason: z.string().trim().max(500).optional() })
+  .refine((v) => v.decision !== 'rejected' || (v.reason?.length ?? 0) >= 3, { path: ['reason'], message: 'Give a reason' });

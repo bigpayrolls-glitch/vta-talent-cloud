@@ -33,6 +33,7 @@ export const NOTIFICATION_TEMPLATES = {
   result_released: { title: (p) => `Your result for ${p.course} is ready`, body: (p) => (p.outcome === 'pass' ? 'You passed. Your certificate follows once VTA issues it.' : 'Open it to see your marks.') },
   certificate_issued: { title: (p) => `Your certificate for ${p.course} is ready`, body: () => 'Share it with employers, or let them check it with its QR code.' },
   profile_verified: { title: () => 'VTA verified your profile', body: () => 'Employers can now find you if you allow it in Privacy.' },
+  document_rejected: { title: (p) => `VTA could not accept "${p.title}"`, body: (p) => `VTA's note: ${p.reason}. You can upload a clearer copy.` },
   profile_rejected: { title: () => 'VTA could not verify your profile', body: (p) => `VTA's note: ${p.reason}` },
   profile_correction: { title: () => 'VTA asked you to correct your profile', body: (p) => `VTA's note: ${p.reason}` },
   // Trainers

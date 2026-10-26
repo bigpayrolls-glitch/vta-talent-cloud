@@ -1,4 +1,4 @@
-import { DOCUMENT_KINDS, UPLOAD_MAX_BYTES, UPLOAD_TYPES, uuidSchema } from '@vta/shared';
+import { DOCUMENT_KINDS, documentReviewSchema, UPLOAD_MAX_BYTES, UPLOAD_TYPES, uuidSchema } from '@vta/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
@@ -6,6 +6,7 @@ import { auditCtx } from '../../app.js';
 import { audit } from '../../audit/service.js';
 import { newId } from '../../lib/crypto.js';
 import { ApiError, invalid, notFound } from '../../lib/errors.js';
+import { notify } from '../../lib/notify.js';
 import { iso, parse } from '../../lib/validate.js';
 import { LINK_TTL_SECONDS, safeFileName, signLink, sniffMime, verifyLink } from '../../lib/storage.js';
 import { candidateReadScope, inScope } from '../../policy/index.js';
@@ -75,6 +76,35 @@ export const fileRoutes: FastifyPluginAsync = async (app) => {
       return { id: docId, mimeType: mime, sizeBytes: body.length, scanStatus: 'not_scanned' };
     },
   );
+
+  /**
+   * AD-05: VTA verifies or rejects one of a candidate's documents. A verified document can no longer be
+   * deleted by the learner; a rejected one tells the learner why, so they can upload a better copy.
+   */
+  app.post('/admin/candidates/:id/documents/:docId/review', { config: { permission: 'candidate.manage' } }, async (req) => {
+    const { id, docId } = parse(z.object({ id: uuidSchema, docId: uuidSchema }), req.params);
+    const b = parse(documentReviewSchema, req.body);
+    const d = await db
+      .selectFrom('documents')
+      .select(['id', 'title', 'verification_status'])
+      .where('id', '=', docId)
+      .where('owner_user_id', '=', id)
+      .where('organisation_id', 'is', null)
+      .where('deleted_at', 'is', null)
+      .executeTakeFirst();
+    if (!d) throw notFound('Document');
+    if (d.verification_status === b.decision) throw invalid(`This document is already ${b.decision}.`);
+    await db.transaction().execute(async (trx) => {
+      await trx
+        .updateTable('documents')
+        .set({ verification_status: b.decision, reviewed_by: req.actor!.userId, reviewed_at: new Date(), review_reason: b.decision === 'rejected' ? b.reason! : null })
+        .where('id', '=', docId)
+        .execute();
+      await audit(trx, auditCtx(req), { action: `document.${b.decision}`, entityType: 'user', entityId: id, before: { documentId: docId, verification_status: d.verification_status }, after: { verification_status: b.decision, reason: b.reason ?? null } });
+      if (b.decision === 'rejected') await notify(trx, [id], 'document_rejected', { title: d.title, reason: b.reason }, '/learn/documents');
+    });
+    return { id: docId, verificationStatus: b.decision };
+  });
 
   /** Signed link for an authorised viewer. Every link handed out is recorded. */
   app.get('/files/:id/link', { config: { permission: 'document.read' } }, async (req) => {

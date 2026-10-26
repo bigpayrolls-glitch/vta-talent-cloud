@@ -97,14 +97,26 @@ export const programmeRoutes: FastifyPluginAsync = async (app) => {
 
   // ---------------------------------------------------------------- list and read (PA-02)
 
+  /** SH-09: paged, with search by name and a status filter. */
+  const listSchema = z.object({
+    q: z.string().trim().max(100).optional(),
+    status: z.enum(['planned', 'active', 'closed']).optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    pageSize: z.coerce.number().int().min(1).max(100).default(20),
+  });
+
   app.get('/programmes', { config: { permission: 'programme.read' } }, async (req) => {
-    let q = db.selectFrom('programmes').selectAll();
+    const f = parse(listSchema, req.query);
+    let q = db.selectFrom('programmes');
     if (!isPlatformAdmin(req.actor!)) {
       const orgs = partnerOrgs(req);
-      if (!orgs.length) return { items: [] };
+      if (!orgs.length) return { items: [], page: f.page, pageSize: f.pageSize, total: 0 };
       q = q.where('id', 'in', db.selectFrom('programme_partners').select('programme_id').where('organisation_id', 'in', orgs));
     }
-    const rows = await q.orderBy('start_date', 'desc').execute();
+    if (f.q) q = q.where('name', 'ilike', `%${f.q.replace(/[%_\\]/g, '\\$&')}%`);
+    if (f.status) q = q.where('status', '=', f.status);
+    const { total } = await q.select((eb) => eb.fn.countAll<string>().as('total')).executeTakeFirstOrThrow();
+    const rows = await q.selectAll().orderBy('start_date', 'desc').orderBy('id').limit(f.pageSize).offset((f.page - 1) * f.pageSize).execute();
     const { partners, batches } = await links(rows.map((r) => r.id));
     const enrolled = rows.length
       ? await db
@@ -128,6 +140,9 @@ export const programmeRoutes: FastifyPluginAsync = async (app) => {
         partners: partners.filter((x) => x.programme_id === p.id).map((x) => x.legal_name),
         batches: batches.filter((b) => b.programme_id === p.id).length,
       })),
+      page: f.page,
+      pageSize: f.pageSize,
+      total: Number(total),
     };
   });
 
@@ -208,7 +223,10 @@ export const programmeRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/programmes/:id/beneficiaries', { config: { permission: 'programme.read' } }, async (req) => {
     const p = await visible(req, parse(idParam, req.params).id);
-    return { fields: p.beneficiary_fields, sharingBasis: p.sharing_basis, items: await beneficiaries(p) };
+    // SH-09: paged (the CSV download still has everyone).
+    const f = parse(z.object({ page: z.coerce.number().int().min(1).default(1), pageSize: z.coerce.number().int().min(1).max(100).default(50) }), req.query);
+    const all = await beneficiaries(p);
+    return { fields: p.beneficiary_fields, sharingBasis: p.sharing_basis, items: all.slice((f.page - 1) * f.pageSize, f.page * f.pageSize), page: f.page, pageSize: f.pageSize, total: all.length };
   });
 
   // ---------------------------------------------------------------- downloads (PA-06): logged, no personal data unless approved
