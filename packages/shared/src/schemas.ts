@@ -92,3 +92,13 @@ export type InviteUserInput = z.infer<typeof inviteUserSchema>;
 export type GrantRoleInput = z.infer<typeof grantRoleSchema>;
 export type CreateOrganisationInput = z.infer<typeof createOrganisationSchema>;
 export type CentreInput = z.infer<typeof centreSchema>;
+
+// Phase 9: password reset (by email link) and change (signed in).
+export const forgotPasswordSchema = z.object({ email: emailSchema });
+export const resetPasswordSchema = z.object({ token: z.string().min(20).max(100), password: passwordSchema });
+export const changePasswordSchema = z
+  .object({ currentPassword: z.string().min(1, 'Enter your current password').max(128), newPassword: passwordSchema })
+  .refine((v) => v.currentPassword !== v.newPassword, { path: ['newPassword'], message: 'Choose a password different from the current one' });
+
+/** Phase 9: a learner asks VTA to close their account (the reason is optional). */
+export const closureRequestSchema = z.object({ reason: z.string().trim().max(500).optional() });

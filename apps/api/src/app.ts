@@ -20,6 +20,9 @@ import { learnerRoutes } from './routes/learner/routes.js';
 import { hiringRoutes } from './routes/hiring/index.js';
 import { programmesRoutes } from './routes/programmes/index.js';
 import { signupRoutes } from './routes/signup.js';
+import { notificationRoutes } from './routes/notifications.js';
+import { passwordRoutes } from './routes/password.js';
+import { accountRoutes } from './routes/account.js';
 import { databaseStorage, localStorage, type Storage } from './lib/storage.js';
 import { UPLOAD_MAX_BYTES } from '@vta/shared';
 import type { AuditContext } from './audit/service.js';
@@ -166,6 +169,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     async (api) => {
       await api.register(healthRoutes);
       await api.register(authRoutes, { prefix: '/auth' });
+      await api.register(passwordRoutes, { prefix: '/auth' });
       await api.register(adminRoutes, { prefix: '/admin' });
       await api.register(sharedRoutes);
       await api.register(trainingRoutes);
@@ -174,6 +178,8 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
       await api.register(hiringRoutes);
       await api.register(programmesRoutes);
       await api.register(signupRoutes);
+      await api.register(notificationRoutes);
+      await api.register(accountRoutes);
     },
     { prefix: '/api/v1' },
   );

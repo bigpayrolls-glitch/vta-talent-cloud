@@ -18,6 +18,7 @@ import { newId } from '../../lib/crypto.js';
 import { toCsv } from '../../lib/csv.js';
 import { forbidden, invalid, notFound } from '../../lib/errors.js';
 import { LINK_TTL_SECONDS, safeFileName, signLink, sniffMime } from '../../lib/storage.js';
+import { notify, orgMembers, PARTNER_TEAM } from '../../lib/notify.js';
 import { iso, parse } from '../../lib/validate.js';
 import { isPlatformAdmin } from '../../policy/index.js';
 import { attendanceByCandidate } from '../operations/common.js';
@@ -337,6 +338,11 @@ export const programmeRoutes: FastifyPluginAsync = async (app) => {
     budget_as_of: b.budgetAsOf ?? null,
   });
   const setLinks = async (trx: Kysely<Database>, id: string, b: z.output<typeof programmeSchema>) => {
+    const before = new Set((await trx.selectFrom('programme_partners').select('organisation_id').where('programme_id', '=', id).execute()).map((r) => r.organisation_id));
+    // SH-07: partners newly added to the programme hear about it.
+    for (const org of new Set(b.partnerOrganisationIds)) {
+      if (!before.has(org)) await notify(trx, await orgMembers(trx, org, PARTNER_TEAM), 'programme_assigned', { programme: b.name }, `/partner/programmes/${id}`);
+    }
     await trx.deleteFrom('programme_partners').where('programme_id', '=', id).execute();
     await trx.insertInto('programme_partners').values([...new Set(b.partnerOrganisationIds)].map((o) => ({ programme_id: id, organisation_id: o }))).execute();
     await trx.deleteFrom('programme_batches').where('programme_id', '=', id).execute();

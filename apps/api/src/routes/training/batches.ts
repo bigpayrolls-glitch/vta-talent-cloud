@@ -8,6 +8,8 @@ import type { DB } from '../../db/index.js';
 import type { Batch, Database } from '../../db/types.js';
 import { newId } from '../../lib/crypto.js';
 import { invalid, notFound } from '../../lib/errors.js';
+import { formatDay } from '../../lib/dates.js';
+import { notify } from '../../lib/notify.js';
 import { iso, parse } from '../../lib/validate.js';
 import { batchManageScope, batchReadScope, batchVisible, inScope, rosterShowsContact, type BatchScope } from '../../policy/index.js';
 import { attendanceByCandidate, emptyStats } from '../operations/common.js';
@@ -217,10 +219,17 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
     await db.transaction().execute(async (trx) => {
       await trx.insertInto('batches').values(row).execute();
       await audit(trx, auditCtx(req), { action: 'batch.created', entityType: 'batch', entityId: row.id, after: row });
+      await notifyTrainer(trx, row.trainer_id, row.id, row.name, row.course_id, row.start_date, req.actor!.userId);
     });
     reply.code(201);
     return { id: row.id };
   });
+
+  /** SH-07: tell a trainer they were given a batch (not when they assigned themselves). */
+  async function notifyTrainer(trx: Transaction<Database>, trainerId: string, batchId: string, name: string, courseId: string, start: string, actorId: string) {
+    const course = await trx.selectFrom('courses').select('title').where('id', '=', courseId).executeTakeFirstOrThrow();
+    await notify(trx, [trainerId], 'batch_assigned', { batch: name, course: course.title, start: formatDay(start) }, `/partner/batches/${batchId}`, { except: actorId });
+  }
 
   app.patch('/admin/batches/:id', { config: { permission: 'batch.manage' } }, async (req) => {
     const { id } = parse(idParam, req.params);
@@ -247,6 +256,7 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
       await trx.updateTable('batches').set({ ...changes, updated_at: new Date() }).where('id', '=', id).execute();
       const before = Object.fromEntries(Object.keys(changes).map((k) => [k, cur[k as keyof Batch]]));
       await audit(trx, auditCtx(req), { action: 'batch.updated', entityType: 'batch', entityId: id, before, after: changes });
+      if (changes.trainer_id) await notifyTrainer(trx, changes.trainer_id, id, changes.name ?? cur.name, cur.course_id, startDate, req.actor!.userId);
       return { id };
     });
   });
@@ -363,6 +373,8 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
         }
       }
       await audit(trx, auditCtx(req), { action: 'batch.enrolled', entityType: 'batch', entityId: id, after: { candidateIds: unique } });
+      const course = await trx.selectFrom('courses').select('title').where('id', '=', batch.course_id).executeTakeFirstOrThrow();
+      await notify(trx, unique, 'enrolled', { course: course.title, batch: batch.name, start: formatDay(batch.start_date) }, '/learn/learning');
       return { enrolled: unique.length, enrolledTotal: Number(n) + unique.length, capacity: batch.capacity };
     });
     reply.code(201);

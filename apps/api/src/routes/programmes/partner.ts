@@ -5,6 +5,7 @@ import { sql } from 'kysely';
 import { z } from 'zod';
 import { auditCtx } from '../../app.js';
 import { audit } from '../../audit/service.js';
+import { notify, vtaReviewers } from '../../lib/notify.js';
 import type { Organisation } from '../../db/types.js';
 import { newId } from '../../lib/crypto.js';
 import { toCsv } from '../../lib/csv.js';
@@ -95,6 +96,7 @@ export const partnerRoutes: FastifyPluginAsync = async (app) => {
     await db.transaction().execute(async (trx) => {
       await trx.updateTable('organisations').set({ submitted_at: now, verification_status: 'pending', verification_reason: null, updated_at: now }).where('id', '=', o.id).execute();
       await audit(trx, auditCtx(req), { action: 'organisation.submitted', entityType: 'organisation', entityId: o.id, before: { verification_status: o.verification_status }, after: { verification_status: 'pending' } });
+      await notify(trx, await vtaReviewers(trx), 'org_submitted', { org: o.legal_name, type: 'partner' }, `/admin/organisations?verificationStatus=pending`);
     });
     return partnerDto(await org(req));
   });

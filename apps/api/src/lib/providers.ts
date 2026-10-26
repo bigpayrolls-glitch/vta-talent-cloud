@@ -12,6 +12,8 @@ export interface EmailProvider {
   sendInvitation(to: string, name: string, link: string): Promise<void>;
   /** Phase 8: someone registered an organisation; the link confirms their email and sets a password. */
   sendSignupConfirmation(to: string, name: string, link: string): Promise<void>;
+  /** Phase 9: a link to choose a new password (30 minutes, once). */
+  sendPasswordReset(to: string, name: string, link: string): Promise<void>;
 }
 
 export interface Providers {
@@ -37,22 +39,28 @@ export function consoleProviders(log: FastifyBaseLogger): Providers {
       async sendSignupConfirmation(_to, name, link) {
         log.warn(`[DEV EMAIL] Confirm registration for ${name}: ${link}`);
       },
+      async sendPasswordReset(_to, name, link) {
+        log.warn(`[DEV EMAIL] Password reset for ${name}: ${link}`);
+      },
     },
   };
 }
 
 /** In tests we capture what would have been sent. */
-export function memoryProviders(): Providers & { sentOtps: Map<string, string>; sentInvites: Map<string, string> } {
+export function memoryProviders(): Providers & { sentOtps: Map<string, string>; sentInvites: Map<string, string>; sentResets: Map<string, string> } {
   const sentOtps = new Map<string, string>();
+  const sentResets = new Map<string, string>();
   const sentInvites = new Map<string, string>();
   return {
     devEcho: true,
     sentOtps,
     sentInvites,
+    sentResets,
     sms: { sendOtp: async (phone, code) => void sentOtps.set(phone, code) },
     email: {
       sendInvitation: async (to, _name, link) => void sentInvites.set(to, link),
       sendSignupConfirmation: async (to, _name, link) => void sentInvites.set(to, link),
+      sendPasswordReset: async (to, _name, link) => void sentResets.set(to, link),
     },
   };
 }

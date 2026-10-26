@@ -270,6 +270,39 @@ export interface AttendanceRecordsTable {
 export type JobStatus = 'draft' | 'pending_review' | 'published' | 'paused' | 'closed' | 'rejected';
 export type ApplicationStatus = 'applied' | 'shortlisted' | 'interview' | 'offer' | 'joined' | 'not_joined' | 'rejected' | 'withdrawn';
 
+export interface NotificationsTable {
+  id: string;
+  user_id: string;
+  template: string;
+  params: Json<Record<string, string>>;
+  link: string | null;
+  channel: Generated<'in_app' | 'sms' | 'email' | 'whatsapp'>;
+  delivery_state: Generated<'pending' | 'delivered' | 'failed' | 'skipped'>;
+  read_at: Date | null;
+  created_at: Timestamp;
+}
+
+export interface PasswordResetsTable {
+  id: string;
+  user_id: string;
+  token_hash: string;
+  expires_at: Date;
+  used_at: Date | null;
+  created_at: Timestamp;
+}
+
+export interface AccountRequestsTable {
+  id: string;
+  user_id: string;
+  kind: 'closure';
+  reason: string | null;
+  status: Generated<'open' | 'completed' | 'declined' | 'cancelled'>;
+  resolution_note: string | null;
+  resolved_by: string | null;
+  resolved_at: Date | null;
+  created_at: Timestamp;
+}
+
 export interface StoredFilesTable {
   key: string;
   data: Buffer;
@@ -475,6 +508,9 @@ export interface Database {
   jobs: JobsTable;
   programmes: ProgrammesTable;
   stored_files: StoredFilesTable;
+  notifications: NotificationsTable;
+  password_resets: PasswordResetsTable;
+  account_requests: AccountRequestsTable;
   programme_partners: ProgrammePartnersTable;
   programme_batches: ProgrammeBatchesTable;
   job_applications: JobApplicationsTable;

@@ -5,6 +5,7 @@ import { auditCtx } from '../../app.js';
 import { audit } from '../../audit/service.js';
 import { newId } from '../../lib/crypto.js';
 import { ApiError, conflict, invalid, notFound } from '../../lib/errors.js';
+import { EMPLOYER_TEAM, notify, orgMembers } from '../../lib/notify.js';
 import { iso, parse } from '../../lib/validate.js';
 import { consentRequired } from '../learner/service.js';
 import { certificatesOf, likeEscape, openJobsQuery, sharedDocumentsOf } from './common.js';
@@ -174,6 +175,8 @@ export const learnerJobRoutes: FastifyPluginAsync = async (app) => {
         await trx.insertInto('job_applications').values({ id: appId, job_id: id, candidate_id: userId, consent_snapshot: JSON.stringify(snapshot), note: b.note ?? null }).execute();
         await trx.insertInto('application_events').values({ id: newId(), application_id: appId, from_status: null, to_status: 'applied', actor_id: userId, actor_kind: 'candidate' }).execute();
         await audit(trx, auditCtx(req), { action: 'application.submitted', entityType: 'application', entityId: appId, after: { jobId: id, shared: snapshot } });
+        const { organisation_id } = await trx.selectFrom('jobs').select('organisation_id').where('id', '=', id).executeTakeFirstOrThrow();
+        await notify(trx, await orgMembers(trx, organisation_id, EMPLOYER_TEAM), 'application_received', { job: j.title }, `/employer/applications/${appId}`);
       });
     } catch (e) {
       // Two taps at once: the database's one-active-application rule stops the second.
@@ -252,6 +255,8 @@ export const learnerJobRoutes: FastifyPluginAsync = async (app) => {
       if (!done) throw invalid('The employer just updated this application. Reload and try again.');
       await trx.insertInto('application_events').values({ id: newId(), application_id: id, from_status: a.status, to_status: 'withdrawn', actor_id: me(req), actor_kind: 'candidate' }).execute();
       await audit(trx, auditCtx(req), { action: 'application.withdrawn', entityType: 'application', entityId: id, before: { status: a.status }, after: { status: 'withdrawn' } });
+      const { organisation_id } = await trx.selectFrom('jobs').select('organisation_id').where('id', '=', a.job_id).executeTakeFirstOrThrow();
+      await notify(trx, await orgMembers(trx, organisation_id, EMPLOYER_TEAM), 'application_withdrawn', { job: a.title }, `/employer/jobs/${a.job_id}`);
     });
     return { ok: true };
   });

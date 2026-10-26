@@ -23,7 +23,7 @@ import {
   sixDigitCode,
   verifyPassword,
 } from '../lib/crypto.js';
-import { ApiError, invalid, notFound, unauthenticated } from '../lib/errors.js';
+import { ApiError, invalid, unauthenticated } from '../lib/errors.js';
 import { iso, parse } from '../lib/validate.js';
 import { createSelfRegisteredCandidate, consentRequired } from './learner/service.js';
 
@@ -259,7 +259,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       .where('i.token_hash', '=', sha256(token))
       .executeTakeFirst();
     if (!inv || inv.accepted_at || inv.expires_at < new Date() || inv.status !== 'invited') {
-      throw notFound('This link is invalid or has expired. If you registered your organisation, register again to get a new link; otherwise ask whoever invited you.');
+      throw new ApiError('NOT_FOUND', 'This link is invalid or has expired. If you registered your organisation, register again to get a new link; otherwise ask whoever invited you.');
     }
     return inv;
   }
