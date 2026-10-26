@@ -26,7 +26,7 @@ jobs:
         with:
           # Full history: the secret scan checks every commit in a pull request.
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version: 22
@@ -61,7 +61,7 @@ jobs:
       E2E_DATABASE_URL: postgres://vta:vta_dev@localhost:5432/vta_e2e
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
           node-version: 22
