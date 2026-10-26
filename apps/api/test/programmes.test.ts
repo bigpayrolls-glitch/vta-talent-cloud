@@ -83,7 +83,7 @@ describe('PA-04 beneficiaries: only approved fields', () => {
     expect(body.items).toHaveLength(7);
     expect(Object.keys(body.items[0]).sort()).toEqual(['assessment', 'attendance', 'batch', 'candidateCode', 'certificate', 'city', 'employment', 'enrolmentStatus']);
     expect(JSON.stringify(body)).not.toMatch(/Ravi|Anitha|\+91|2002-08-01/);
-    const ravi = body.items.find((r: { candidateCode: string; batch: string }) => r.batch === '2W Peenya July 2026' && r.certificate === 'Issued');
+    const ravi = body.items.find((r: { candidateCode: string; batch: string; certificate: string }) => r.batch === '2W Peenya July 2026' && r.certificate === 'Issued');
     expect(ravi).toMatchObject({ enrolmentStatus: 'completed', assessment: 'Passed' });
   });
 
