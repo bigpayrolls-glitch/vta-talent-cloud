@@ -1,0 +1,142 @@
+import { candidateSearchSchema, inviteToApplySchema, maskedName, uuidSchema } from '@vta/shared';
+import type { FastifyPluginAsync } from 'fastify';
+import { sql } from 'kysely';
+import { z } from 'zod';
+import { auditCtx } from '../../app.js';
+import { audit } from '../../audit/service.js';
+import { newId } from '../../lib/crypto.js';
+import { conflict, invalid, notFound } from '../../lib/errors.js';
+import { iso, parse } from '../../lib/validate.js';
+import { assertVerified, certificatesOf, employerOrg, likeEscape, openJobsQuery, sharedDocumentsOf } from './common.js';
+
+const idParam = z.object({ id: uuidSchema });
+
+/**
+ * EM-04 / EM-05 / EM-10: verified employers search candidates who turned on "employers can find my profile",
+ * are verified by VTA and have an active account. Results never include phone, email, date of birth or
+ * the full surname; those are shared only when the person applies. Opening a profile is logged.
+ */
+export const searchRoutes: FastifyPluginAsync = async (app) => {
+  const db = app.db;
+
+  const searchable = () =>
+    db
+      .selectFrom('candidate_profiles as cp')
+      .innerJoin('users as u', 'u.id', 'cp.user_id')
+      .where('cp.searchable', '=', true)
+      .where('cp.verification_status', '=', 'verified')
+      .where('u.status', '=', 'active');
+
+  app.get('/employer/candidates', { config: { permission: 'candidate.search' } }, async (req) => {
+    assertVerified(await employerOrg(db, req));
+    const f = parse(candidateSearchSchema, req.query);
+    let q = searchable();
+    if (f.skillArea) q = q.where(sql<boolean>`${f.skillArea} = any(cp.skill_areas)`);
+    if (f.city) q = q.where((eb) => eb.or([eb('cp.city', 'ilike', likeEscape(f.city!)), eb('cp.preferred_work_area', 'ilike', likeEscape(f.city!))]));
+    if (f.minExperienceMonths !== undefined) q = q.where('cp.experience_months', '>=', f.minExperienceMonths);
+    if (f.availability) q = q.where('cp.availability', 'ilike', likeEscape(f.availability));
+    if (f.hasCertificate === 'yes' || f.courseId) {
+      q = q.where((eb) =>
+        eb.exists(
+          eb
+            .selectFrom('credentials as c')
+            .select('c.id')
+            .whereRef('c.candidate_id', '=', 'cp.user_id')
+            .where('c.status', '=', 'active')
+            .$if(!!f.courseId, (s) => s.where('c.course_id', '=', f.courseId!)),
+        ),
+      );
+    }
+    const { total } = await q.select((eb) => eb.fn.countAll<string>().as('total')).executeTakeFirstOrThrow();
+    const rows = await q
+      .select([
+        'cp.user_id',
+        'u.name',
+        'cp.city',
+        'cp.preferred_work_area',
+        'cp.skill_areas',
+        'cp.experience_months',
+        'cp.languages',
+        'cp.availability',
+        sql<string[]>`array(select c.course_title from credentials c where c.candidate_id = cp.user_id and c.status = 'active' order by c.issue_date desc)`.as('certs'),
+      ])
+      .orderBy('cp.experience_months', 'desc')
+      .orderBy('cp.user_id')
+      .limit(f.pageSize)
+      .offset((f.page - 1) * f.pageSize)
+      .execute();
+    return {
+      items: rows.map((r) => ({
+        id: r.user_id,
+        name: maskedName(r.name),
+        city: r.city,
+        preferredWorkArea: r.preferred_work_area,
+        skillAreas: r.skill_areas,
+        experienceMonths: r.experience_months,
+        languages: r.languages,
+        availability: r.availability,
+        vtaCertificates: r.certs,
+      })),
+      page: f.page,
+      pageSize: f.pageSize,
+      total: Number(total),
+    };
+  });
+
+  app.get('/employer/candidates/:id', { config: { permission: 'candidate.search' } }, async (req) => {
+    const org = await employerOrg(db, req);
+    assertVerified(org);
+    const { id } = parse(idParam, req.params);
+    const p = await searchable()
+      .select(['cp.user_id', 'u.name', 'cp.city', 'cp.state', 'cp.preferred_work_area', 'cp.skill_areas', 'cp.experience_months', 'cp.education', 'cp.languages', 'cp.availability'])
+      .where('cp.user_id', '=', id)
+      .executeTakeFirst();
+    if (!p) throw notFound('Candidate');
+    await audit(db, auditCtx(req), { action: 'candidate.profile_viewed', entityType: 'user', entityId: id, after: { organisationId: org.id, via: 'search' } });
+    const invited = await db
+      .selectFrom('job_invitations as i')
+      .innerJoin('jobs as j', 'j.id', 'i.job_id')
+      .select(['i.job_id', 'j.title', 'i.created_at'])
+      .where('i.candidate_id', '=', id)
+      .where('j.organisation_id', '=', org.id)
+      .execute();
+    return {
+      id: p.user_id,
+      name: maskedName(p.name),
+      city: p.city,
+      state: p.state,
+      preferredWorkArea: p.preferred_work_area,
+      skillAreas: p.skill_areas,
+      experienceMonths: p.experience_months,
+      education: p.education,
+      languages: p.languages,
+      availability: p.availability,
+      certificates: await certificatesOf(db, id),
+      // Titles only. Files open once the person applies to one of your jobs.
+      documents: (await sharedDocumentsOf(db, id)).map(({ id: docId, kind, title, verificationStatus }) => ({ id: docId, kind, title, verificationStatus })),
+      contact: 'Shared when they apply to one of your jobs',
+      invitations: invited.map((i) => ({ jobId: i.job_id, title: i.title, at: iso(i.created_at) })),
+    };
+  });
+
+  /** Invites a searchable candidate to apply to one of this employer's open jobs. The learner decides. */
+  app.post('/employer/candidates/:id/invite', { config: { permission: 'candidate.search' } }, async (req, reply) => {
+    const org = await employerOrg(db, req);
+    assertVerified(org);
+    const { id } = parse(idParam, req.params);
+    const b = parse(inviteToApplySchema, req.body);
+    const cand = await searchable().select('cp.user_id').where('cp.user_id', '=', id).executeTakeFirst();
+    if (!cand) throw notFound('Candidate');
+    const job = await openJobsQuery(db).select('j.id').where('j.id', '=', b.jobId).where('j.organisation_id', '=', org.id).executeTakeFirst();
+    if (!job) throw invalid('Choose one of your open, published jobs', { jobId: 'Not an open job of yours' });
+    const existing = await db.selectFrom('job_invitations').select('id').where('job_id', '=', b.jobId).where('candidate_id', '=', id).executeTakeFirst();
+    if (existing) throw conflict('You already invited this person to this job');
+    const iid = newId();
+    await db.transaction().execute(async (trx) => {
+      await trx.insertInto('job_invitations').values({ id: iid, job_id: b.jobId, candidate_id: id, invited_by: req.actor!.userId, message: b.message ?? null }).execute();
+      await audit(trx, auditCtx(req), { action: 'candidate.invited_to_apply', entityType: 'user', entityId: id, after: { jobId: b.jobId, organisationId: org.id } });
+    });
+    reply.code(201);
+    return { id: iid };
+  });
+};

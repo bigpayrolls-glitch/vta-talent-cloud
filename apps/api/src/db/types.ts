@@ -72,6 +72,12 @@ export interface OrganisationsTable {
   verified_by: string | null;
   verified_at: Date | null;
   status: 'active' | 'inactive';
+  sector: ColumnType<string | null, string | null | undefined, string | null>;
+  city: ColumnType<string | null, string | null | undefined, string | null>;
+  website: ColumnType<string | null, string | null | undefined, string | null>;
+  description: ColumnType<string | null, string | null | undefined, string | null>;
+  duplicate_of: ColumnType<string | null, string | null | undefined, string | null>;
+  submitted_at: ColumnType<Date | null, Date | null | undefined, Date | null>;
   created_at: Timestamp;
   updated_at: Timestamp;
 }
@@ -228,6 +234,7 @@ export interface DocumentsTable {
   verification_status: Generated<'pending' | 'verified' | 'rejected'>;
   scan_status: Generated<'not_scanned' | 'clean' | 'infected'>;
   visibility: Generated<'private' | 'employers'>;
+  organisation_id: ColumnType<string | null, string | null | undefined, string | null>;
   uploaded_by: string | null;
   deleted_at: Date | null;
   created_at: Timestamp;
@@ -254,6 +261,84 @@ export interface AttendanceRecordsTable {
   client_captured_at: Date | null;
   received_at: Timestamp;
   updated_at: Timestamp;
+}
+
+export type JobStatus = 'draft' | 'pending_review' | 'published' | 'paused' | 'closed' | 'rejected';
+export type ApplicationStatus = 'applied' | 'shortlisted' | 'interview' | 'offer' | 'joined' | 'not_joined' | 'rejected' | 'withdrawn';
+
+export interface JobsTable {
+  id: string;
+  organisation_id: string;
+  title: string;
+  skill_area: SkillArea;
+  skills: TextArray;
+  min_experience_months: number;
+  city: string;
+  location: string | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  openings: number;
+  shift: string | null;
+  description: string;
+  closing_date: ColumnType<string, string, string>;
+  vta_certificate_preferred: boolean;
+  status: Generated<JobStatus>;
+  moderation_reason: string | null;
+  moderated_by: string | null;
+  moderated_at: Date | null;
+  created_by: string;
+  submitted_at: Date | null;
+  published_at: Date | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export interface JobApplicationsTable {
+  id: string;
+  job_id: string;
+  candidate_id: string;
+  status: Generated<ApplicationStatus>;
+  consent_snapshot: Json<Record<string, unknown>>;
+  note: string | null;
+  joining_date: ColumnType<string | null, string | null | undefined, string | null>;
+  outcome_verification: Generated<'unverified' | 'verified' | 'flagged'>;
+  outcome_note: string | null;
+  outcome_reviewed_by: string | null;
+  outcome_reviewed_at: Date | null;
+  applied_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export interface ApplicationEventsTable {
+  id: string;
+  application_id: string;
+  from_status: ApplicationStatus | null;
+  to_status: ApplicationStatus;
+  actor_id: string | null;
+  actor_kind: 'candidate' | 'employer' | 'vta';
+  created_at: Timestamp;
+}
+
+export interface InterviewsTable {
+  id: string;
+  application_id: string;
+  scheduled_at: Date;
+  mode: 'in_person' | 'phone' | 'video';
+  location: string | null;
+  outcome: Generated<'scheduled' | 'passed' | 'failed' | 'no_show' | 'cancelled'>;
+  internal_notes: string | null;
+  created_by: string;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export interface JobInvitationsTable {
+  id: string;
+  job_id: string;
+  candidate_id: string;
+  invited_by: string;
+  message: string | null;
+  created_at: Timestamp;
 }
 
 export interface ConsentEventsTable {
@@ -346,6 +431,11 @@ export interface Database {
   attendance_records: AttendanceRecordsTable;
   attendance_sync_ops: AttendanceSyncOpsTable;
   consent_events: ConsentEventsTable;
+  jobs: JobsTable;
+  job_applications: JobApplicationsTable;
+  application_events: ApplicationEventsTable;
+  interviews: InterviewsTable;
+  job_invitations: JobInvitationsTable;
   assessment_results: AssessmentResultsTable;
   assessment_scores: AssessmentScoresTable;
   credentials: CredentialsTable;
@@ -361,3 +451,5 @@ export type Course = Selectable<CoursesTable>;
 export type Batch = Selectable<BatchesTable>;
 export type CandidateProfile = Selectable<CandidateProfilesTable>;
 export type DocumentRow = Selectable<DocumentsTable>;
+export type Job = Selectable<JobsTable>;
+export type JobApplication = Selectable<JobApplicationsTable>;

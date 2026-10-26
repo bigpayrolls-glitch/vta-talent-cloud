@@ -1,14 +1,11 @@
-import { PORTAL_LABEL, ROLE_LABEL, type Portal } from '@vta/shared';
+import { PORTAL_LABEL, ROLE_LABEL } from '@vta/shared';
 import {
   ArrowRight,
   BarChart3,
-  Briefcase,
   CalendarCheck,
-  ClipboardCheck,
   Home,
   LayoutDashboard,
   RefreshCw,
-  Search,
   Users,
 } from 'lucide-react';
 import { useEffect } from 'react';
@@ -30,22 +27,7 @@ interface PortalPlan {
   coming: { label: string; phase: string; icon: typeof Home }[];
 }
 
-const PLANS: Record<Exclude<Portal, 'admin'>, PortalPlan> = {
-  learn: {
-    greeting: 'Keep learning. Build your career.',
-    nav: [{ to: '/learn', label: 'Home', icon: Home, bottom: true, end: true }],
-    coming: [{ label: 'Find jobs and track applications', phase: 'Phase 6', icon: Briefcase }],
-  },
-  employer: {
-    greeting: 'Find skilled and certified technicians.',
-    nav: [{ to: '/employer', label: 'Dashboard', icon: LayoutDashboard, bottom: true, end: true }],
-    coming: [
-      { label: 'Company profile and team access', phase: 'Phase 6', icon: Users },
-      { label: 'Post a job', phase: 'Phase 6', icon: Briefcase },
-      { label: 'Find candidates', phase: 'Phase 6', icon: Search },
-      { label: 'Applications, interviews and hiring outcomes', phase: 'Phase 6', icon: ClipboardCheck },
-    ],
-  },
+const PLANS: Record<'partner', PortalPlan> = {
   partner: {
     greeting: 'Manage your training programmes.',
     nav: [
@@ -55,14 +37,6 @@ const PLANS: Record<Exclude<Portal, 'admin'>, PortalPlan> = {
     coming: [{ label: 'Programmes, beneficiaries and reports', phase: 'Phase 7', icon: BarChart3 }],
   },
 };
-
-export function PortalHome({ portal }: { portal: Exclude<Portal, 'admin'> }) {
-  return (
-    <PortalLayout portal={portal} nav={PLANS[portal].nav}>
-      <PortalHomeContent portal={portal} />
-    </PortalLayout>
-  );
-}
 
 /** Training Partner portal: shared layout around the home, batches and batch pages. Trainers also get offline sync. */
 export function PartnerLayout() {
@@ -79,10 +53,10 @@ export function PartnerLayout() {
   );
 }
 
-export function PortalHomeContent({ portal }: { portal: Exclude<Portal, 'admin'> }) {
+export function PortalHomeContent({ portal }: { portal: 'partner' }) {
   const { me } = useAuth();
   const plan = PLANS[portal];
-  const myRoles = me?.roles.filter((r) => (portal === 'learn' ? r.role === 'learner' : portal === 'employer' ? r.role.startsWith('employer') : ['partner_admin', 'partner_viewer', 'trainer'].includes(r.role))) ?? [];
+  const myRoles = me?.roles.filter((r) => ['partner_admin', 'partner_viewer', 'trainer'].includes(r.role)) ?? [];
 
   return (
     <>

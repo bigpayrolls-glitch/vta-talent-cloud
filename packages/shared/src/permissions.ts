@@ -53,6 +53,20 @@ export const PERMISSIONS = {
   'credential.issue': ['super_admin', 'ops_admin'],
   'credential.revoke': ['super_admin', 'ops_admin'],
   'credential.read': ['super_admin', 'ops_admin', 'centre_admin'],
+
+  // Phase 6: employers and hiring. Every employer route is limited to the actor's own organisation.
+  /** Company profile, verification documents and team (EM-01, EM-02). */
+  'employer.company': ['employer_admin'],
+  /** Read the company profile (both employer roles). */
+  'employer.company.read': ['employer_admin', 'employer_recruiter'],
+  'job.manage': ['employer_admin', 'employer_recruiter'],
+  'application.manage': ['employer_admin', 'employer_recruiter'],
+  /** EM-04: only verified employers, only candidates who opted in. */
+  'candidate.search': ['employer_admin', 'employer_recruiter'],
+  /** AD-09 job moderation and EM-08 joining follow-up. */
+  'job.moderate': ['super_admin', 'ops_admin'],
+  'hiring.verify': ['super_admin', 'ops_admin'],
+  'hiring.read': ['super_admin', 'ops_admin'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof PERMISSIONS;

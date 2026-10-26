@@ -69,6 +69,19 @@ const STATUS_STYLE: Record<string, string> = {
   not_scanned: 'bg-surface text-muted',
   revoked: 'bg-brand-tint text-brand',
   replaced: 'bg-surface text-muted',
+  draft: 'bg-surface text-ink',
+  pending_review: 'bg-warning-tint text-warning',
+  published: 'bg-success-tint text-success',
+  paused: 'bg-surface text-muted',
+  closed: 'bg-surface text-muted',
+  applied: 'bg-info-tint text-info',
+  shortlisted: 'bg-info-tint text-info',
+  interview: 'bg-warning-tint text-warning',
+  offer: 'bg-warning-tint text-warning',
+  joined: 'bg-success-tint text-success',
+  not_joined: 'bg-surface text-muted',
+  unverified: 'bg-warning-tint text-warning',
+  flagged: 'bg-brand-tint text-brand',
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -76,11 +89,13 @@ const STATUS_LABEL: Record<string, string> = {
   needs_correction: 'Needs correction',
   not_completed: 'Not completed',
   not_scanned: 'Not scanned',
+  pending_review: 'Waiting for review',
+  not_joined: 'Did not join',
 };
 
 /** Status chip: colour is always paired with the word (never colour alone, §16). */
-export function StatusBadge({ status }: { status: string }) {
-  const label = STATUS_LABEL[status] ?? status.charAt(0).toUpperCase() + status.slice(1);
+export function StatusBadge({ status, label: override }: { status: string; label?: string }) {
+  const label = override ?? STATUS_LABEL[status] ?? status.charAt(0).toUpperCase() + status.slice(1);
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLE[status] ?? 'bg-surface text-muted'}`}>
       <span className="size-1.5 rounded-full bg-current" aria-hidden />

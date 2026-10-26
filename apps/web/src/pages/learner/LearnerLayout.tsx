@@ -1,5 +1,5 @@
 import { NOTICE_VERSION } from '@vta/shared';
-import { Award, BookOpen, FileText, Home, ShieldCheck, User } from 'lucide-react';
+import { Award, BookOpen, Briefcase, ClipboardList, FileText, Home, ShieldCheck, User } from 'lucide-react';
 import { useState } from 'react';
 import { Outlet } from 'react-router';
 import { PortalLayout, type NavItem } from '../../components/PortalLayout';
@@ -11,6 +11,8 @@ import { PrivacyNotice, TermsOfUse } from '../public/NoticePages';
 export const LEARNER_NAV: NavItem[] = [
   { to: '/learn', label: 'Home', icon: Home, bottom: true, end: true },
   { to: '/learn/learning', label: 'Learning', icon: BookOpen, bottom: true },
+  { to: '/learn/jobs', label: 'Jobs', icon: Briefcase, bottom: true },
+  { to: '/learn/applications', label: 'Applications', icon: ClipboardList },
   { to: '/learn/certificates', label: 'Certificates', icon: Award, bottom: true },
   { to: '/learn/profile', label: 'Profile', icon: User, bottom: true },
   { to: '/learn/documents', label: 'Documents', icon: FileText },
