@@ -43,7 +43,7 @@ export function PrivacySettingsPage() {
               Employers can find my profile
             </h2>
             <p className="mt-1 text-sm text-muted">
-              When on, employers on VTA Talent Cloud can find your profile in search (from Phase 6): your name, city, skills, experience, languages, availability, VTA certificates,
+              When on, employers on VTA Talent Cloud can find your profile in search: your name, city, skills, experience, languages, availability, VTA certificates,
               and the documents you let employers see. Your phone number and date of birth are not shown until you apply for a job.
             </p>
             <p className="mt-2 text-sm text-muted">Turning it off stops future sharing. It cannot recall what an employer has already seen.</p>
