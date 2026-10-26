@@ -8,7 +8,7 @@ import { api } from '../lib/api';
 import { homePathFor, PORTAL_PATH, useAuth } from '../lib/auth';
 import { useForm } from '../lib/useForm';
 
-function Centered({ children }: { children: ReactNode }) {
+export function Centered({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col px-5 py-8">
       <Wordmark compact />

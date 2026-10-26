@@ -86,7 +86,7 @@ export const passwordRoutes: FastifyPluginAsync = async (app) => {
       await dummyPasswordCheck(b.currentPassword);
       throw invalid('This account signs in with a phone code and has no password.');
     }
-    if (!(await verifyPassword(user.password_hash, b.currentPassword))) throw invalid('Your current password is not right', { currentPassword: 'Not right' });
+    if (!(await verifyPassword(user.password_hash, b.currentPassword))) throw invalid('Your current password is not right', { currentPassword: 'This is not your current password' });
     if (isCommonPassword(b.newPassword)) throw invalid('Choose a less common password', { newPassword: 'This password is too common' });
     const passwordHash = await hashPassword(b.newPassword);
     await db.transaction().execute(async (trx) => {

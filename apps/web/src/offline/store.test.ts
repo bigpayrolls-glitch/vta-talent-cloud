@@ -10,6 +10,7 @@ const trainer = (id: string): MeDto => ({
   name: 'Prakash Trainer',
   email: 'not-kept@example.invalid',
   phone: '+919900000101',
+  hasPassword: false,
   status: 'active',
   roles: [{ id: 'r1', role: 'trainer', organisationId: null, organisationName: null, centreId: 'c1', centreName: 'Peenya' }] as MeDto['roles'],
   portals: ['partner'],

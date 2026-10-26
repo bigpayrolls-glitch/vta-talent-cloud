@@ -1,10 +1,11 @@
 import { PORTAL_LABEL, ROLE_LABEL, ROLE_PORTAL, type Portal } from '@vta/shared';
-import { ChevronDown, LogOut, Menu, Repeat, X, type LucideIcon } from 'lucide-react';
+import { ChevronDown, KeyRound, LogOut, Menu, Repeat, X, type LucideIcon } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { PORTAL_PATH, useAuth } from '../lib/auth';
 import { syncNow } from '../offline/sync';
 import { useOffline } from '../offline/useOffline';
+import { NotificationBell } from './Notifications';
 import { Modal, Wordmark } from './ui';
 
 export interface NavItem {
@@ -137,6 +138,12 @@ function UserMenu({ portal }: { portal: Portal }) {
               ))}
             </div>
           )}
+          {me.hasPassword && (
+            <Link role="menuitem" to={`${PORTAL_PATH[portal]}/account`} onClick={() => setOpen(false)} className="flex items-center gap-2.5 border-b border-line px-4 py-3 text-sm hover:bg-surface">
+              <KeyRound className="size-4 text-muted" aria-hidden />
+              Change password
+            </Link>
+          )}
           <button
             role="menuitem"
             type="button"
@@ -178,12 +185,13 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
         {showNav && <button type="button" className="rounded-lg p-2 hover:bg-surface lg:hidden" onClick={() => setDrawer(true)} aria-label="Open menu">
           <Menu className="size-5" />
         </button>}
-        <Link to={PORTAL_PATH[portal]} className="lg:w-[216px]" aria-label={`VTA Talent Cloud, ${PORTAL_LABEL[portal]} home`}>
-          <Wordmark compact />
+        <Link to={PORTAL_PATH[portal]} className="shrink-0 lg:w-[216px]" aria-label={`VTA Talent Cloud, ${PORTAL_LABEL[portal]} home`}>
+          <Wordmark compact tight={!!headerExtra} />
         </Link>
         <span className="hidden text-sm font-medium text-muted md:block">{PORTAL_LABEL[portal]}</span>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex min-w-0 items-center gap-1.5 sm:gap-2">
           {headerExtra}
+          <NotificationBell portal={portal} />
           <UserMenu portal={portal} />
         </div>
       </header>

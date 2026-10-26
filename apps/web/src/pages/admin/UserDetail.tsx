@@ -94,6 +94,7 @@ export function UserDetailPage() {
         </div>
       </div>
       {self && <p className="mb-6 rounded-lg bg-surface px-4 py-3 text-sm text-muted">This is your own account. Another administrator must change its status.</p>}
+      <ClosureRequest userId={u.id} />
 
       <section className="card overflow-hidden">
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
@@ -318,5 +319,85 @@ function AddRoleModal({ open, userId, onClose }: { open: boolean; userId: string
         <RolePicker value={role} onChange={setRole} errors={errors} />
       </div>
     </Modal>
+  );
+}
+
+interface AccountRequestRow {
+  id: string;
+  reason: string | null;
+  createdAt: string;
+}
+
+/** Phase 9: a learner's open request to close their account. Only a Super Admin can complete or decline it. */
+function ClosureRequest({ userId }: { userId: string }) {
+  const { can } = useAuth();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const q = useQuery({ queryKey: ['account-requests', userId], queryFn: () => api.get<{ items: AccountRequestRow[] }>(`/admin/account-requests${qs({ userId })}`) });
+  const [mode, setMode] = useState<null | 'complete' | 'decline'>(null);
+  const [note, setNote] = useState('');
+  const f = useForm(reasonSchema);
+  const r = q.data?.items[0];
+  if (!r) return null;
+  const close = () => {
+    setMode(null);
+    setNote('');
+  };
+  return (
+    <section className="mb-6 rounded-xl border border-warning/30 bg-warning-tint px-5 py-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="font-semibold text-warning">Asked to close their account</h2>
+          <p className="mt-1 text-sm">
+            On {formatDate(r.createdAt)}. {r.reason ? <>Reason: &ldquo;{r.reason}&rdquo;</> : 'No reason given.'} Their profile is already out of employer search.
+          </p>
+          {!can('user.deactivate') && <p className="mt-1 text-sm text-muted">A Super Admin completes or declines it.</p>}
+        </div>
+        {can('user.deactivate') && (
+          <div className="flex gap-2">
+            <button type="button" className="btn-secondary" onClick={() => setMode('decline')}>Decline</button>
+            <button type="button" className="btn-primary" onClick={() => setMode('complete')}>Close account</button>
+          </div>
+        )}
+      </div>
+      <Modal
+        open={mode !== null}
+        onClose={close}
+        title={mode === 'complete' ? 'Close this account?' : 'Decline the request?'}
+        footer={
+          <>
+            <button type="button" className="btn-secondary" onClick={close}>Cancel</button>
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={f.submitting}
+              onClick={() =>
+                void f.submit(mode === 'decline' ? { reason: note } : { reason: note || 'Closed at the learner’s request' }, async (data) => {
+                  await api.post(`/admin/account-requests/${r.id}/${mode}`, data);
+                  await qc.invalidateQueries({ queryKey: ['account-requests'] });
+                  await qc.invalidateQueries({ queryKey: ['user', userId] });
+                  toast('success', mode === 'complete' ? 'Account closed' : 'Request declined');
+                  close();
+                })
+              }
+            >
+              {mode === 'complete' ? 'Close account' : 'Decline'}
+            </button>
+          </>
+        }
+      >
+        {mode === 'complete' ? (
+          <p className="text-sm">They are signed out and can no longer sign in, and any open job applications are withdrawn. Training records and certificates are kept.</p>
+        ) : (
+          <p className="text-sm">Their account stays open. Tell them why, for example by phone.</p>
+        )}
+        {f.formError && <div className="mt-3"><ErrorNote message={f.formError} /></div>}
+        <div className="mt-4">
+          <Field label={mode === 'decline' ? 'Reason' : 'Note (optional)'} htmlFor="closure-note" error={f.errors.reason}>
+            <textarea id="closure-note" className="field-input min-h-20" maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} />
+          </Field>
+        </div>
+      </Modal>
+    </section>
   );
 }

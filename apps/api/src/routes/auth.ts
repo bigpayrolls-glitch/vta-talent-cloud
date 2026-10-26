@@ -244,6 +244,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       })),
       portals: portalsForRoles(actor.roles),
       csrfToken: actor.csrfToken,
+      hasPassword: !!user.password_hash,
       // Learners must accept the current privacy notice and terms before using the Learner portal (SH-05).
       consentRequired: actor.roles.includes('learner') ? await consentRequired(db, actor.userId) : false,
     };
