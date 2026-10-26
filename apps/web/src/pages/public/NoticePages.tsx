@@ -78,10 +78,38 @@ export function TermsOfUse() {
   );
 }
 
+/** Phase 8: shown on the public pages only (organisations read them when registering), not in the learner's consent screen. */
+function OrganisationPrivacy() {
+  return (
+    <>
+      <h2>If you register an employer or training partner</h2>
+      <ul>
+        <li>We keep your name, work email and mobile number, your organisation&apos;s details and the documents you upload, to verify the organisation and contact you about it.</li>
+        <li>VTA staff see them. Learners see your organisation&apos;s name on its jobs, not your personal contact details.</li>
+        <li>Your team members&apos; names and emails are kept so they can sign in. Important actions are recorded for security.</li>
+      </ul>
+    </>
+  );
+}
+
+function OrganisationTerms() {
+  return (
+    <>
+      <h2>For employers and training partners</h2>
+      <ul>
+        <li>Register only an organisation you are authorised to act for, and upload its genuine documents.</li>
+        <li>Use learners&apos; information only for the hiring or programme it was shared for, and do not copy it elsewhere.</li>
+        <li>VTA verifies organisations before they can post jobs, search candidates or take part in programmes, and may decline or suspend one.</li>
+      </ul>
+    </>
+  );
+}
+
 export function PrivacyPage() {
   return (
     <Shell title="Privacy notice">
       <PrivacyNotice />
+      <OrganisationPrivacy />
     </Shell>
   );
 }
@@ -90,6 +118,7 @@ export function TermsPage() {
   return (
     <Shell title="Terms of use">
       <TermsOfUse />
+      <OrganisationTerms />
     </Shell>
   );
 }

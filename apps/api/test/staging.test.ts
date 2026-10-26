@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { NOTICE_VERSION } from '@vta/shared';
+import { buildApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
+import { memoryProviders } from '../src/lib/providers.js';
 import { databaseStorage } from '../src/lib/storage.js';
 import { setup, type Ctx } from './helpers.js';
 
@@ -33,6 +36,20 @@ describe('staging mode', () => {
   it('outside staging, the sign-in code is never returned by the API', async () => {
     const res = await ctx.app.inject({ method: 'POST', url: '/api/v1/auth/otp/request', payload: { phone: '+919900000201' } });
     expect(res.json()).not.toHaveProperty('stagingCode');
+  });
+});
+
+describe('staging sign-up', () => {
+  it('shows the organisation confirmation link on screen only on a staging copy', async () => {
+    const staging = await buildApp({ db: ctx.db, config: { ...ctx.app.config, showCodes: true }, providers: memoryProviders(), storage: databaseStorage(ctx.db), logger: false });
+    await staging.ready();
+    try {
+      const body = { type: 'employer', legalName: 'Staging Garage', sector: 'fleet', city: 'Pune', contactName: 'Sam Test', email: 'sam@staging.example', phone: '9876500000', acceptPrivacy: true, acceptTerms: true, noticeVersion: NOTICE_VERSION };
+      const res = await staging.inject({ method: 'POST', url: '/api/v1/public/organisations/register', payload: body });
+      expect(res.json().stagingLink).toMatch(/\/invite\/[\w-]{20,}$/);
+    } finally {
+      await staging.close();
+    }
   });
 });
 

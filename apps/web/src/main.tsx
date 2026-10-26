@@ -5,7 +5,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router';
 import { ToastProvider } from './components/toast';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { AuthProvider } from './lib/auth';
-import { AcceptInvitation, ChoosePortal, HomeRedirect, NoAccess, NotFound, RequirePortal } from './pages/AccessPages';
+import { AcceptInvitation, ChoosePortal, NoAccess, NotFound, RequirePortal } from './pages/AccessPages';
 import { LoginPage } from './pages/LoginPage';
 import { PartnerLayout, PortalHomeContent } from './pages/PortalHomes';
 import './styles.css';
@@ -15,7 +15,10 @@ const queryClient = new QueryClient({
 });
 
 const router = createBrowserRouter([
-  { path: '/', element: <HomeRedirect /> },
+  // Public site (Phase 8). Signed-in people are sent on to their portal.
+  { path: '/', lazy: () => import('./pages/public/Home').then((m) => ({ Component: m.PublicHomePage })) },
+  { path: '/join/employer', lazy: () => import('./pages/public/JoinPage').then((m) => ({ Component: () => <m.JoinPage type="employer" /> })) },
+  { path: '/join/partner', lazy: () => import('./pages/public/JoinPage').then((m) => ({ Component: () => <m.JoinPage type="partner" /> })) },
   { path: '/login', element: <LoginPage /> },
   { path: '/invite/:token', element: <AcceptInvitation /> },
   { path: '/choose-portal', element: <ChoosePortal /> },

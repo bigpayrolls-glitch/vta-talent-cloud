@@ -23,6 +23,10 @@ interface OrgRow {
   verificationReason: string | null;
   verifiedAt: string | null;
   createdAt: string;
+  registrationSource: 'vta' | 'self';
+  awaitingEmail: boolean;
+  possibleDuplicate: boolean;
+  submittedAt: string | null;
 }
 
 const SUBTYPE_LABEL: Record<string, string> = {
@@ -111,8 +115,18 @@ export function OrganisationsPage() {
                     <span className="min-w-0 flex-1">
                       <span className="block font-semibold">{o.legalName}</span>
                       <span className="block text-sm text-muted">
-                        {o.type === 'employer' ? 'Employer' : `Training partner, ${SUBTYPE_LABEL[o.partnerSubtype ?? 'other']}`}. Added {formatDate(o.createdAt)}
+                        {o.type === 'employer' ? 'Employer' : `Training partner, ${SUBTYPE_LABEL[o.partnerSubtype ?? 'other']}`}. {o.registrationSource === 'self' ? 'Registered themselves' : 'Added'} {formatDate(o.createdAt)}
                       </span>
+                      {(o.awaitingEmail || o.possibleDuplicate || (o.registrationSource === 'self' && !o.submittedAt && o.verificationStatus === 'pending')) && (
+                        <span className="mt-1.5 flex flex-wrap gap-1.5">
+                          {o.awaitingEmail ? (
+                            <span className="rounded-md bg-surface px-2 py-0.5 text-xs font-medium text-muted">Email not confirmed</span>
+                          ) : (
+                            o.registrationSource === 'self' && !o.submittedAt && o.verificationStatus === 'pending' && <span className="rounded-md bg-surface px-2 py-0.5 text-xs font-medium text-muted">Profile not sent yet</span>
+                          )}
+                          {o.possibleDuplicate && <span className="rounded-md bg-warning-tint px-2 py-0.5 text-xs font-medium text-warning">Possible duplicate</span>}
+                        </span>
+                      )}
                     </span>
                     <StatusBadge status={o.verificationStatus} />
                   </button>

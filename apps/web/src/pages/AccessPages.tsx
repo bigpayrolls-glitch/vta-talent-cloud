@@ -113,7 +113,7 @@ export function AcceptInvitation() {
   const [mismatch, setMismatch] = useState('');
   const invite = useQuery({
     queryKey: ['invite', token],
-    queryFn: () => api.get<{ name: string; email: string; expiresAt: string }>(`/auth/invitations/${token}`),
+    queryFn: () => api.get<{ name: string; email: string; expiresAt: string; selfRegistered: boolean; organisationName: string | null; organisationType: string | null }>(`/auth/invitations/${token}`),
     retry: false,
   });
 
@@ -121,7 +121,7 @@ export function AcceptInvitation() {
   if (invite.isError)
     return (
       <Centered>
-        <h1 className="text-2xl font-bold">This invitation can’t be used</h1>
+        <h1 className="text-2xl font-bold">This link can’t be used</h1>
         <p className="mt-2 text-muted">{(invite.error as Error).message}</p>
         <Link to="/login" className="btn-secondary mt-6">
           Go to sign in
@@ -129,12 +129,20 @@ export function AcceptInvitation() {
       </Centered>
     );
 
+  const self = invite.data!.selfRegistered;
   return (
     <Centered>
-      <h1 className="text-[28px] font-bold tracking-tight">Welcome, {invite.data!.name.split(' ')[0]}</h1>
-      <p className="mt-2 text-muted">
-        Set a password to finish creating your account for <span className="font-semibold text-ink">{invite.data!.email}</span>.
-      </p>
+      <h1 className="text-[28px] font-bold tracking-tight">{self ? 'Confirm your email' : `Welcome, ${invite.data!.name.split(' ')[0]}`}</h1>
+      {self ? (
+        <p className="mt-2 text-muted">
+          Set a password for <span className="font-semibold text-ink">{invite.data!.email}</span> to finish registering{' '}
+          <span className="font-semibold text-ink">{invite.data!.organisationName}</span>. Next you add your details and a registration document so VTA can verify you.
+        </p>
+      ) : (
+        <p className="mt-2 text-muted">
+          Set a password to finish creating your account for <span className="font-semibold text-ink">{invite.data!.email}</span>.
+        </p>
+      )}
       <form
         noValidate
         className="mt-7 space-y-4"
@@ -148,7 +156,9 @@ export function AcceptInvitation() {
           void f.submit({ password }, async (data) => {
             await api.post(`/auth/invitations/${token}/accept`, data);
             await refresh();
-            navigate('/', { replace: true });
+            // A self-registered organisation goes straight to its profile, where it adds documents and sends it to VTA.
+            const next = !invite.data!.selfRegistered ? '/' : invite.data!.organisationType === 'partner' ? '/partner/organisation' : '/employer/company';
+            navigate(next, { replace: true });
           });
         }}
       >
@@ -160,7 +170,7 @@ export function AcceptInvitation() {
           <input id="confirm" type="password" autoComplete="new-password" className="field-input" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
         </Field>
         <button type="submit" className="btn-primary h-11 w-full" disabled={f.submitting}>
-          {f.submitting ? 'Creating account…' : 'Create account and sign in'}
+          {f.submitting ? 'Saving…' : self ? 'Confirm and sign in' : 'Create account and sign in'}
         </button>
       </form>
     </Centered>

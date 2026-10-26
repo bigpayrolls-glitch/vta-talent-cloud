@@ -10,6 +10,8 @@ export interface SmsProvider {
 
 export interface EmailProvider {
   sendInvitation(to: string, name: string, link: string): Promise<void>;
+  /** Phase 8: someone registered an organisation; the link confirms their email and sets a password. */
+  sendSignupConfirmation(to: string, name: string, link: string): Promise<void>;
 }
 
 export interface Providers {
@@ -32,6 +34,9 @@ export function consoleProviders(log: FastifyBaseLogger): Providers {
       async sendInvitation(_to, name, link) {
         log.warn(`[DEV EMAIL] Invitation for ${name}: ${link}`);
       },
+      async sendSignupConfirmation(_to, name, link) {
+        log.warn(`[DEV EMAIL] Confirm registration for ${name}: ${link}`);
+      },
     },
   };
 }
@@ -45,6 +50,9 @@ export function memoryProviders(): Providers & { sentOtps: Map<string, string>; 
     sentOtps,
     sentInvites,
     sms: { sendOtp: async (phone, code) => void sentOtps.set(phone, code) },
-    email: { sendInvitation: async (to, _name, link) => void sentInvites.set(to, link) },
+    email: {
+      sendInvitation: async (to, _name, link) => void sentInvites.set(to, link),
+      sendSignupConfirmation: async (to, _name, link) => void sentInvites.set(to, link),
+    },
   };
 }

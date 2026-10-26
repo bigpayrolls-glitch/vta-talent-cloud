@@ -23,6 +23,9 @@ export function organisationDto(o: Organisation) {
     verificationReason: o.verification_reason,
     verifiedAt: iso(o.verified_at),
     status: o.status,
+    registrationSource: o.registration_source,
+    possibleDuplicate: !!o.duplicate_of,
+    submittedAt: iso(o.submitted_at),
     createdAt: iso(o.created_at),
   };
 }
@@ -37,7 +40,7 @@ const idParam = z.object({ id: uuidSchema });
 export const organisationRoutes: FastifyPluginAsync = async (app) => {
   const db = app.db;
 
-  app.get('/organisations', { config: { permission: 'organisation.manage' } }, async (req): Promise<Page<ReturnType<typeof organisationDto>>> => {
+  app.get('/organisations', { config: { permission: 'organisation.manage' } }, async (req): Promise<Page<ReturnType<typeof organisationDto> & { awaitingEmail: boolean }>> => {
     const f = parse(filterSchema, req.query);
     let q = db.selectFrom('organisations').where('type', '!=', 'vta');
     if (f.type) q = q.where('type', '=', f.type);
@@ -45,7 +48,24 @@ export const organisationRoutes: FastifyPluginAsync = async (app) => {
     if (f.q) q = q.where('legal_name', 'ilike', `%${f.q.replace(/[%_\\]/g, '\\$&')}%`);
     const { total } = await q.select((eb) => eb.fn.countAll<string>().as('total')).executeTakeFirstOrThrow();
     const rows = await q.selectAll().orderBy('created_at', 'desc').limit(f.pageSize).offset((f.page - 1) * f.pageSize).execute();
-    return { items: rows.map(organisationDto), page: f.page, pageSize: f.pageSize, total: Number(total) };
+    // Phase 8: a self-registered organisation whose admin has not confirmed their email yet.
+    const unconfirmed = new Set(
+      rows.length
+        ? (
+            await db
+              .selectFrom('role_assignments as ra')
+              .innerJoin('users as u', 'u.id', 'ra.user_id')
+              .select('ra.organisation_id')
+              .where('ra.organisation_id', 'in', rows.map((r) => r.id))
+              .where('ra.role', 'in', ['employer_admin', 'partner_admin'])
+              .where('ra.revoked_at', 'is', null)
+              .where('u.status', '=', 'invited')
+              .execute()
+          ).map((r) => r.organisation_id)
+        : [],
+    );
+    const items = rows.map((o) => ({ ...organisationDto(o), awaitingEmail: o.registration_source === 'self' && unconfirmed.has(o.id) }));
+    return { items, page: f.page, pageSize: f.pageSize, total: Number(total) };
   });
 
   app.post('/organisations', { config: { permission: 'organisation.manage' } }, async (req, reply) => {

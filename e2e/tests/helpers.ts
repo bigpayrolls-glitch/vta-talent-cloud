@@ -91,3 +91,18 @@ export async function expectNoHorizontalScroll(page: Page) {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow, 'page scrolls sideways').toBeLessThanOrEqual(1);
 }
+
+/** Size of the API log now, so later reads only look at what was written after this point. */
+export const apiLogSize = () => readFileSync(path.join(here, '../.api.log'), 'utf8').length;
+
+/** Reads the newest development confirmation link for an organisation registration from the API log. */
+export async function latestSignupLink(name: string, after: number): Promise<string> {
+  const log = path.join(here, '../.api.log');
+  for (let i = 0; i < 40; i++) {
+    const text = readFileSync(log, 'utf8').slice(after);
+    const m = [...text.matchAll(new RegExp(`Confirm registration for ${name}: (\\S+)`, 'g'))];
+    if (m.length) return new URL(m.at(-1)![1]!).pathname;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  throw new Error('No confirmation link found in the API log');
+}

@@ -255,11 +255,11 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const inv = await db
       .selectFrom('invitations as i')
       .innerJoin('users as u', 'u.id', 'i.user_id')
-      .select(['i.id', 'i.user_id', 'i.expires_at', 'i.accepted_at', 'u.name', 'u.email', 'u.status'])
+      .select(['i.id', 'i.user_id', 'i.invited_by', 'i.expires_at', 'i.accepted_at', 'u.name', 'u.email', 'u.status'])
       .where('i.token_hash', '=', sha256(token))
       .executeTakeFirst();
     if (!inv || inv.accepted_at || inv.expires_at < new Date() || inv.status !== 'invited') {
-      throw notFound('This invitation link is invalid or has expired. Ask your administrator for a new one.');
+      throw notFound('This link is invalid or has expired. If you registered your organisation, register again to get a new link; otherwise ask whoever invited you.');
     }
     return inv;
   }
@@ -267,7 +267,18 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.get('/invitations/:token', { config: { public: true, ...ipLimit(30) } }, async (req) => {
     const { token } = parse(tokenParam, req.params);
     const inv = await findInvitation(token);
-    return { name: inv.name, email: inv.email, expiresAt: iso(inv.expires_at) };
+    // A self-registration link (Phase 8) was "sent" by the person themselves: the page then says "confirm your email".
+    const selfRegistered = inv.invited_by === inv.user_id;
+    const org = selfRegistered
+      ? await db
+          .selectFrom('role_assignments as ra')
+          .innerJoin('organisations as o', 'o.id', 'ra.organisation_id')
+          .select(['o.legal_name', 'o.type'])
+          .where('ra.user_id', '=', inv.user_id)
+          .where('ra.revoked_at', 'is', null)
+          .executeTakeFirst()
+      : undefined;
+    return { name: inv.name, email: inv.email, expiresAt: iso(inv.expires_at), selfRegistered, organisationName: org?.legal_name ?? null, organisationType: org?.type ?? null };
   });
 
   /** Accept an email invitation: set a password, activate, sign in. */
