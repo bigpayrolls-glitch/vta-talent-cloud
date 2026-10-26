@@ -162,13 +162,16 @@ const router = createBrowserRouter([
   { path: '*', element: <NotFound /> },
 ]);
 
+// The staging banner takes 30px; one-screen pages (home, sign-in) subtract it so they still fit the window.
+if (import.meta.env.VITE_APP_ENV === 'staging') document.documentElement.style.setProperty('--banner-h', '30px');
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ToastProvider>
           {import.meta.env.VITE_APP_ENV === 'staging' && (
-            <p role="note" className="bg-ink px-4 py-1.5 text-center text-[12px] font-medium text-white">
+            <p role="note" className="flex h-[30px] items-center justify-center truncate bg-ink px-4 text-center text-[12px] font-medium text-white">
               Staging copy with demo data. Do not enter real personal information.
             </p>
           )}

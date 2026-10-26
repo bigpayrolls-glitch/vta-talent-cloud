@@ -51,19 +51,19 @@ export function PublicHomePage() {
   return (
     <PublicShell fit>
       <div className="flex flex-col lg:h-full">
-        <section className="relative overflow-hidden bg-gradient-to-r from-brand-tint via-[#fdf1f1] to-white lg:min-h-0 lg:flex-1">
+        <section className="relative overflow-hidden bg-gradient-to-r from-brand-tint via-[#fdf1f1] to-white lg:flex-1">
           <img src="/home-hero.webp" alt="" className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[60%] object-cover object-top select-none lg:block" draggable={false} />
-          <div className="relative z-10 mx-auto flex h-full max-w-[1440px] flex-col justify-center px-5 py-10 sm:px-8 lg:px-12 lg:py-6">
+          <div className="relative z-10 mx-auto flex h-full max-w-[1440px] flex-col justify-center px-5 py-10 sm:px-8 lg:px-12 lg:py-[clamp(14px,3vh,32px)]">
             <p className="text-[13px] font-bold tracking-wide text-[#D7141C] uppercase lg:[@media(max-height:820px)]:hidden">Automotive skills. Real opportunities.</p>
             <h1 className="mt-3 text-[clamp(34px,3.6vh+1.05vw,60px)] leading-[1.05] font-black tracking-[-0.025em] text-ink">
               Learn. <span className="text-[#D7141C]">Get Assessed.</span>
               <br />
               Move to a Job.
             </h1>
-            <p className="mt-3 max-w-[520px] text-[clamp(16px,1.6vh+0.5vw,22px)] leading-snug text-ink/70">
+            <p className="mt-3 max-w-[640px] text-[clamp(16px,1.6vh+0.5vw,22px)] leading-snug text-ink/70">
               A simple platform for learners, training partners and automotive employers.
             </p>
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row lg:[@media(max-height:820px)]:mt-4">
+            <div className="mt-[clamp(14px,2.6vh,24px)] flex flex-col gap-3 sm:flex-row">
               <Link to="/register" className="btn-primary h-12 bg-[#C8101A] px-7 text-base hover:bg-brand-hover">
                 Create a learner account
                 <ArrowRight className="size-5" aria-hidden />
@@ -76,33 +76,35 @@ export function PublicHomePage() {
           <img src="/home-hero.webp" alt="" className="h-52 w-full object-cover object-[70%_25%] sm:h-72 lg:hidden" />
         </section>
 
-        <section aria-label="Who it is for" className="mx-auto grid w-full max-w-[1440px] shrink-0 grid-cols-1 gap-3 px-5 pt-4 sm:grid-cols-2 sm:px-8 lg:grid-cols-4 lg:px-12">
+        <section aria-label="Who it is for" className="mx-auto grid w-full max-w-[1440px] shrink-0 grid-cols-1 gap-3 px-5 pt-[clamp(10px,1.8vh,16px)] sm:grid-cols-2 sm:px-8 lg:grid-cols-4 lg:px-12">
           {ROLES.map((r) => (
-            <Link key={r.title} to={r.to} aria-label={r.cta} className={`group relative flex h-[clamp(118px,15vh,158px)] overflow-hidden rounded-2xl ${r.tint} p-4 ring-1 ring-black/5 transition hover:shadow-md`}>
-              <span className="grid size-12 shrink-0 place-items-center rounded-xl bg-white text-[#D7141C] shadow-sm">
-                <r.icon className="size-6" strokeWidth={1.75} aria-hidden />
-              </span>
-              <span className="ml-3 flex max-w-[56%] flex-col pt-0.5">
-                <span className="block text-lg font-bold text-ink">{r.title}</span>
-                <span className="mt-1 block text-[14px] leading-snug text-ink/70">{r.body}</span>
-                <span className="mt-auto grid size-8 shrink-0 place-items-center self-start rounded-full bg-[#D7141C] text-white shadow transition group-hover:translate-x-0.5" aria-hidden>
-                  <ArrowRight className="size-4" />
+            <Link key={r.title} to={r.to} aria-label={r.cta} className={`group flex h-[clamp(100px,15vh,158px)] items-stretch overflow-hidden rounded-2xl ${r.tint} ring-1 ring-black/5 transition hover:shadow-md`}>
+              <span className="flex min-w-0 flex-1 gap-3 p-4">
+                <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white text-[#D7141C] shadow-sm">
+                  <r.icon className="size-6" strokeWidth={1.75} aria-hidden />
+                </span>
+                <span className="min-w-0">
+                  <span className="flex items-center gap-1.5 text-[17px] font-bold whitespace-nowrap text-ink">
+                    {r.title}
+                    <ArrowRight className="size-4 shrink-0 text-[#D7141C] transition group-hover:translate-x-0.5" aria-hidden />
+                  </span>
+                  <span className="mt-1 block text-[14px] leading-snug text-ink/70">{r.body}</span>
                 </span>
               </span>
-              <img src={r.img} alt="" className="absolute right-0 bottom-0 h-[96%] w-auto select-none" draggable={false} />
+              <img src={r.img} alt="" className="h-full w-auto shrink-0 self-end object-contain object-bottom select-none" draggable={false} />
             </Link>
           ))}
         </section>
 
-        <section aria-labelledby="how" className="mx-auto w-full max-w-[1440px] shrink-0 px-5 py-[clamp(12px,2.2vh,24px)] sm:px-8 lg:px-12">
-          <h2 id="how" className="text-[26px] font-bold tracking-tight text-ink">
+        <section aria-labelledby="how" className="mx-auto w-full max-w-[1440px] shrink-0 px-5 py-[clamp(10px,2vh,24px)] sm:px-8 lg:px-12">
+          <h2 id="how" className="text-[clamp(20px,3vh,26px)] font-bold tracking-tight text-ink">
             How it works
           </h2>
-          <ol className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <ol className="mt-[clamp(6px,1.4vh,12px)] grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((s, i) => (
               <li key={s.title} className="flex items-center gap-4">
-                <span className="grid size-[clamp(56px,8vh,80px)] shrink-0 place-items-center rounded-full bg-brand-tint text-[#D7141C]">
-                  <s.icon className="size-8" strokeWidth={1.75} aria-hidden />
+                <span className="grid size-[clamp(46px,7.5vh,80px)] shrink-0 place-items-center rounded-full bg-brand-tint text-[#D7141C]">
+                  <s.icon className="size-[45%]" strokeWidth={1.75} aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[17px] font-bold text-ink">
@@ -116,7 +118,7 @@ export function PublicHomePage() {
           </ol>
         </section>
 
-        <section aria-label="Checked by AutoTalent Grid" className="shrink-0 bg-surface">
+        <section aria-label="Checked by AutoTalent Grid" className="shrink-0 bg-surface lg:[@media(max-height:760px)]:hidden">
           <ul className="mx-auto grid max-w-[1440px] gap-4 px-5 py-4 sm:grid-cols-2 sm:px-8 lg:grid-cols-4 lg:divide-x lg:divide-line lg:px-12">
             {TRUST.map((t) => (
               <li key={t.title} className="flex items-center gap-3 lg:justify-center lg:px-4">
@@ -138,9 +140,9 @@ export function PublicHomePage() {
 export function PublicShell({ children, fit = false }: { children: ReactNode; fit?: boolean }) {
   const [checkOpen, setCheckOpen] = useState(false);
   return (
-    <div className={`flex min-h-dvh flex-col bg-white ${fit ? 'lg:h-dvh lg:min-h-[700px]' : ''}`}>
+    <div className={`flex min-h-[calc(100dvh-var(--banner-h,0px))] flex-col bg-white ${fit ? 'lg:h-[calc(100dvh-var(--banner-h,0px))]' : ''}`}>
       <header className="sticky top-0 z-20 shrink-0 border-b border-line bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-[72px] max-w-[1440px] items-center justify-between gap-3 px-4 sm:px-8 lg:px-12">
+        <div className="mx-auto flex h-[clamp(60px,9vh,72px)] max-w-[1440px] items-center justify-between gap-3 px-4 sm:px-8 lg:px-12">
           <Link to="/" aria-label="AutoTalent Grid home">
             <span className="sm:hidden">
               <Wordmark compact />
@@ -166,9 +168,9 @@ export function PublicShell({ children, fit = false }: { children: ReactNode; fi
           </div>
         </div>
       </header>
-      <main className={`flex-1 ${fit ? 'lg:min-h-0' : ''}`}>{children}</main>
+      <main className={`flex-1 ${fit ? 'lg:min-h-0 lg:overflow-y-auto' : ''}`}>{children}</main>
       <footer className="shrink-0 border-t border-line bg-white">
-        <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-5 py-4 sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:px-12">
+        <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-5 py-[clamp(8px,1.6vh,16px)] sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:px-12">
           <Wordmark tagline />
           <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-ink/75">
             <Link to="/register" className="hover:text-ink">For Learners</Link>

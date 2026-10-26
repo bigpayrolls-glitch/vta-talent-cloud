@@ -31,7 +31,7 @@ export function LoginPage() {
   };
 
   return (
-    <div className="grid min-h-dvh lg:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)]">
+    <div className="grid min-h-[calc(100dvh-var(--banner-h,0px))] lg:grid-cols-[minmax(0,1.12fr)_minmax(0,1fr)]">
       <aside className="relative hidden overflow-hidden bg-gradient-to-br from-brand-tint via-[#fff5f5] to-white lg:flex lg:flex-col">
         <img
           src="/login-hero.webp"
@@ -39,24 +39,24 @@ export function LoginPage() {
           className="pointer-events-none absolute right-0 bottom-0 hidden h-auto max-h-[88%] w-[42%] object-contain object-right-bottom select-none min-[1360px]:block"
           draggable={false}
         />
-        <div className="relative z-10 flex flex-1 flex-col px-12 py-12 xl:px-14">
-          <Wordmark tagline large />
-          <div className="mt-14">
-            <p className="text-[clamp(34px,3.2vw,52px)] font-black leading-[1.12] tracking-[-0.02em] whitespace-nowrap text-ink">
+        <div className="relative z-10 flex flex-1 flex-col px-12 py-[clamp(20px,5vh,48px)] xl:px-14">
+          <Wordmark tagline large={false} />
+          <div className="mt-[clamp(16px,5vh,56px)]">
+            <p className="text-[clamp(28px,min(3.2vw,5.4vh),52px)] font-black leading-[1.12] tracking-[-0.02em] whitespace-nowrap text-ink">
               Build Skills.
               <br />
               <span className="text-[#D7141C]">Connect with Employers.</span>
               <br />
               Grow Your Career.
             </p>
-            <p className="mt-4 max-w-[490px] text-lg leading-relaxed text-ink/70">
+            <p className="mt-3 max-w-[490px] text-[clamp(15px,2.2vh,18px)] leading-relaxed text-ink/70">
               One connected platform for automotive training, verified skills and employment opportunities.
             </p>
           </div>
-          <ul className="mt-9 max-w-[440px] space-y-4">
+          <ul className="mt-[clamp(14px,4vh,36px)] max-w-[440px] space-y-[clamp(8px,1.8vh,16px)]">
             {WHO.map((w) => (
               <li key={w.title} className="flex items-center gap-4">
-                <span className="grid size-14 shrink-0 place-items-center rounded-2xl bg-white text-[#D7141C] shadow-[0_4px_14px_rgba(181,18,27,0.10)]">
+                <span className="grid size-[clamp(40px,6.4vh,56px)] shrink-0 place-items-center rounded-2xl bg-white text-[#D7141C] shadow-[0_4px_14px_rgba(181,18,27,0.10)]">
                   <w.icon className="size-7" strokeWidth={1.75} aria-hidden />
                 </span>
                 <span>
@@ -66,22 +66,22 @@ export function LoginPage() {
               </li>
             ))}
           </ul>
-          <div className="mt-auto pt-12">
+          <div className="mt-auto pt-[clamp(12px,4vh,48px)] [@media(max-height:820px)]:hidden">
             <span className="block h-[3px] w-10 rounded bg-[#D7141C]" aria-hidden />
             <p className="mt-6 text-[15px] text-ink/75">One platform. Every step from learning to employment.</p>
           </div>
         </div>
       </aside>
 
-      <main className="flex flex-col bg-white px-5 py-8 sm:px-10">
+      <main className="flex flex-col bg-white px-5 py-[clamp(12px,3vh,24px)] sm:px-10">
         <div className="lg:hidden">
           <Wordmark tagline />
         </div>
-        <div className="mx-auto my-auto w-full max-w-[520px] py-10">
-          <h1 className="text-[32px] font-black tracking-[-0.02em] text-ink sm:text-[38px]">Welcome back</h1>
+        <div className="mx-auto my-auto w-full max-w-[520px] py-[clamp(12px,4vh,40px)]">
+          <h1 className="text-[clamp(28px,4.6vh,38px)] font-black tracking-[-0.02em] text-ink">Welcome back</h1>
           <p className="mt-1.5 text-[17px] text-muted">Sign in to continue to your AutoTalent Grid portal.</p>
 
-          <div role="tablist" aria-label="Sign-in method" className="mt-8 grid grid-cols-2 rounded-xl bg-surface p-1">
+          <div role="tablist" aria-label="Sign-in method" className="mt-[clamp(16px,3.5vh,32px)] grid grid-cols-2 rounded-xl bg-surface p-1">
             {(['email', 'phone'] as const).map((m) => (
               <button
                 key={m}
@@ -89,29 +89,25 @@ export function LoginPage() {
                 type="button"
                 aria-selected={method === m}
                 onClick={() => setMethod(m)}
-                className={`h-11 rounded-lg text-[15px] font-semibold transition-colors ${method === m ? 'bg-white text-[#C8101A] shadow-sm' : 'text-ink/70 hover:text-ink'}`}
+                className={`flex h-[52px] flex-col items-center justify-center rounded-lg leading-tight transition-colors ${method === m ? 'bg-white text-[#C8101A] shadow-sm' : 'text-ink/70 hover:text-ink'}`}
               >
-                {m === 'email' ? 'Email' : 'Mobile number'}
+                <span className="text-[15px] font-semibold">{m === 'email' ? 'Email' : 'Mobile number'}</span>
+                <span className={`text-xs ${method === m ? 'text-ink/70' : 'text-ink/55'}`}>{m === 'email' ? 'Employers, partners and staff' : 'Learners and trainers'}</span>
               </button>
             ))}
           </div>
 
-          <div className="mt-7" role="tabpanel">
+          <p className="mt-3 text-sm text-ink/70 [@media(max-height:820px)]:hidden">
+            {method === 'email'
+              ? 'Employers, training partners and AutoTalent Grid staff sign in with their email and password.'
+              : 'Learners and trainers sign in with their mobile number. We send a one-time code (OTP).'}
+          </p>
+
+          <div className="mt-4 [@media(max-height:820px)]:mt-3" role="tabpanel">
             {method === 'email' ? <EmailForm onDone={afterSignIn} /> : <PhoneForm onDone={afterSignIn} />}
           </div>
 
-          <div className="mt-7 flex items-center gap-4 text-sm text-muted" aria-hidden>
-            <span className="h-px flex-1 bg-line" />
-            or
-            <span className="h-px flex-1 bg-line" />
-          </div>
-          <p className="mt-4 text-center">
-            <button type="button" className="font-medium text-[#C8101A] underline underline-offset-2 hover:text-brand-hover" onClick={() => setMethod(method === 'email' ? 'phone' : 'email')}>
-              {method === 'email' ? 'Sign in with mobile number' : 'Sign in with Email'}
-            </button>
-          </p>
-
-          <div className="mt-8 space-y-2 border-t border-line pt-7 text-[15px] text-ink/80">
+          <div className="mt-[clamp(16px,3.5vh,32px)] space-y-1.5 border-t border-line pt-[clamp(12px,3vh,28px)] text-[15px] text-ink/80">
             <p>
               New to AutoTalent Grid?{' '}
               <Link to="/register" className="font-medium text-[#C8101A] underline underline-offset-2">
@@ -126,7 +122,7 @@ export function LoginPage() {
               </Link>
               .
             </p>
-            <p className="pt-1 text-sm text-muted">Trainers are added by their training partner or AutoTalent Grid.</p>
+            <p className="pt-1 text-sm text-muted [@media(max-height:820px)]:hidden">Trainers are added by their training partner or AutoTalent Grid.</p>
           </div>
         </div>
       </main>
@@ -152,7 +148,7 @@ function EmailForm({ onDone }: { onDone: () => Promise<void> }) {
   return (
     <form
       noValidate
-      className="space-y-5"
+      className="space-y-[clamp(12px,2.2vh,20px)]"
       onSubmit={(e) => {
         e.preventDefault();
         void f.submit({ email, password }, async (data) => {
