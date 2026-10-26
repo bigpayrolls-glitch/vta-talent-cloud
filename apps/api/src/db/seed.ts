@@ -428,8 +428,8 @@ export async function seed(db: DB): Promise<SeedResult> {
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
 if (isMain) {
   const config = loadConfig();
-  if (config.NODE_ENV === 'production') {
-    console.error('Refusing to seed demo data when NODE_ENV=production.');
+  if (config.NODE_ENV === 'production' && config.APP_ENV !== 'staging') {
+    console.error('Refusing to seed demo data when NODE_ENV=production (allowed only with APP_ENV=staging).');
     process.exit(1);
   }
   const db = createDb(config.databaseUrl);

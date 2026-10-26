@@ -175,6 +175,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       ok: true,
       message: purpose === 'register' ? 'A code has been sent to this number.' : 'If this number is registered, a code has been sent.',
       expiresInSeconds: OTP_TTL_SECONDS,
+      // Staging only (demo data, no SMS provider yet): the code is shown on screen instead of sent.
+      ...(app.config.showCodes && send ? { stagingCode: code } : {}),
     };
   });
 

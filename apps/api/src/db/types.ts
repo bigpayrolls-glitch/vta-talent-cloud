@@ -269,6 +269,12 @@ export interface AttendanceRecordsTable {
 export type JobStatus = 'draft' | 'pending_review' | 'published' | 'paused' | 'closed' | 'rejected';
 export type ApplicationStatus = 'applied' | 'shortlisted' | 'interview' | 'offer' | 'joined' | 'not_joined' | 'rejected' | 'withdrawn';
 
+export interface StoredFilesTable {
+  key: string;
+  data: Buffer;
+  created_at: Timestamp;
+}
+
 export interface ProgrammesTable {
   id: string;
   name: string;
@@ -467,6 +473,7 @@ export interface Database {
   consent_events: ConsentEventsTable;
   jobs: JobsTable;
   programmes: ProgrammesTable;
+  stored_files: StoredFilesTable;
   programme_partners: ProgrammePartnersTable;
   programme_batches: ProgrammeBatchesTable;
   job_applications: JobApplicationsTable;

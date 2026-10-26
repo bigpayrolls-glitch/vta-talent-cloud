@@ -7,10 +7,10 @@ pg.types.setTypeParser(1082, (v) => v);
 
 export type DB = Kysely<Database>;
 
-export function createDb(connectionString: string): DB {
+export function createDb(connectionString: string, max = 10): DB {
   return new Kysely<Database>({
     dialect: new PostgresDialect({
-      pool: new pg.Pool({ connectionString, max: 10 }),
+      pool: new pg.Pool({ connectionString, max }),
     }),
   });
 }

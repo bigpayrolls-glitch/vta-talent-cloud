@@ -8,6 +8,7 @@ import { ErrorNote, Field, Wordmark } from '../components/ui';
 import { api, setCsrfToken } from '../lib/api';
 import { homePathFor, useAuth } from '../lib/auth';
 import { useForm } from '../lib/useForm';
+import { StagingCode } from './LoginPage';
 
 /** Step one is checked in the browser with the same rules as the server, minus the code. */
 const detailsSchema = registerSchema.omit({ code: true });
@@ -24,6 +25,7 @@ export function RegisterPage() {
   const [sent, setSent] = useState<null | z.output<typeof detailsSchema>>(null);
   const [code, setCode] = useState('');
   const [cooldown, setCooldown] = useState(0);
+  const [stagingCode, setStagingCode] = useState('');
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -35,7 +37,8 @@ export function RegisterPage() {
 
   const sendCode = (data: z.output<typeof detailsSchema>) =>
     request.submit({ phone: data.phone, purpose: 'register' }, async (r) => {
-      await api.post('/auth/otp/request', r);
+      const res = await api.post<{ stagingCode?: string }>('/auth/otp/request', r);
+      setStagingCode(res.stagingCode ?? '');
       setSent(data);
       setCooldown(60);
     });
@@ -128,6 +131,7 @@ export function RegisterPage() {
             <p className="text-sm text-muted">
               A code was sent to <span className="font-semibold text-ink">{sent.phone.replace('+91', '+91 ')}</span>. It expires in 5 minutes.
             </p>
+            {stagingCode && <StagingCode code={stagingCode} />}
             {(verify.formError || request.formError) && <ErrorNote message={verify.formError || request.formError} />}
             <Field label="6-digit code" htmlFor="code" error={verify.errors.code}>
               <input
