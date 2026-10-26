@@ -9,8 +9,12 @@ import { api, ApiError, qs } from '../../lib/api';
 import { useForm } from '../../lib/useForm';
 import { dateTime, experienceText, salaryText, shortDate, skillLabel, type JobView } from '../hiring/format';
 
-type LearnerJob = JobView & { employer: string; myApplicationId: string | null };
+/** matchesSkills / meetsExperience: how the job fits the learner's profile. Information only; anyone may apply. */
+type LearnerJob = JobView & { employer: string; myApplicationId: string | null; matchesSkills: boolean; meetsExperience: boolean };
 interface JobList extends Page<LearnerJob> {
+  mySkillAreas: string[];
+  myExperienceMonths: number;
+  matchTotal: number;
   invitations: { jobId: string; title: string; employer: string; message: string | null; at: string }[];
 }
 
@@ -96,9 +100,29 @@ export function JobsPage() {
         <EmptyState title="No open jobs match" body="Try another skill or city, or check again later." />
       ) : (
         <>
+          {!q.data!.mySkillAreas.length ? (
+            <p className="mb-4 rounded-lg bg-info-tint px-4 py-3 text-sm text-info">
+              Add your skill areas (for example Two-wheeler or Four-wheeler) to your{' '}
+              <Link to="/learn/profile" className="font-semibold underline">
+                profile
+              </Link>{' '}
+              to see the jobs that match you first.
+            </p>
+          ) : (
+            !f.skillArea && (
+              <p className="mb-3 text-sm text-muted">
+                {q.data!.matchTotal
+                  ? `${q.data!.matchTotal} ${q.data!.matchTotal === 1 ? 'job matches' : 'jobs match'} your skills (${q.data!.mySkillAreas.map(skillLabel).join(', ')}) and ${q.data!.matchTotal === 1 ? 'is' : 'are'} shown first. You can apply to any job.`
+                  : `No open jobs in your skills (${q.data!.mySkillAreas.map(skillLabel).join(', ')}) right now. Other jobs are below, and you can apply to any of them.`}
+              </p>
+            )
+          )}
           <ul className="grid gap-3">
-            {q.data!.items.map((j) => (
+            {q.data!.items.map((j, idx) => (
               <li key={j.id}>
+                {!f.skillArea && q.data!.mySkillAreas.length > 0 && (idx === 0 || q.data!.items[idx - 1]!.matchesSkills !== j.matchesSkills) && (
+                  <h2 className={`mb-2 text-sm font-semibold ${idx ? 'mt-3' : ''} ${j.matchesSkills ? 'text-success' : 'text-muted'}`}>{j.matchesSkills ? 'Recommended for your skills' : 'Other jobs'}</h2>
+                )}
                 <Link to={`/learn/jobs/${j.id}`} className="card block px-5 py-4 hover:border-brand">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
@@ -114,12 +138,17 @@ export function JobsPage() {
                   </div>
                   <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
                     <span className="inline-flex items-center gap-1">
+                      <Briefcase className="size-3.5 text-muted" aria-hidden />
+                      {skillLabel(j.skillArea)}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
                       <MapPin className="size-3.5 text-muted" aria-hidden />
                       {j.city}
                     </span>
                     <span>{salaryText(j.salaryMin, j.salaryMax)}</span>
                     <span className="text-muted">Apply by {shortDate(j.closingDate)}</span>
                   </p>
+                  <FitChips job={j} />
                 </Link>
               </li>
             ))}
@@ -130,6 +159,28 @@ export function JobsPage() {
         </>
       )}
     </>
+  );
+}
+
+/** Whether the job matches the learner's skill areas and experience, in words (never colour alone). */
+function FitChips({ job }: { job: Pick<LearnerJob, 'matchesSkills' | 'meetsExperience' | 'minExperienceMonths'> }) {
+  return (
+    <p className="mt-2 flex flex-wrap gap-2 text-xs font-semibold">
+      {job.matchesSkills ? (
+        <span className="inline-flex items-center gap-1 rounded-full bg-success-tint px-2.5 py-0.5 text-success">
+          <Check className="size-3.5" aria-hidden />
+          Matches your skills
+        </span>
+      ) : (
+        <span className="rounded-full bg-surface px-2.5 py-0.5 text-ink/70">Different skill area</span>
+      )}
+      {job.minExperienceMonths > 0 &&
+        (job.meetsExperience ? (
+          <span className="rounded-full bg-success-tint px-2.5 py-0.5 text-success">You have the experience</span>
+        ) : (
+          <span className="rounded-full bg-warning-tint px-2.5 py-0.5 text-warning">Needs {experienceText(job.minExperienceMonths).replace(' or more', '')} experience</span>
+        ))}
+    </p>
   );
 }
 
@@ -160,6 +211,7 @@ export function JobDetailPage() {
       <header className="mb-5 mt-3">
         <h1 className="text-[26px] font-bold tracking-tight">{j.title}</h1>
         <p className="mt-1 text-muted">{j.employer}</p>
+        <FitChips job={j} />
       </header>
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <section className="card px-5 py-5">

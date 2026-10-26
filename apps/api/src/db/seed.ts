@@ -381,6 +381,8 @@ export async function seed(db: DB): Promise<SeedResult> {
   await job('job2wA', 'employerA', 'employerAdminA', 'published', { title: 'Two-wheeler service technician', skill: '2W', city: 'Bengaluru', closing: '2026-12-15', salary: [16000, 22000] });
   await job('jobDraftA', 'employerA', 'recruiterA', 'draft', { title: 'Senior two-wheeler technician', skill: '2W', city: 'Bengaluru', closing: '2026-12-31' });
   await job('jobEvB', 'employerB', 'employerAdminB', 'pending_review', { title: 'EV service technician', skill: 'EV', city: 'Mysuru', closing: '2026-12-20', salary: [18000, 26000] });
+  // A live four-wheeler job, so a two-wheeler learner sees "Recommended for your skills" and "Other jobs".
+  await job('job4wB', 'employerB', 'employerAdminB', 'published', { title: 'Four-wheeler service technician', skill: '4W', city: 'Mysuru', closing: '2026-12-31', salary: [17000, 24000] });
 
   // Phase 12: the two verified demo employers have plans set by AutoTalent Grid for a year; the pending one is on Free.
   const yearOn = new Date(Date.now() + 365 * 86_400_000);
