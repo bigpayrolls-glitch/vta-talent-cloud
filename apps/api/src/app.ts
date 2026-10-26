@@ -14,6 +14,9 @@ import { authRoutes } from './routes/auth.js';
 import { adminRoutes } from './routes/admin.js';
 import { sharedRoutes } from './routes/shared.js';
 import { healthRoutes } from './routes/health.js';
+import { trainingRoutes } from './routes/training/index.js';
+import { localStorage, type Storage } from './lib/storage.js';
+import { UPLOAD_MAX_BYTES } from '@vta/shared';
 import type { AuditContext } from './audit/service.js';
 
 declare module 'fastify' {
@@ -29,6 +32,7 @@ declare module 'fastify' {
     db: DB;
     config: Config;
     providers: Providers;
+    storage: Storage;
     routeTable: RouteInfo[];
   }
 }
@@ -44,6 +48,7 @@ export interface AppOptions {
   db: DB;
   config: Config;
   providers?: Providers;
+  storage?: Storage;
   logger?: FastifyServerOptions['logger'];
 }
 
@@ -55,9 +60,15 @@ const REDACT_PATHS = [
   'res.headers["set-cookie"]',
 ];
 
+/** Strips signed-link signatures from logged URLs. */
+const redactUrl = (url: string) => url.replace(/([?&]sig=)[^&]+/, '$1[redacted]');
+export const LOG_SERIALIZERS = {
+  req: (req: { method: string; url: string; id: string }) => ({ method: req.method, url: redactUrl(req.url), id: req.id }),
+};
+
 export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: opts.logger ?? { level: 'info', redact: { paths: REDACT_PATHS, censor: '[redacted]' } },
+    logger: opts.logger ?? { level: 'info', redact: { paths: REDACT_PATHS, censor: '[redacted]' }, serializers: LOG_SERIALIZERS },
     genReqId: (req) => {
       const given = req.headers['x-request-id'];
       return typeof given === 'string' && /^[\w-]{8,64}$/.test(given) ? given : newId();
@@ -69,6 +80,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   app.decorate('db', opts.db);
   app.decorate('config', opts.config);
   app.decorate('providers', opts.providers ?? consoleProviders(app.log));
+  app.decorate('storage', opts.storage ?? localStorage(opts.config.STORAGE_DIR));
   app.decorateRequest('actor', null);
 
   await app.register(cookie);
@@ -77,6 +89,13 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     hsts: opts.config.COOKIE_SECURE ? { maxAge: 31_536_000, includeSubDomains: true } : false,
   });
   await app.register(rateLimit, { global: false });
+
+  // File uploads arrive as the raw file body (no multipart parsing), capped at the upload limit.
+  app.addContentTypeParser(
+    ['application/octet-stream', 'application/pdf', 'image/jpeg', 'image/png'],
+    { parseAs: 'buffer', bodyLimit: UPLOAD_MAX_BYTES },
+    (_req, body, done) => done(null, body),
+  );
 
   // Every route must declare a permission or be explicitly public (F-05).
   const routeTable: RouteInfo[] = [];
@@ -122,6 +141,9 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
     if (e.statusCode === 429) {
       return reply.code(429).send({ error: { code: 'RATE_LIMITED', message: 'Too many requests. Please wait and try again.', requestId: req.id } });
     }
+    if (e.statusCode === 413) {
+      return reply.code(413).send({ error: { code: 'VALIDATION_FAILED', message: 'The file is too large. The limit is 10 MB.', fields: { file: 'Larger than 10 MB' }, requestId: req.id } });
+    }
     if (e.statusCode && e.statusCode >= 400 && e.statusCode < 500) {
       return reply.code(400).send({ error: { code: 'VALIDATION_FAILED', message: e.message ?? 'Bad request', requestId: req.id } });
     }
@@ -135,6 +157,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
       await api.register(authRoutes, { prefix: '/auth' });
       await api.register(adminRoutes, { prefix: '/admin' });
       await api.register(sharedRoutes);
+      await api.register(trainingRoutes);
     },
     { prefix: '/api/v1' },
   );

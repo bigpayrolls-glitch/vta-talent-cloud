@@ -6,7 +6,7 @@ import { ToastProvider } from './components/toast';
 import { AuthProvider } from './lib/auth';
 import { AcceptInvitation, ChoosePortal, HomeRedirect, NoAccess, NotFound, RequirePortal } from './pages/AccessPages';
 import { LoginPage } from './pages/LoginPage';
-import { PortalHome } from './pages/PortalHomes';
+import { PartnerLayout, PortalHome, PortalHomeContent } from './pages/PortalHomes';
 import './styles.css';
 
 const queryClient = new QueryClient({
@@ -39,11 +39,33 @@ const router = createBrowserRouter([
       { path: 'organisations', lazy: () => import('./pages/admin/Organisations').then((m) => ({ Component: m.OrganisationsPage })) },
       { path: 'centres', lazy: () => import('./pages/admin/Centres').then((m) => ({ Component: m.CentresPage })) },
       { path: 'audit', lazy: () => import('./pages/admin/Audit').then((m) => ({ Component: m.AuditPage })) },
+      { path: 'courses', lazy: () => import('./pages/training/Courses').then((m) => ({ Component: m.CoursesPage })) },
+      { path: 'courses/:id', lazy: () => import('./pages/training/Courses').then((m) => ({ Component: m.CourseDetailPage })) },
+      { path: 'trainers', lazy: () => import('./pages/training/Trainers').then((m) => ({ Component: m.TrainersPage })) },
+      { path: 'trainers/:id', lazy: () => import('./pages/training/Trainers').then((m) => ({ Component: m.TrainerDetailPage })) },
+      { path: 'candidates', lazy: () => import('./pages/training/Candidates').then((m) => ({ Component: m.CandidatesPage })) },
+      { path: 'candidates/import', lazy: () => import('./pages/training/ImportCandidates').then((m) => ({ Component: m.ImportCandidatesPage })) },
+      { path: 'candidates/:id', lazy: () => import('./pages/training/Candidates').then((m) => ({ Component: m.CandidateDetailPage })) },
+      { path: 'batches', lazy: () => import('./pages/training/Batches').then((m) => ({ Component: () => <m.BatchesPage base="/admin/batches" /> })) },
+      { path: 'batches/:id', lazy: () => import('./pages/training/Batches').then((m) => ({ Component: () => <m.BatchDetailPage base="/admin/batches" /> })) },
     ],
   },
   { path: '/employer/*', element: <RequirePortal portal="employer"><PortalHome portal="employer" /></RequirePortal> },
   { path: '/learn/*', element: <RequirePortal portal="learn"><PortalHome portal="learn" /></RequirePortal> },
-  { path: '/partner/*', element: <RequirePortal portal="partner"><PortalHome portal="partner" /></RequirePortal> },
+  {
+    path: '/partner',
+    element: (
+      <RequirePortal portal="partner">
+        <PartnerLayout />
+      </RequirePortal>
+    ),
+    children: [
+      { index: true, element: <PortalHomeContent portal="partner" /> },
+      { path: 'batches', lazy: () => import('./pages/training/Batches').then((m) => ({ Component: () => <m.BatchesPage base="/partner/batches" /> })) },
+      { path: 'batches/:id', lazy: () => import('./pages/training/Batches').then((m) => ({ Component: () => <m.BatchDetailPage base="/partner/batches" /> })) },
+      { path: '*', element: <NotFound /> },
+    ],
+  },
   { path: '*', element: <NotFound /> },
 ]);
 

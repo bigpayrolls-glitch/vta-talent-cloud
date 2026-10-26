@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Building2, GraduationCap, Handshake, MapPin, UserCog } from 'lucide-react';
+import { ArrowRight, BookOpen, Building2, ClipboardList, GraduationCap, Handshake, MapPin, UserCog, UsersRound } from 'lucide-react';
 import { Link } from 'react-router';
 import { ErrorNote, formatDate, Spinner } from '../../components/ui';
 import { api } from '../../lib/api';
@@ -13,13 +13,31 @@ interface PlatformDashboard {
   employers: { total: number; verified: number };
   partners: { total: number; verified: number };
   centres: { active: number };
-  awaitingAction: { usersPendingApproval: number; organisationsPendingVerification: number };
+  training: {
+    activeCourses: number;
+    batchesPlanned: number;
+    batchesActive: number;
+    batchesCompleted: number;
+    enrolledInOpenBatches: number;
+    candidatesVerified: number;
+    candidatesTotal: number;
+  };
+  awaitingAction: {
+    usersPendingApproval: number;
+    organisationsPendingVerification: number;
+    candidatesPendingVerification: number;
+    possibleDuplicates: number;
+    trainersPendingVerification: number;
+  };
 }
 interface CentreDashboard {
   asOf: string;
   scope: 'centre';
   centres: { active: number };
+  batches: { planned: number; active: number; completed: number };
 }
+
+const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
 
 export function AdminDashboard() {
   const { me } = useAuth();
@@ -37,9 +55,11 @@ export function AdminDashboard() {
 
       {q.data?.scope === 'platform' && <PlatformView d={q.data} />}
       {q.data?.scope === 'centre' && (
-        <div className="mt-8">
-          <Tile icon={MapPin} label="Your active centres" value={q.data.centres.active} />
-          <p className="mt-6 text-muted">Batch and trainer tools for centre admins arrive in Phase 2.</p>
+        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <Tile icon={MapPin} label="Your centres" value={q.data.centres.active} />
+          <Tile icon={UsersRound} label="Planned batches" value={q.data.batches.planned} to="/admin/batches?status=planned" />
+          <Tile icon={UsersRound} label="Active batches" value={q.data.batches.active} to="/admin/batches?status=active" />
+          <Tile icon={UsersRound} label="Completed batches" value={q.data.batches.completed} to="/admin/batches?status=completed" />
         </div>
       )}
       {q.data && <p className="mt-8 text-sm text-muted">Counts as of {formatDate(q.data.asOf, true)}. Active accounts and organisations only.</p>}
@@ -48,25 +68,35 @@ export function AdminDashboard() {
 }
 
 function PlatformView({ d }: { d: PlatformDashboard }) {
+  const a = d.awaitingAction;
   const tasks = [
-    { n: d.awaitingAction.usersPendingApproval, label: d.awaitingAction.usersPendingApproval === 1 ? 'user waiting for approval' : 'users waiting for approval', to: '/admin/users?status=pending' },
-    { n: d.awaitingAction.organisationsPendingVerification, label: d.awaitingAction.organisationsPendingVerification === 1 ? 'organisation waiting for verification' : 'organisations waiting for verification', to: '/admin/organisations?verificationStatus=pending' },
+    { n: a.candidatesPendingVerification, label: plural(a.candidatesPendingVerification, 'candidate to verify', 'candidates to verify'), to: '/admin/candidates?verificationStatus=pending' },
+    { n: a.possibleDuplicates, label: plural(a.possibleDuplicates, 'possible duplicate profile to review', 'possible duplicate profiles to review'), to: '/admin/candidates?duplicates=true' },
+    { n: a.trainersPendingVerification, label: plural(a.trainersPendingVerification, 'trainer to verify', 'trainers to verify'), to: '/admin/trainers?verificationStatus=pending' },
+    { n: a.organisationsPendingVerification, label: plural(a.organisationsPendingVerification, 'organisation waiting for verification', 'organisations waiting for verification'), to: '/admin/organisations?verificationStatus=pending' },
+    { n: a.usersPendingApproval, label: plural(a.usersPendingApproval, 'user waiting for approval', 'users waiting for approval'), to: '/admin/users?status=pending' },
   ].filter((t) => t.n > 0);
+  const t = d.training;
 
   return (
     <>
-      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Tile icon={GraduationCap} label="Learners" value={d.learners.active} />
-        <Tile icon={UserCog} label="Trainers" value={d.trainers.active} />
-        <Tile icon={Building2} label="Employers" value={d.employers.total} note={`${d.employers.verified} verified`} />
-        <Tile icon={Handshake} label="Training partners" value={d.partners.total} note={`${d.partners.verified} verified`} />
-        <Tile icon={MapPin} label="Centres" value={d.centres.active} />
+      <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Tile icon={GraduationCap} label="Candidates" value={t.candidatesTotal} note={`${t.candidatesVerified} verified`} to="/admin/candidates" />
+        <Tile icon={UsersRound} label="Active batches" value={t.batchesActive} note={`${t.batchesPlanned} planned, ${t.batchesCompleted} completed`} to="/admin/batches?status=active" />
+        <Tile icon={ClipboardList} label="Enrolled now" value={t.enrolledInOpenBatches} note="In planned and active batches" />
+        <Tile icon={BookOpen} label="Active courses" value={t.activeCourses} to="/admin/courses?status=active" />
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Tile icon={UserCog} label="Trainers" value={d.trainers.active} note="Signed in and active" to="/admin/trainers" small />
+        <Tile icon={MapPin} label="Centres" value={d.centres.active} to="/admin/centres" small />
+        <Tile icon={Handshake} label="Training partners" value={d.partners.total} note={`${d.partners.verified} verified`} to="/admin/organisations?type=partner" small />
+        <Tile icon={Building2} label="Employers" value={d.employers.total} note={`${d.employers.verified} verified`} to="/admin/organisations?type=employer" small />
       </div>
 
       <section className="mt-8">
         <h2 className="text-xl font-bold">Needs your attention</h2>
         {tasks.length === 0 ? (
-          <p className="mt-3 text-muted">Nothing is waiting. New sign-ups and organisations appear here.</p>
+          <p className="mt-3 text-muted">Nothing is waiting. New candidates, trainers and organisations to verify appear here.</p>
         ) : (
           <ul className="mt-3 divide-y divide-line overflow-hidden rounded-[var(--radius-card)] border border-line">
             {tasks.map((t) => (
@@ -82,18 +112,23 @@ function PlatformView({ d }: { d: PlatformDashboard }) {
         )}
       </section>
 
-      <p className="mt-8 text-sm text-muted">Training, assessment and hiring figures join this dashboard as those features are built.</p>
+      <p className="mt-8 text-sm text-muted">Attendance, assessment and hiring figures join this dashboard as those features are built.</p>
     </>
   );
 }
 
-function Tile({ icon: Icon, label, value, note }: { icon: typeof MapPin; label: string; value: number; note?: string }) {
-  return (
-    <div className="card px-5 py-4">
+function Tile({ icon: Icon, label, value, note, to, small = false }: { icon: typeof MapPin; label: string; value: number; note?: string; to?: string; small?: boolean }) {
+  const body = (
+    <>
       <Icon className="size-5 text-brand" aria-hidden />
-      <p className="mt-3 text-[28px] font-bold leading-none tracking-tight">{value.toLocaleString('en-IN')}</p>
+      <p className={`mt-3 font-bold leading-none tracking-tight ${small ? 'text-[22px]' : 'text-[28px]'}`}>{value.toLocaleString('en-IN')}</p>
       <p className="mt-1.5 text-sm font-medium">{label}</p>
       {note && <p className="text-xs text-muted">{note}</p>}
-    </div>
+    </>
+  );
+  return to ? (
+    <Link to={to} className="card block px-5 py-4 transition-colors hover:border-brand">{body}</Link>
+  ) : (
+    <div className="card px-5 py-4">{body}</div>
   );
 }

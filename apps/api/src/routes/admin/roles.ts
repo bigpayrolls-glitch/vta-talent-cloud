@@ -22,21 +22,29 @@ const grantSchema = roleInputSchema.extend({ userId: uuidSchema });
  * F-09: grant a role with the scope that role requires (plan §6.1, §10.2):
  * - employer roles need a verified-or-pending employer organisation
  * - partner roles need a partner organisation
- * - trainer needs a partner organisation AND a centre owned by it
+ * - trainer needs a centre; the organisation is the centre's owner (none for a VTA-run centre)
  * - centre admin needs a centre; platform roles take no scope
  */
 export async function grantRole(db: Executor, req: FastifyRequest, input: z.infer<typeof grantSchema>): Promise<string> {
   const rule = ROLE_SCOPE[input.role];
   const fields: Record<string, string> = {};
+
+  // Trainers: the organisation is whoever runs the centre (a partner, or none for VTA-run centres).
+  if (rule.organisationFromCentre && input.centreId) {
+    const centre = await db.selectFrom('centres').select(['organisation_id']).where('id', '=', input.centreId).executeTakeFirst();
+    if (!centre) throw invalid('Centre not found', { centreId: 'Not found' });
+    if (input.organisationId && input.organisationId !== centre.organisation_id) {
+      throw invalid('A trainer’s centre must belong to their training partner', { centreId: 'Centre is not run by this partner' });
+    }
+    input = { ...input, organisationId: centre.organisation_id ?? undefined };
+    if (!input.organisationId) return insertGrant(db, req, input);
+  }
+
   if (rule.organisation && !input.organisationId) fields.organisationId = 'Choose an organisation for this role';
   if (!rule.organisation && input.organisationId) fields.organisationId = 'This role is not tied to an organisation';
   if (rule.centre && !input.centreId) fields.centreId = 'Choose a centre for this role';
   if (!rule.centre && input.centreId) fields.centreId = 'This role is not tied to a centre';
   if (Object.keys(fields).length) throw invalid('The role scope is not valid', fields);
-
-  const user = await db.selectFrom('users').select(['id', 'status']).where('id', '=', input.userId).executeTakeFirst();
-  if (!user) throw notFound('User');
-  if (user.status === 'deactivated') throw invalid('Roles cannot be given to a deactivated user.');
 
   if (input.organisationId) {
     const org = await db.selectFrom('organisations').select(['type', 'status']).where('id', '=', input.organisationId).executeTakeFirst();
@@ -45,14 +53,21 @@ export async function grantRole(db: Executor, req: FastifyRequest, input: z.infe
     if (org.status !== 'active') throw invalid('This organisation is inactive', { organisationId: 'Inactive' });
   }
   if (input.centreId) {
-    const centre = await db.selectFrom('centres').select(['organisation_id', 'status']).where('id', '=', input.centreId).executeTakeFirst();
+    const centre = await db.selectFrom('centres').select(['id']).where('id', '=', input.centreId).executeTakeFirst();
     if (!centre) throw invalid('Centre not found', { centreId: 'Not found' });
-    if (centre.status !== 'active') throw invalid('This centre is inactive', { centreId: 'Inactive' });
-    if (input.role === 'trainer' && centre.organisation_id !== input.organisationId) {
-      throw invalid('A trainer’s centre must belong to their training partner', { centreId: 'Centre is not run by this partner' });
-    }
   }
 
+  return insertGrant(db, req, input);
+}
+
+async function insertGrant(db: Executor, req: FastifyRequest, input: z.infer<typeof grantSchema>): Promise<string> {
+  const user = await db.selectFrom('users').select(['status']).where('id', '=', input.userId).executeTakeFirst();
+  if (!user) throw notFound('User');
+  if (user.status === 'deactivated') throw invalid('Roles cannot be given to a deactivated user.');
+  if (input.centreId) {
+    const c = await db.selectFrom('centres').select(['status']).where('id', '=', input.centreId).executeTakeFirst();
+    if (c?.status !== 'active') throw invalid('This centre is inactive', { centreId: 'Inactive' });
+  }
   const id = newId();
   try {
     await db
@@ -69,6 +84,14 @@ export async function grantRole(db: Executor, req: FastifyRequest, input: z.infe
   } catch (e) {
     if ((e as { code?: string }).code === '23505') throw conflict('The user already has this role with this scope.');
     throw e;
+  }
+  // Every trainer has a profile (specialisations, verification), however the role was given.
+  if (input.role === 'trainer') {
+    await db
+      .insertInto('trainer_profiles')
+      .values({ user_id: input.userId, verification_status: 'pending' })
+      .onConflict((oc) => oc.column('user_id').doNothing())
+      .execute();
   }
   await audit(db, auditCtx(req), {
     action: 'role.granted',

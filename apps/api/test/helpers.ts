@@ -5,6 +5,10 @@ import { createDb, type DB } from '../src/db/index.js';
 import { migrateToLatest, resetDatabase } from '../src/db/migrate.js';
 import { seed, type SeedResult } from '../src/db/seed.js';
 import { memoryProviders } from '../src/lib/providers.js';
+import { localStorage } from '../src/lib/storage.js';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 export type Mem = ReturnType<typeof memoryProviders>;
 
@@ -26,7 +30,8 @@ export async function setup(): Promise<Ctx> {
   await migrateToLatest(db, false);
   const seeded = await seed(db);
   const mem = memoryProviders();
-  const app = await buildApp({ db, config, providers: mem, logger: false });
+  const storageDir = mkdtempSync(path.join(tmpdir(), 'vta-test-files-'));
+  const app = await buildApp({ db, config, providers: mem, storage: localStorage(storageDir), logger: false });
   await app.ready();
   return {
     app,
@@ -52,6 +57,8 @@ export interface Client {
   get(url: string): Promise<{ status: number; body: any }>;
   post(url: string, body?: unknown, opts?: { csrf?: string | null }): Promise<{ status: number; body: any }>;
   patch(url: string, body?: unknown): Promise<{ status: number; body: any }>;
+  put(url: string, body?: unknown): Promise<{ status: number; body: any }>;
+  upload(url: string, data: Buffer, contentType?: string): Promise<{ status: number; body: any }>;
 }
 
 function cookieFrom(res: { headers: Record<string, unknown> }): string {
@@ -65,7 +72,7 @@ function cookieFrom(res: { headers: Record<string, unknown> }): string {
 export async function clientFromCookie(app: FastifyInstance, cookie: string): Promise<Client> {
   const me = await app.inject({ method: 'GET', url: '/api/v1/auth/me', headers: { cookie } });
   const csrf = me.statusCode === 200 ? (me.json().csrfToken as string) : '';
-  const send = async (method: 'GET' | 'POST' | 'PATCH', url: string, body?: unknown, token: string | null = csrf) => {
+  const send = async (method: 'GET' | 'POST' | 'PATCH' | 'PUT', url: string, body?: unknown, token: string | null = csrf) => {
     const headers: Record<string, string> = { cookie };
     if (token && method !== 'GET') headers['x-csrf-token'] = token;
     const res = await app.inject({ method, url: `/api/v1${url}`, headers, ...(body !== undefined ? { payload: body as object } : {}) });
@@ -77,6 +84,11 @@ export async function clientFromCookie(app: FastifyInstance, cookie: string): Pr
     get: (url) => send('GET', url),
     post: (url, body, opts) => send('POST', url, body ?? {}, opts?.csrf === undefined ? csrf : opts.csrf),
     patch: (url, body) => send('PATCH', url, body ?? {}),
+    put: (url, body) => send('PUT', url, body ?? {}),
+    upload: async (url, data, contentType = 'application/octet-stream') => {
+      const res = await app.inject({ method: 'POST', url: `/api/v1${url}`, headers: { cookie, 'x-csrf-token': csrf, 'content-type': contentType }, payload: data });
+      return { status: res.statusCode, body: res.body ? res.json() : null };
+    },
   };
 }
 
@@ -119,4 +131,10 @@ export const EMAIL = {
   pending: 'pending@demo.vta.local',
 } as const;
 
-export const PHONE = { trainerA: '+919900000101', learner: '+919900000201' } as const;
+export const PHONE = {
+  trainerA: '+919900000101',
+  trainerVta: '+919900000102',
+  trainerB: '+919900000103',
+  trainerPending: '+919900000104',
+  learner: '+919900000201',
+} as const;

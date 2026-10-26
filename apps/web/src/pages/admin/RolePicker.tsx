@@ -14,17 +14,19 @@ export const emptyRole: RoleValue = { role: '', organisationId: '', centreId: ''
 /** Picks a role and exactly the scope that role needs (organisation, centre, or both). */
 export function RolePicker({ value, onChange, errors = {}, prefix = '' }: { value: RoleValue; onChange: (v: RoleValue) => void; errors?: Record<string, string>; prefix?: string }) {
   const rule = value.role ? ROLE_SCOPE[value.role] : null;
+  // Trainers pick only a centre; their organisation is whoever runs that centre.
+  const pickOrg = !!rule?.organisation && !rule.organisationFromCentre;
   const orgs = useQuery({
     queryKey: ['orgs-for-role', rule?.organisation],
-    enabled: !!rule?.organisation,
+    enabled: pickOrg,
     queryFn: () => api.get<Page<{ id: string; legalName: string; verificationStatus: string }>>(`/admin/organisations${qs({ type: rule!.organisation!, pageSize: 100 })}`),
   });
   const centres = useQuery({
     queryKey: ['centres-for-role', value.role, value.organisationId],
-    enabled: !!rule?.centre && (!rule.organisation || !!value.organisationId),
+    enabled: !!rule?.centre && (!pickOrg || !!value.organisationId),
     queryFn: () =>
-      api.get<Page<{ id: string; name: string; city: string | null; organisationId: string | null }>>(
-        `/centres${qs({ status: 'active', pageSize: 100, organisationId: value.role === 'trainer' ? value.organisationId : undefined })}`,
+      api.get<Page<{ id: string; name: string; city: string | null; organisationId: string | null; organisationName: string | null }>>(
+        `/centres${qs({ status: 'active', pageSize: 100 })}`,
       ),
   });
   const err = (k: string) => errors[`${prefix}${k}`];
@@ -41,7 +43,7 @@ export function RolePicker({ value, onChange, errors = {}, prefix = '' }: { valu
           ))}
         </select>
       </Field>
-      {rule?.organisation && (
+      {pickOrg && (
         <Field label={rule.organisation === 'employer' ? 'Employer' : 'Training partner'} htmlFor="organisationId" error={err('organisationId')}>
           <select id="organisationId" className="field-input" value={value.organisationId} onChange={(e) => onChange({ ...value, organisationId: e.target.value, centreId: '' })}>
             <option value="">{orgs.isLoading ? 'Loading…' : 'Choose an organisation'}</option>
@@ -54,14 +56,15 @@ export function RolePicker({ value, onChange, errors = {}, prefix = '' }: { valu
           </select>
         </Field>
       )}
-      {rule?.centre && (!rule.organisation || value.organisationId) && (
-        <Field label="Centre" htmlFor="centreId" error={err('centreId')} hint={value.role === 'trainer' ? 'Only centres run by this training partner are listed.' : undefined}>
+      {rule?.centre && (!pickOrg || value.organisationId) && (
+        <Field label="Centre" htmlFor="centreId" error={err('centreId')} hint={rule.organisationFromCentre ? 'The trainer joins whoever runs this centre: VTA or a training partner.' : undefined}>
           <select id="centreId" className="field-input" value={value.centreId} onChange={(e) => onChange({ ...value, centreId: e.target.value })}>
             <option value="">{centres.isLoading ? 'Loading…' : centres.data?.items.length === 0 ? 'No active centres' : 'Choose a centre'}</option>
             {centres.data?.items.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
                 {c.city ? `, ${c.city}` : ''}
+                {rule.organisationFromCentre ? ` (${c.organisationName ?? 'VTA'})` : ''}
               </option>
             ))}
           </select>

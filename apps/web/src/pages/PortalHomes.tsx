@@ -1,5 +1,6 @@
 import { PORTAL_LABEL, ROLE_LABEL, type Portal } from '@vta/shared';
 import {
+  ArrowRight,
   Award,
   BarChart3,
   BookOpen,
@@ -13,12 +14,13 @@ import {
   User,
   Users,
 } from 'lucide-react';
+import { Link, Outlet } from 'react-router';
 import { PortalLayout, type NavItem } from '../components/PortalLayout';
 import { firstName, useAuth } from '../lib/auth';
 
 /**
- * Phase 1 placeholder homes for the three non-admin portals. They prove sign-in, role routing
- * and the responsive shell. Their features arrive in the phases listed on each screen.
+ * Homes for the three non-admin portals. The Training Partner portal has batches and rosters
+ * from Phase 2; the rest of each portal arrives in the phases listed on screen.
  */
 interface PortalPlan {
   greeting: string;
@@ -49,9 +51,11 @@ const PLANS: Record<Exclude<Portal, 'admin'>, PortalPlan> = {
   },
   partner: {
     greeting: 'Manage your training programmes.',
-    nav: [{ to: '/partner', label: 'Dashboard', icon: LayoutDashboard, bottom: true, end: true }],
+    nav: [
+      { to: '/partner', label: 'Dashboard', icon: LayoutDashboard, bottom: true, end: true },
+      { to: '/partner/batches', label: 'Batches', icon: Users, bottom: true },
+    ],
     coming: [
-      { label: 'Batches and rosters', phase: 'Phase 2–3', icon: Users },
       { label: 'Attendance, including offline', phase: 'Phase 3–4', icon: CalendarCheck },
       { label: 'Assessments', phase: 'Phase 3', icon: FileText },
       { label: 'Programmes, beneficiaries and reports', phase: 'Phase 7', icon: BarChart3 },
@@ -60,12 +64,29 @@ const PLANS: Record<Exclude<Portal, 'admin'>, PortalPlan> = {
 };
 
 export function PortalHome({ portal }: { portal: Exclude<Portal, 'admin'> }) {
+  return (
+    <PortalLayout portal={portal} nav={PLANS[portal].nav}>
+      <PortalHomeContent portal={portal} />
+    </PortalLayout>
+  );
+}
+
+/** Training Partner portal: shared layout around the home, batches and batch pages. */
+export function PartnerLayout() {
+  return (
+    <PortalLayout portal="partner" nav={PLANS.partner.nav}>
+      <Outlet />
+    </PortalLayout>
+  );
+}
+
+export function PortalHomeContent({ portal }: { portal: Exclude<Portal, 'admin'> }) {
   const { me } = useAuth();
   const plan = PLANS[portal];
   const myRoles = me?.roles.filter((r) => (portal === 'learn' ? r.role === 'learner' : portal === 'employer' ? r.role.startsWith('employer') : ['partner_admin', 'partner_viewer', 'trainer'].includes(r.role))) ?? [];
 
   return (
-    <PortalLayout portal={portal} nav={plan.nav}>
+    <>
       <section className="rounded-[20px] bg-brand-tint px-6 py-8 sm:px-10 sm:py-10">
         <h1 className="text-[30px] font-extrabold tracking-tight sm:text-[36px]">Hello, {firstName(me?.name ?? '')}!</h1>
         <p className="mt-1 text-lg text-ink/75">{plan.greeting}</p>
@@ -81,6 +102,19 @@ export function PortalHome({ portal }: { portal: Exclude<Portal, 'admin'> }) {
           </ul>
         )}
       </section>
+
+      {portal === 'partner' && (
+        <Link to="/partner/batches" className="card mt-6 flex items-center gap-4 px-5 py-4 hover:border-brand">
+          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand">
+            <Users className="size-5" aria-hidden />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">Batches and rosters</span>
+            <span className="block text-sm text-muted">See your batches, dates and who is enrolled</span>
+          </span>
+          <ArrowRight className="size-5 text-brand" aria-hidden />
+        </Link>
+      )}
 
       <section className="mt-8">
         <h2 className="text-xl font-bold">Coming to the {PORTAL_LABEL[portal]}</h2>
@@ -99,6 +133,6 @@ export function PortalHome({ portal }: { portal: Exclude<Portal, 'admin'> }) {
           ))}
         </ul>
       </section>
-    </PortalLayout>
+    </>
   );
 }

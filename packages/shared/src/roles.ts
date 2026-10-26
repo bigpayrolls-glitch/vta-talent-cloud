@@ -53,10 +53,14 @@ export const PORTAL_LABEL: Record<Portal, string> = {
 
 export type OrgType = 'vta' | 'employer' | 'partner';
 
-/** What scope a role assignment must (or must not) carry. Enforced when granting. */
+/**
+ * What scope a role assignment must (or must not) carry. Enforced when granting.
+ * `organisationFromCentre`: the organisation is taken from the centre's owner, so a trainer
+ * at a partner centre belongs to that partner and a trainer at a VTA-run centre belongs to none.
+ */
 export const ROLE_SCOPE: Record<
   Role,
-  { organisation: OrgType | null; centre: boolean }
+  { organisation: OrgType | null; centre: boolean; organisationFromCentre?: boolean }
 > = {
   super_admin: { organisation: null, centre: false },
   ops_admin: { organisation: null, centre: false },
@@ -66,7 +70,7 @@ export const ROLE_SCOPE: Record<
   learner: { organisation: null, centre: false },
   partner_admin: { organisation: 'partner', centre: false },
   partner_viewer: { organisation: 'partner', centre: false },
-  trainer: { organisation: 'partner', centre: true },
+  trainer: { organisation: 'partner', centre: true, organisationFromCentre: true },
 };
 
 /** Roles whose sessions use the short staff idle timeout (SEC-09). */

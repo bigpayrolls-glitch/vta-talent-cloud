@@ -5,10 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../config.js';
 import { createDb, type DB } from './index.js';
 import * as m0001 from './migrations/0001_foundation.js';
+import * as m0002 from './migrations/0002_training.js';
 
 /** Explicit list: add each new migration here in order. Works the same from source and from the bundled build. */
 const MIGRATIONS: Record<string, Migration> = {
   '0001_foundation': m0001,
+  '0002_training': m0002,
 };
 
 const provider: MigrationProvider = { getMigrations: async () => MIGRATIONS };

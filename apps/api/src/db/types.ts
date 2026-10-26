@@ -114,6 +114,122 @@ export interface AuditEventsTable {
   created_at: Timestamp;
 }
 
+export type SkillArea = '2W' | '4W' | 'EV' | 'CV' | 'other';
+type TextArray<T = string> = ColumnType<T[], T[] | undefined, T[]>;
+
+export interface CoursesTable {
+  id: string;
+  code: string | null;
+  title: string;
+  skill_area: SkillArea;
+  level: string;
+  delivery_mode: string;
+  duration_value: number;
+  duration_unit: string;
+  training_hours: number | null;
+  prerequisites: string | null;
+  description: string | null;
+  attendance_threshold_pct: number;
+  pass_mark_pct: number;
+  status: 'active' | 'inactive';
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export interface AssessmentCriteriaTable {
+  id: string;
+  course_id: string;
+  label: string;
+  max_score: number;
+  required: boolean;
+  sort_order: number;
+  created_at: Timestamp;
+}
+
+export interface TrainerProfilesTable {
+  user_id: string;
+  specialisations: TextArray<SkillArea>;
+  verification_status: VerificationStatus;
+  verification_reason: string | null;
+  verified_by: string | null;
+  verified_at: Date | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export type CandidateStatus = 'pending' | 'verified' | 'rejected' | 'needs_correction';
+
+export interface CandidateProfilesTable {
+  user_id: string;
+  candidate_code: string;
+  city: string;
+  state: string | null;
+  skill_areas: TextArray<SkillArea>;
+  experience_months: number;
+  education: string | null;
+  languages: TextArray;
+  availability: string | null;
+  searchable: Generated<boolean>;
+  verification_status: CandidateStatus;
+  verification_reason: string | null;
+  verified_by: string | null;
+  verified_at: Date | null;
+  duplicate_of: string | null;
+  source: 'admin' | 'import' | 'self';
+  created_by: string | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export type BatchStatus = 'planned' | 'active' | 'completed' | 'cancelled';
+
+export interface BatchesTable {
+  id: string;
+  name: string;
+  course_id: string;
+  centre_id: string;
+  trainer_id: string;
+  start_date: ColumnType<string, string, string>;
+  end_date: ColumnType<string, string, string>;
+  capacity: number;
+  status: BatchStatus;
+  cancel_reason: string | null;
+  created_by: string | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export type EnrolmentStatus = 'enrolled' | 'withdrawn' | 'completed' | 'not_completed';
+
+export interface EnrolmentsTable {
+  id: string;
+  candidate_id: string;
+  batch_id: string;
+  status: EnrolmentStatus;
+  enrolled_at: Timestamp;
+  enrolled_by: string | null;
+  withdrawn_at: Date | null;
+  withdraw_reason: string | null;
+  updated_at: Timestamp;
+}
+
+export interface DocumentsTable {
+  id: string;
+  owner_user_id: string;
+  kind: string;
+  title: string;
+  storage_key: string;
+  original_name: string;
+  mime_type: string;
+  size_bytes: number;
+  sha256: string;
+  verification_status: Generated<'pending' | 'verified' | 'rejected'>;
+  scan_status: Generated<'not_scanned' | 'clean' | 'infected'>;
+  uploaded_by: string | null;
+  deleted_at: Date | null;
+  created_at: Timestamp;
+}
+
 export interface Database {
   users: UsersTable;
   sessions: SessionsTable;
@@ -123,6 +239,13 @@ export interface Database {
   centres: CentresTable;
   role_assignments: RoleAssignmentsTable;
   audit_events: AuditEventsTable;
+  courses: CoursesTable;
+  assessment_criteria: AssessmentCriteriaTable;
+  trainer_profiles: TrainerProfilesTable;
+  candidate_profiles: CandidateProfilesTable;
+  batches: BatchesTable;
+  enrolments: EnrolmentsTable;
+  documents: DocumentsTable;
 }
 
 export type User = Selectable<UsersTable>;
@@ -131,3 +254,7 @@ export type UserUpdate = Updateable<UsersTable>;
 export type Organisation = Selectable<OrganisationsTable>;
 export type Centre = Selectable<CentresTable>;
 export type RoleAssignment = Selectable<RoleAssignmentsTable>;
+export type Course = Selectable<CoursesTable>;
+export type Batch = Selectable<BatchesTable>;
+export type CandidateProfile = Selectable<CandidateProfilesTable>;
+export type DocumentRow = Selectable<DocumentsTable>;

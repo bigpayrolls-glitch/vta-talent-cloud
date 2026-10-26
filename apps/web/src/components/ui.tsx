@@ -59,9 +59,22 @@ const STATUS_STYLE: Record<string, string> = {
   rejected: 'bg-brand-tint text-brand',
   deactivated: 'bg-surface text-muted',
   inactive: 'bg-surface text-muted',
+  needs_correction: 'bg-warning-tint text-warning',
+  planned: 'bg-info-tint text-info',
+  completed: 'bg-surface text-ink',
+  cancelled: 'bg-surface text-muted',
+  enrolled: 'bg-success-tint text-success',
+  withdrawn: 'bg-surface text-muted',
+  not_completed: 'bg-brand-tint text-brand',
+  not_scanned: 'bg-surface text-muted',
 };
 
-const STATUS_LABEL: Record<string, string> = { more_info_needed: 'More info needed' };
+const STATUS_LABEL: Record<string, string> = {
+  more_info_needed: 'More info needed',
+  needs_correction: 'Needs correction',
+  not_completed: 'Not completed',
+  not_scanned: 'Not scanned',
+};
 
 /** Status chip: colour is always paired with the word (never colour alone, §16). */
 export function StatusBadge({ status }: { status: string }) {
@@ -81,12 +94,14 @@ export function Modal({
   title,
   children,
   footer,
+  wide = false,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   children: ReactNode;
   footer?: ReactNode;
+  wide?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -105,7 +120,7 @@ export function Modal({
         e.preventDefault();
         onClose();
       }}
-      className="m-auto w-[calc(100%-32px)] max-w-lg rounded-2xl bg-white p-0 text-ink shadow-2xl backdrop:bg-ink/40"
+      className={`m-auto w-[calc(100%-32px)] ${wide ? 'max-w-2xl' : 'max-w-lg'} max-h-[calc(100dvh-32px)] rounded-2xl bg-white p-0 text-ink shadow-2xl backdrop:bg-ink/40`}
     >
       {open && (
         <div>
