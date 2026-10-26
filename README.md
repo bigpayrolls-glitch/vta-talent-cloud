@@ -2,7 +2,19 @@
 
 A role-based automotive skills and workforce platform. One backend and one database serve four portals: **Learner**, **Employer**, **Training Partner** (including trainers) and **Admin**. A public website follows in Phase 8.
 
-**Built so far: Phase 1 (shared foundation and Admin Portal) and Phase 2 (training master data).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+**Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data) and Phase 3 (training operations).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+
+## What works in Phase 3
+
+| Area | What you can do |
+| --- | --- |
+| Attendance (R-02) | The batch trainer marks each candidate present, absent, late or excused for a date, from the batch's Attendance tab or the "Today" list on their home screen. Only while the batch is active, never for a future date, and a correction is audited with before and after. Retried saves are not applied twice (ready for offline sync in Phase 4). |
+| Alerts (R-06) | The roster shows attendance so far and flags anyone below the course's threshold ("at risk"). Excused sessions are not counted. |
+| Assessment (R-03) | The trainer enters marks and pass, fail or not assessed for each criterion, saves a draft, and submits. Every required criterion must be assessed. Pass = total at or above the pass mark AND every required criterion passed. After submitting, the result and that candidate's attendance are locked. |
+| Review (R-04) | VTA reviewers see a queue of submitted results and approve, return for correction (with a reason) or reject (the trainer reassesses). Nobody can approve a result they submitted; the database enforces this too. Approval releases the result. |
+| Completion | Marking a batch completed sets each candidate to completed or not completed from their attendance. |
+| Certificates (R-05) | "Issue certificates" on a completed batch issues a course completion record only to candidates who completed AND passed AND were approved, and says why the others were skipped. Each has a printable page with a QR code. Revoke or reissue (for example after a name correction) with a reason. |
+| QR check page | `/verify/<code>`: no sign-in, shows only name, course, issue date, issuer and status (valid, revoked or replaced), with fixed wording that it is not a government, NSDC or ASDC qualification. |
 
 ## What works in Phase 2
 
@@ -64,21 +76,23 @@ To start fresh at any time: `pnpm db:reset` (drops everything, migrates, re-seed
 | Learner | phone 99000 00201 | Learner Portal |
 | Two roles | multi@demo.vta.local | Portal chooser |
 
-The demo data also has three courses (2W, 4W and EV), nine candidates (one flagged as a possible duplicate) and three batches at three different centres.
+The demo data also has three courses (2W, 4W and EV), nine candidates (one flagged as a possible duplicate), three running or planned batches at three centres, and a finished batch ("2W Peenya July 2026") with an approved pass, a result waiting for review, a candidate below the attendance threshold and one issued certificate. `pnpm db:seed` prints that certificate's check page link.
 
 **Phone sign-in during development:** there is no SMS provider yet, so the code prints in the API console (`[DEV SMS] OTP code: 123456`). Invitation links appear the same way and in the Invite dialog. Both stubs refuse to run when `NODE_ENV=production`.
 
 ## Tests
 
 ```bash
-pnpm test        # 131 tests: API (real PostgreSQL) and shared rules
-pnpm e2e         # 16 browser tests (Playwright): desktop and phone sizes
+pnpm test        # 157 tests: API (real PostgreSQL) and shared rules
+pnpm e2e         # 23 browser tests (Playwright): desktop and phone sizes
 pnpm lint
 pnpm typecheck
 pnpm build
 ```
 
-API tests use the database in `TEST_DATABASE_URL` (`vta_test`) and reset it for each file. Browser tests reset `vta_e2e`, start their own API (port 3100) and web app (port 5174), and drive Chromium through real journeys: sign-in by email and phone, course to batch to enrolment, CSV import, document upload and download, what a partner and a trainer can see, and phone-size layout. First time on a new machine: `pnpm --filter @vta/e2e exec playwright install chromium`.
+API tests use the database in `TEST_DATABASE_URL` (`vta_test`) and reset it for each file. Browser tests reset `vta_e2e`, start their own API (port 3100) and web app (port 5174), and drive Chromium through real journeys: sign-in by email and phone, course to batch to enrolment, CSV import, document upload and download, what a partner and a trainer can see, attendance to assessment to review to certificate to QR check, and phone-size layout.
+
+The demo data uses fixed 2026 dates, so both test suites pin the API's "today" to 26 October 2026 with `VTA_TODAY`. That setting is ignored in production. First time on a new machine: `pnpm --filter @vta/e2e exec playwright install chromium`.
 
 Phase 2 isolation tests (`test/isolation2.test.ts`) check that partners see only their centres' batches, trainers only their own batches, centre admins only their centre, and nobody outside VTA staff reads candidate records. Breaking the batch access check on purpose makes five of them fail.
 
@@ -96,7 +110,8 @@ The suite includes the six Phase 1 acceptance tests:
 ```
 apps/api          Fastify API, PostgreSQL via Kysely, SQL migrations, seed
   src/policy      The only place access is decided (permissions + record scope)
-  src/routes      auth, admin/*, training/* (courses, trainers, candidates, batches, files), health
+  src/routes      auth, admin/*, training/* (courses, trainers, candidates, batches, files),
+                  operations/* (attendance, assessments, credentials, public check), health
   src/lib         storage (private files, signed links), csv, crypto
   src/audit       Append-only audit writer
   test            API, isolation and platform tests
@@ -123,6 +138,9 @@ infra             Docker Compose for local services
 - Files are not virus-scanned yet and are labelled "not scanned" (D10).
 - No password reset yet. It needs an email provider, so it comes with the email work.
 - Candidates added by admins or imported have not yet seen a privacy notice. The notice and consent screens come with the Learner portal (Phase 5); until then candidate data should be limited to the pilot.
+- Learners cannot see their results or certificates yet; that is the Learner portal (Phase 5). Results are already marked as released when approved.
+- The issuer printed on certificates comes from `CREDENTIAL_ISSUER_NAME` (default "VTA Talent Cloud") until VTA confirms the legal entity (decision D8).
+- Attendance needs a connection for now; offline attendance is Phase 4.
 - Partner admins cannot create batches yet. That arrives with programmes in Phase 7 (design decision of 24 Oct 2026).
 - The wordmark is plain text. Swap `Wordmark` in `apps/web/src/components/ui.tsx` for the VTA master logo once supplied.
 - The PWA manifest and service worker arrive with offline attendance and the Learner portal (Phases 4 and 5).
@@ -136,3 +154,6 @@ infra             Docker Compose for local services
 - **D5:** candidates are added by VTA admins or by CSV import for now; self-registration comes with the Learner portal (Phase 5).
 - **Uploads:** PDF, JPG and PNG up to 10 MB.
 - **Enrolment:** pending or verified candidates can be enrolled; rejected profiles, profiles needing correction and unreviewed possible duplicates cannot.
+- **D8 certificates:** "Course completion record", issued by `CREDENTIAL_ISSUER_NAME`; the check page shows name, course, issue date, issuer and status only.
+- **Review:** only Super Admins and Operations Admins review results and issue certificates.
+- **Unassessed criteria** count as zero marks; every required criterion must be assessed before submitting.

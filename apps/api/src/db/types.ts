@@ -210,6 +210,7 @@ export interface EnrolmentsTable {
   enrolled_by: string | null;
   withdrawn_at: Date | null;
   withdraw_reason: string | null;
+  attendance_pct: ColumnType<string | null, number | null | undefined, number | null>;
   updated_at: Timestamp;
 }
 
@@ -230,6 +231,78 @@ export interface DocumentsTable {
   created_at: Timestamp;
 }
 
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
+export type ResultStatus = 'draft' | 'submitted' | 'returned' | 'approved' | 'rejected';
+
+export interface AttendanceSessionsTable {
+  id: string;
+  batch_id: string;
+  session_date: ColumnType<string, string, string>;
+  created_by: string | null;
+  created_at: Timestamp;
+}
+
+export interface AttendanceRecordsTable {
+  id: string;
+  session_id: string;
+  candidate_id: string;
+  status: AttendanceStatus;
+  captured_by: string;
+  client_op_id: string | null;
+  client_captured_at: Date | null;
+  received_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export interface AssessmentResultsTable {
+  id: string;
+  enrolment_id: string;
+  status: ResultStatus;
+  total_score: number;
+  max_score: number;
+  outcome: 'pass' | 'fail' | null;
+  trainer_comment: string | null;
+  recorded_by: string;
+  submitted_by: string | null;
+  submitted_at: Date | null;
+  reviewed_by: string | null;
+  reviewed_at: Date | null;
+  review_reason: string | null;
+  released_at: Date | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export interface AssessmentScoresTable {
+  id: string;
+  result_id: string;
+  criterion_id: string;
+  score: number | null;
+  outcome: 'pass' | 'fail' | 'not_assessed';
+  comment: string | null;
+}
+
+export interface CredentialsTable {
+  id: string;
+  candidate_id: string;
+  course_id: string;
+  enrolment_id: string;
+  result_id: string;
+  credential_type: Generated<'course_completion'>;
+  holder_name: string;
+  course_title: string;
+  issue_date: ColumnType<string, string, string>;
+  issuer_name: string;
+  verification_code: string;
+  status: 'active' | 'revoked' | 'superseded';
+  revoked_reason: string | null;
+  revoked_by: string | null;
+  revoked_at: Date | null;
+  superseded_by: string | null;
+  issued_by: string;
+  created_at: Timestamp;
+}
+
 export interface Database {
   users: UsersTable;
   sessions: SessionsTable;
@@ -246,6 +319,11 @@ export interface Database {
   batches: BatchesTable;
   enrolments: EnrolmentsTable;
   documents: DocumentsTable;
+  attendance_sessions: AttendanceSessionsTable;
+  attendance_records: AttendanceRecordsTable;
+  assessment_results: AssessmentResultsTable;
+  assessment_scores: AssessmentScoresTable;
+  credentials: CredentialsTable;
 }
 
 export type User = Selectable<UsersTable>;

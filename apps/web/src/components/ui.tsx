@@ -67,6 +67,8 @@ const STATUS_STYLE: Record<string, string> = {
   withdrawn: 'bg-surface text-muted',
   not_completed: 'bg-brand-tint text-brand',
   not_scanned: 'bg-surface text-muted',
+  revoked: 'bg-brand-tint text-brand',
+  replaced: 'bg-surface text-muted',
 };
 
 const STATUS_LABEL: Record<string, string> = {

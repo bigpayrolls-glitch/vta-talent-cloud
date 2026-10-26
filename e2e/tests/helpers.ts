@@ -2,6 +2,7 @@ import { expect, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createDb } from '../../apps/api/src/db/index.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const data = JSON.parse(readFileSync(path.join(here, '../.auth/credentials.json'), 'utf8')) as {
@@ -37,7 +38,18 @@ async function latestOtp(phoneEnding: string, after: number): Promise<string> {
   throw new Error('No OTP code found in the API log');
 }
 
+/** Clears earlier sign-in codes for a number so repeated test sign-ins are not held up by the 60-second resend gap. */
+async function clearOtp(tenDigits: string) {
+  const db = createDb(process.env.E2E_DATABASE_URL ?? 'postgres://vta:vta_dev@localhost:5432/vta_e2e');
+  try {
+    await db.deleteFrom('otp_challenges').where('phone', '=', `+91${tenDigits}`).execute();
+  } finally {
+    await db.destroy();
+  }
+}
+
 export async function signInPhone(page: Page, tenDigits: string) {
+  await clearOtp(tenDigits);
   const logSize = readFileSync(path.join(here, '../.api.log'), 'utf8').length;
   await page.goto('/login');
   await page.getByRole('tab', { name: 'Mobile number' }).click();

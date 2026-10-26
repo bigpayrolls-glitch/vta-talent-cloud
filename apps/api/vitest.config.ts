@@ -6,6 +6,7 @@ export default defineConfig({
     fileParallelism: false,
     testTimeout: 20_000,
     hookTimeout: 60_000,
-    env: { NODE_ENV: 'test' },
+    // Demo data uses fixed 2026 dates; pin "today" so the suite does not age.
+    env: { NODE_ENV: 'test', VTA_TODAY: '2026-10-26' },
   },
 });

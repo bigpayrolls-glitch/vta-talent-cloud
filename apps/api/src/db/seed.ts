@@ -6,6 +6,7 @@ import type { Role } from '@vta/shared';
 import { loadConfig } from '../config.js';
 import { hashPassword, newId } from '../lib/crypto.js';
 import { sql } from 'kysely';
+import { newVerificationCode } from '../routes/operations/credentials.js';
 import { createDb, type DB } from './index.js';
 
 /**
@@ -234,6 +235,91 @@ export async function seed(db: DB): Promise<SeedResult> {
   await batch('batchVta', '4W Bengaluru November 2026', 'course4w', 'centreVta', 'trainerVta', '2026-11-16', '2027-03-16', 'planned', ['cand4']);
   await batch('batchB', 'EV Mysuru November 2026', 'courseEv', 'centrePartnerB', 'trainerB', '2026-11-23', '2027-03-23', 'planned', ['cand5', 'cand6']);
 
+  // ---- Phase 3: attendance, assessments, a credential (all invented) ----
+  const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+  const markSessions = async (batchKey: string, start: string, days: number[], marks: Record<string, ('present' | 'absent' | 'late' | 'excused')[]>, by: string) => {
+    for (const [i, d] of days.entries()) {
+      const sid = newId();
+      await db.insertInto('attendance_sessions').values({ id: sid, batch_id: ids[batchKey]!, session_date: addDays(start, d), created_by: ids[by]! }).execute();
+      for (const [cand, list] of Object.entries(marks)) {
+        await db.insertInto('attendance_records').values({ id: newId(), session_id: sid, candidate_id: ids[cand]!, status: list[i % list.length]!, captured_by: ids[by]! }).execute();
+      }
+    }
+  };
+  // Running batch: six sessions so far. Mohammed is below the 75% threshold.
+  await markSessions('batchA', '2026-10-12', [0, 1, 2, 3, 4, 7], {
+    learner: ['present'],
+    cand1: ['present', 'present', 'late'],
+    cand2: ['present', 'present', 'excused'],
+    cand3: ['absent', 'present', 'absent'],
+  }, 'trainerA');
+
+  // A finished batch with results at every stage.
+  await batch('batchDone', '2W Peenya July 2026', 'course2w', 'centrePartnerA', 'trainerA', '2026-07-06', '2026-10-06', 'active', ['cand1', 'cand2', 'cand6']);
+  await markSessions('batchDone', '2026-07-06', [0, 7, 14, 21, 28, 35, 42, 49], {
+    cand1: ['present'],
+    cand2: ['present', 'present', 'present', 'late'],
+    cand6: ['absent', 'present'],
+  }, 'trainerA');
+  const criteria = await db.selectFrom('assessment_criteria').select(['id', 'max_score']).where('course_id', '=', ids.course2w!).orderBy('sort_order').execute();
+  const enrolmentOf = async (batchKey: string, cand: string) =>
+    (await db.selectFrom('enrolments').select('id').where('batch_id', '=', ids[batchKey]!).where('candidate_id', '=', ids[cand]!).executeTakeFirstOrThrow()).id;
+  const result = async (key: string, batchKey: string, cand: string, share: number, status: 'submitted' | 'approved', outcome: 'pass' | 'fail') => {
+    ids[key] = newId();
+    const total = criteria.reduce((t, c) => t + Math.round(c.max_score * share), 0);
+    const max = criteria.reduce((t, c) => t + c.max_score, 0);
+    await db
+      .insertInto('assessment_results')
+      .values({
+        id: ids[key],
+        enrolment_id: await enrolmentOf(batchKey, cand),
+        status,
+        total_score: total,
+        max_score: max,
+        outcome,
+        recorded_by: ids.trainerA!,
+        submitted_by: ids.trainerA!,
+        submitted_at: new Date('2026-10-07T10:00:00Z'),
+        reviewed_by: status === 'approved' ? ids.opsAdmin! : null,
+        reviewed_at: status === 'approved' ? new Date('2026-10-09T10:00:00Z') : null,
+        released_at: status === 'approved' ? new Date('2026-10-09T10:00:00Z') : null,
+      })
+      .execute();
+    await db
+      .insertInto('assessment_scores')
+      .values(criteria.map((c) => ({ id: newId(), result_id: ids[key]!, criterion_id: c.id, score: Math.round(c.max_score * share), outcome: outcome === 'pass' ? ('pass' as const) : ('fail' as const) })))
+      .execute();
+  };
+  await result('resultRavi', 'batchDone', 'cand1', 0.85, 'approved', 'pass');
+  await result('resultAnitha', 'batchDone', 'cand2', 0.7, 'approved', 'pass');
+  await result('resultPooja', 'batchDone', 'cand6', 0.5, 'submitted', 'fail');
+  // Complete the batch the same way the API does: completion from attendance (threshold 75%).
+  await db.updateTable('batches').set({ status: 'completed' }).where('id', '=', ids.batchDone!).execute();
+  for (const [cand, done, pct] of [['cand1', true, 100], ['cand2', true, 100], ['cand6', false, 50]] as const) {
+    await db.updateTable('enrolments').set({ status: done ? 'completed' : 'not_completed', attendance_pct: pct }).where('batch_id', '=', ids.batchDone!).where('candidate_id', '=', ids[cand]!).execute();
+  }
+  // Ravi already has his credential; Anitha is eligible and waiting for one.
+  ids.credentialRavi = newId();
+  const verificationCode = newVerificationCode();
+  await db
+    .insertInto('credentials')
+    .values({
+      id: ids.credentialRavi,
+      candidate_id: ids.cand1!,
+      course_id: ids.course2w!,
+      enrolment_id: await enrolmentOf('batchDone', 'cand1'),
+      result_id: ids.resultRavi!,
+      holder_name: 'Ravi Kumar',
+      course_title: '2W Service Technician',
+      issue_date: '2026-10-10',
+      issuer_name: 'VTA Talent Cloud',
+      verification_code: verificationCode,
+      status: 'active',
+      issued_by: ids.opsAdmin!,
+    })
+    .execute();
+  ids.credentialRaviCode = verificationCode;
+
   return { credentials, ids };
 }
 
@@ -246,7 +332,7 @@ if (isMain) {
   }
   const db = createDb(config.databaseUrl);
   try {
-    const { credentials } = await seed(db);
+    const { credentials, ids } = await seed(db);
     const lines = [
       'VTA Talent Cloud — demo sign-ins (generated by `pnpm db:seed`; regenerated on every reset)',
       'Email users: sign in with email + password. Phone users: sign in with OTP; the code prints in the API console.',
@@ -256,6 +342,7 @@ if (isMain) {
     writeFileSync(CREDENTIALS_FILE, `${lines.join('\n')}\n`, { mode: 0o600 });
     console.log(lines.join('\n'));
     console.log(`\nSaved to ${CREDENTIALS_FILE} (git-ignored).`);
+    console.log(`Demo credential check page: /verify/${ids.credentialRaviCode}`);
   } finally {
     await db.destroy();
   }
