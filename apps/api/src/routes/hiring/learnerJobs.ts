@@ -1,4 +1,5 @@
-import { ACTIVE_APPLICATION_STATUSES, applySchema, jobFilterSchema, NOTICE_VERSION, uuidSchema } from '@vta/shared';
+import { ACTIVE_APPLICATION_STATUSES, applySchema, jobFilterSchema, NOTICE_VERSION, uuidSchema, type SkillArea } from '@vta/shared';
+import { sql } from 'kysely';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { auditCtx } from '../../app.js';
@@ -79,13 +80,20 @@ export const learnerJobRoutes: FastifyPluginAsync = async (app) => {
   app.get('/jobs', { config: { permission: 'learner.self' } }, async (req) => {
     await requireConsent(req);
     const f = parse(jobFilterSchema, req.query);
+    const mine = await myExpertise(me(req));
     let q = openJobsQuery(db);
     if (f.skillArea) q = q.where('j.skill_area', '=', f.skillArea);
     if (f.city) q = q.where('j.city', 'ilike', likeEscape(f.city));
     if (f.q) q = q.where((eb) => eb.or([eb('j.title', 'ilike', likeEscape(f.q!)), eb('o.legal_name', 'ilike', likeEscape(f.q!)), eb('j.description', 'ilike', likeEscape(f.q!))]));
     const { total } = await q.select((eb) => eb.fn.countAll<string>().as('total')).executeTakeFirstOrThrow();
-    const rows = await q.select(jobSelect).orderBy('j.published_at', 'desc').limit(f.pageSize).offset((f.page - 1) * f.pageSize).execute();
-    const mine = rows.length
+    // Jobs in the learner's own skill areas come first ("Recommended for your skills"); every open job stays visible.
+    let list = q.select(jobSelect);
+    if (mine.skillAreas.length) list = list.orderBy(sql`case when j.skill_area = any(${sql.val(mine.skillAreas)}::text[]) then 0 else 1 end`);
+    const rows = await list.orderBy('j.published_at', 'desc').limit(f.pageSize).offset((f.page - 1) * f.pageSize).execute();
+    const matchTotal = mine.skillAreas.length
+      ? Number((await q.where('j.skill_area', 'in', mine.skillAreas as SkillArea[]).select((eb) => eb.fn.countAll<string>().as('n')).executeTakeFirstOrThrow()).n)
+      : 0;
+    const applied = rows.length
       ? await db.selectFrom('job_applications').select(['job_id', 'id', 'status']).where('candidate_id', '=', me(req)).where('job_id', 'in', rows.map((r) => r.id)).execute()
       : [];
     const invites = await db
@@ -97,14 +105,28 @@ export const learnerJobRoutes: FastifyPluginAsync = async (app) => {
       .where('j.status', '=', 'published')
       .orderBy('i.created_at', 'desc')
       .execute();
-    const active = (jobId: string) => mine.find((a) => a.job_id === jobId && (ACTIVE_APPLICATION_STATUSES as readonly string[]).includes(a.status));
+    const active = (jobId: string) => applied.find((a) => a.job_id === jobId && (ACTIVE_APPLICATION_STATUSES as readonly string[]).includes(a.status));
     return {
-      items: rows.map((r) => ({ ...dto(r), myApplicationId: active(r.id)?.id ?? null })),
+      items: rows.map((r) => ({ ...dto(r), ...fit(r, mine), myApplicationId: active(r.id)?.id ?? null })),
+      mySkillAreas: mine.skillAreas,
+      myExperienceMonths: mine.experienceMonths,
+      matchTotal,
       page: f.page,
       pageSize: f.pageSize,
       total: Number(total),
       invitations: invites.map((i) => ({ jobId: i.job_id, title: i.title, employer: i.legal_name, message: i.message, at: iso(i.created_at) })),
     };
+  });
+
+  /** The learner's expertise from their profile: skill areas (2W, 4W, EV…) and experience. */
+  const myExpertise = async (userId: string) => {
+    const p = await db.selectFrom('candidate_profiles').select(['skill_areas', 'experience_months']).where('user_id', '=', userId).executeTakeFirst();
+    return { skillAreas: (p?.skill_areas ?? []) as string[], experienceMonths: p?.experience_months ?? 0 };
+  };
+  /** How a job fits the learner. Information only: anyone may apply to any open job. */
+  const fit = (j: { skill_area: string; min_experience_months: number }, m: { skillAreas: string[]; experienceMonths: number }) => ({
+    matchesSkills: m.skillAreas.includes(j.skill_area),
+    meetsExperience: m.experienceMonths >= j.min_experience_months,
   });
 
   const openJob = async (id: string) => {
@@ -141,7 +163,7 @@ export const learnerJobRoutes: FastifyPluginAsync = async (app) => {
       .where('candidate_id', '=', me(req))
       .where('status', 'in', [...ACTIVE_APPLICATION_STATUSES])
       .executeTakeFirst();
-    return { ...dto(j), myApplicationId: existing?.id ?? null, share: await sharePreview(me(req)) };
+    return { ...dto(j), ...fit(j, await myExpertise(me(req))), myApplicationId: existing?.id ?? null, share: await sharePreview(me(req)) };
   });
 
   /** EE-08: apply. The person confirms sharing; a snapshot of exactly what was shared is kept with the application. */

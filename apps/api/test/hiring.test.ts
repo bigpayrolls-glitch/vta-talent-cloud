@@ -186,7 +186,7 @@ describe('EE-07 to EE-09 learners find jobs and apply', () => {
     expect(titles).toContain('Two-wheeler service technician');
     expect(titles).not.toContain('Senior two-wheeler technician'); // a draft
     expect((await c.ravi!.get('/jobs')).body.items.map((j: { title: string }) => j.title)).not.toContain('EV service technician'); // waiting for review
-    expect((await c.ravi!.get('/jobs?city=Mysuru')).body.items).toHaveLength(0);
+    expect((await c.ravi!.get('/jobs?city=Hubballi')).body.items).toHaveLength(0);
   });
 
   it('the job page shows exactly what applying would share', async () => {
