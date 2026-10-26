@@ -3,7 +3,9 @@ import { ChevronDown, LogOut, Menu, Repeat, X, type LucideIcon } from 'lucide-re
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { PORTAL_PATH, useAuth } from '../lib/auth';
-import { Wordmark } from './ui';
+import { syncNow } from '../offline/sync';
+import { useOffline } from '../offline/useOffline';
+import { Modal, Wordmark } from './ui';
 
 export interface NavItem {
   to: string;
@@ -22,8 +24,59 @@ function initials(name: string) {
     .join('');
 }
 
+/**
+ * TR-09: signing out deletes the offline data on this phone, so changes that have not reached the server
+ * are never dropped without a warning. Signing out needs a connection, so the server session ends too.
+ */
+function SignOutGuard({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { signOut } = useAuth();
+  const off = useOffline();
+  const [busy, setBusy] = useState(false);
+  if (!open) return null;
+  if (!off.online) {
+    return (
+      <Modal open onClose={onClose} title="You are offline" footer={<button type="button" className="btn-primary" onClick={onClose}>OK</button>}>
+        <p>Signing out needs a connection, so your session can be ended on the server too. Try again when you are back online.</p>
+      </Modal>
+    );
+  }
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Changes not synced"
+      footer={
+        <>
+          <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn-secondary" disabled={busy} onClick={() => void signOut()}>Sign out and delete them</button>
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              const r = await syncNow();
+              setBusy(false);
+              if (!r.error && !r.conflicts && !r.rejected && off.conflicts.length + off.rejected.length === 0) void signOut();
+            }}
+          >
+            {busy ? 'Syncing…' : 'Sync, then sign out'}
+          </button>
+        </>
+      }
+    >
+      <p>
+        {off.unsynced} attendance {off.unsynced === 1 ? 'change on this phone has' : 'changes on this phone have'} not reached the server. Signing out deletes them from this phone.
+      </p>
+      {off.conflicts.length + off.rejected.length > 0 && <p className="mt-3 text-sm text-muted">Some need your choice first: open Sync status to sort them out.</p>}
+    </Modal>
+  );
+}
+
 function UserMenu({ portal }: { portal: Portal }) {
   const { me, signOut } = useAuth();
+  const off = useOffline();
+  const [guard, setGuard] = useState(false);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -47,6 +100,7 @@ function UserMenu({ portal }: { portal: Portal }) {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="menu"
+        aria-label={`Account menu, ${me.name}`}
         className="flex items-center gap-2.5 rounded-full py-1 pl-1 pr-2 hover:bg-surface"
       >
         <span className="grid size-9 place-items-center rounded-full bg-ink text-[13px] font-semibold text-white" aria-hidden>
@@ -83,12 +137,21 @@ function UserMenu({ portal }: { portal: Portal }) {
               ))}
             </div>
           )}
-          <button role="menuitem" type="button" onClick={signOut} className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-sm hover:bg-surface">
+          <button
+            role="menuitem"
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              if (!off.online || off.unsynced > 0) setGuard(true);
+              else void signOut();
+            }}
+            className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-sm hover:bg-surface">
             <LogOut className="size-4 text-muted" aria-hidden />
             Sign out
           </button>
         </div>
       )}
+      <SignOutGuard open={guard} onClose={() => setGuard(false)} />
     </div>
   );
 }
@@ -98,7 +161,7 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'bg-brand-tint text-brand' : 'text-ink hover:bg-surface'
   }`;
 
-export function PortalLayout({ portal, nav, children }: { portal: Portal; nav: NavItem[]; children?: ReactNode }) {
+export function PortalLayout({ portal, nav, children, headerExtra }: { portal: Portal; nav: NavItem[]; children?: ReactNode; headerExtra?: ReactNode }) {
   const [drawer, setDrawer] = useState(false);
   const location = useLocation();
   useEffect(() => setDrawer(false), [location.pathname]);
@@ -119,7 +182,8 @@ export function PortalLayout({ portal, nav, children }: { portal: Portal; nav: N
           <Wordmark compact />
         </Link>
         <span className="hidden text-sm font-medium text-muted md:block">{PORTAL_LABEL[portal]}</span>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          {headerExtra}
           <UserMenu portal={portal} />
         </div>
       </header>

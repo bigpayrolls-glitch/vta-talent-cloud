@@ -9,15 +9,19 @@ import {
   ClipboardCheck,
   Home,
   LayoutDashboard,
+  RefreshCw,
   Search,
   User,
   Users,
 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
 import { Link, Outlet } from 'react-router';
-import { api } from '../lib/api';
 import { PortalLayout, type NavItem } from '../components/PortalLayout';
 import { firstName, useAuth } from '../lib/auth';
+import { refreshSnapshot, startAutoSync } from '../offline/sync';
+import { useOffline } from '../offline/useOffline';
+import { InstallCard } from './trainer/InstallCard';
+import { SyncIndicator } from './trainer/SyncIndicator';
 
 /**
  * Homes for the three non-admin portals. The Training Partner portal has batches and rosters
@@ -56,10 +60,7 @@ const PLANS: Record<Exclude<Portal, 'admin'>, PortalPlan> = {
       { to: '/partner', label: 'Dashboard', icon: LayoutDashboard, bottom: true, end: true },
       { to: '/partner/batches', label: 'Batches', icon: Users, bottom: true },
     ],
-    coming: [
-      { label: 'Attendance without a connection', phase: 'Phase 4', icon: CalendarCheck },
-      { label: 'Programmes, beneficiaries and reports', phase: 'Phase 7', icon: BarChart3 },
-    ],
+    coming: [{ label: 'Programmes, beneficiaries and reports', phase: 'Phase 7', icon: BarChart3 }],
   },
 };
 
@@ -71,10 +72,16 @@ export function PortalHome({ portal }: { portal: Exclude<Portal, 'admin'> }) {
   );
 }
 
-/** Training Partner portal: shared layout around the home, batches and batch pages. */
+/** Training Partner portal: shared layout around the home, batches and batch pages. Trainers also get offline sync. */
 export function PartnerLayout() {
+  const { me } = useAuth();
+  const isTrainer = !!me?.roles.some((r) => r.role === 'trainer');
+  useEffect(() => {
+    if (isTrainer) startAutoSync();
+  }, [isTrainer]);
+  const nav: NavItem[] = isTrainer ? [...PLANS.partner.nav, { to: '/partner/sync', label: 'Sync', icon: RefreshCw, bottom: true }] : PLANS.partner.nav;
   return (
-    <PortalLayout portal="partner" nav={PLANS.partner.nav}>
+    <PortalLayout portal="partner" nav={nav} headerExtra={isTrainer ? <SyncIndicator /> : undefined}>
       <Outlet />
     </PortalLayout>
   );
@@ -103,7 +110,12 @@ export function PortalHomeContent({ portal }: { portal: Exclude<Portal, 'admin'>
         )}
       </section>
 
-      {portal === 'partner' && me?.roles.some((r) => r.role === 'trainer') && <TrainerToday />}
+      {portal === 'partner' && me?.roles.some((r) => r.role === 'trainer') && (
+        <>
+          <TrainerToday />
+          <InstallCard />
+        </>
+      )}
 
       {portal === 'partner' && (
         <Link to="/partner/batches" className="card mt-6 flex items-center gap-4 px-5 py-4 hover:border-brand">
@@ -139,27 +151,42 @@ export function PortalHomeContent({ portal }: { portal: Exclude<Portal, 'admin'>
   );
 }
 
-/** For trainers: today's active batches with a direct way into attendance. */
+/** For trainers: their running batches, from the copy kept on the phone (so it works offline). */
 function TrainerToday() {
-  const q = useQuery({
-    queryKey: ['batches', 'trainer-today'],
-    queryFn: () => api.get<{ items: { id: string; name: string; centre: { name: string }; enrolled: number }[] }>('/batches?status=active&pageSize=10'),
-  });
-  if (!q.data?.items.length) return null;
+  const off = useOffline();
+  useEffect(() => {
+    void refreshSnapshot();
+  }, []);
+  if (!off.ready) return null;
   return (
     <section className="mt-6">
       <h2 className="text-xl font-bold">Today</h2>
-      <ul className="mt-3 grid gap-3 sm:grid-cols-2">
-        {q.data.items.map((b) => (
-          <li key={b.id} className="card flex flex-wrap items-center gap-3 px-5 py-4">
-            <span className="min-w-0 flex-1">
-              <span className="block font-semibold">{b.name}</span>
-              <span className="block text-sm text-muted">{b.centre.name}, {b.enrolled} enrolled</span>
-            </span>
-            <Link to={`/partner/batches/${b.id}?tab=attendance`} className="btn-primary btn-sm">Take attendance</Link>
-          </li>
-        ))}
-      </ul>
+      {off.batches.length === 0 ? (
+        <p className="card mt-3 px-5 py-4 text-sm text-muted">
+          {off.online ? 'No running batches assigned to you.' : 'You are offline and no batches are stored on this phone yet. Open the app once while connected.'}
+        </p>
+      ) : (
+        <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+          {off.batches.map((b) => {
+            const waiting = off.ops.filter((o) => o.batchId === b.id).length;
+            return (
+              <li key={b.id} className="card flex flex-wrap items-center gap-3 px-5 py-4">
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold">{b.name}</span>
+                  <span className="block text-sm text-muted">
+                    {b.centreName}, {b.people.length} enrolled
+                    {waiting > 0 && `, ${waiting} not synced`}
+                  </span>
+                </span>
+                <Link to={`/partner/attendance/${b.id}`} className="btn-primary btn-sm">
+                  <CalendarCheck className="size-4" aria-hidden />
+                  Take attendance
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </section>
   );
 }

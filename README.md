@@ -2,7 +2,17 @@
 
 A role-based automotive skills and workforce platform. One backend and one database serve four portals: **Learner**, **Employer**, **Training Partner** (including trainers) and **Admin**. A public website follows in Phase 8.
 
-**Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data) and Phase 3 (training operations).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+**Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data), Phase 3 (training operations) and Phase 4 (offline attendance and the installable app).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+
+## What works in Phase 4
+
+| Area | What you can do |
+| --- | --- |
+| Offline attendance (TR-04) | A trainer opens the app with no signal, picks a batch from "Today" and marks attendance. Marks are saved on the phone, timestamped, and shown as "Waiting to sync". They are sent when the connection returns (automatically, or with "Sync now"). Online, the same screen sends them straight away. |
+| Duplicates and conflicts (TR-04) | Every change has an id made on the phone; a change that arrives twice is applied once, even if a later change has overwritten it since. If a different mark was saved after the phone's mark was taken, nothing is overwritten: the trainer sees both and chooses "Use my mark" or "Keep saved mark". A phone clock set in the future cannot win. Changes that can never be saved (batch closed, results submitted, not enrolled, future date) are listed with the reason. Each change is judged on its own. |
+| Sync status (TR-08) | Connection, last sync time, what is waiting, conflicts, changes not saved and why, "Sync now", and what is stored on the phone. A status pill in the header says Synced, Offline, N waiting or Sync problem, in words as well as colour. |
+| Data on the phone (TR-09) | Only the trainer's running batches: candidate names, candidate IDs and attendance. No phone numbers, addresses, dates of birth or documents. Deleted on sign-out, when someone else signs in on the phone, when the user is not a trainer, and (the roster) after 14 days without a refresh. Signing out with unsynced changes asks first; signing out needs a connection so the server session ends too. |
+| Installable app (PWA) | Manifest, icons and a service worker that keeps only the app's own files, never API data. A new version shows "Reload" instead of changing under the user. Trainers get an "Install app" card on Android/Chrome, and the Share → Add to Home Screen steps on iPhone. |
 
 ## What works in Phase 3
 
@@ -83,14 +93,14 @@ The demo data also has three courses (2W, 4W and EV), nine candidates (one flagg
 ## Tests
 
 ```bash
-pnpm test        # 157 tests: API (real PostgreSQL) and shared rules
-pnpm e2e         # 23 browser tests (Playwright): desktop and phone sizes
+pnpm test        # 180 tests: API (real PostgreSQL), shared rules, the phone's offline store
+pnpm e2e         # 27 browser tests (Playwright): desktop and phone sizes, including offline
 pnpm lint
 pnpm typecheck
 pnpm build
 ```
 
-API tests use the database in `TEST_DATABASE_URL` (`vta_test`) and reset it for each file. Browser tests reset `vta_e2e`, start their own API (port 3100) and web app (port 5174), and drive Chromium through real journeys: sign-in by email and phone, course to batch to enrolment, CSV import, document upload and download, what a partner and a trainer can see, attendance to assessment to review to certificate to QR check, and phone-size layout.
+API tests use the database in `TEST_DATABASE_URL` (`vta_test`) and reset it for each file. Browser tests reset `vta_e2e`, start their own API (port 3100) and web app (port 5174), and drive Chromium through real journeys: sign-in by email and phone, course to batch to enrolment, CSV import, document upload and download, what a partner and a trainer can see, attendance to assessment to review to certificate to QR check, phone-size layout, and an offline session (the browser is cut off, attendance is taken, the app is reopened offline, then it syncs and a conflict is resolved). Browser tests run the built app with its service worker, as in production.
 
 The demo data uses fixed 2026 dates, so both test suites pin the API's "today" to 26 October 2026 with `VTA_TODAY`. That setting is ignored in production. First time on a new machine: `pnpm --filter @vta/e2e exec playwright install chromium`.
 
@@ -111,11 +121,12 @@ The suite includes the six Phase 1 acceptance tests:
 apps/api          Fastify API, PostgreSQL via Kysely, SQL migrations, seed
   src/policy      The only place access is decided (permissions + record scope)
   src/routes      auth, admin/*, training/* (courses, trainers, candidates, batches, files),
-                  operations/* (attendance, assessments, credentials, public check), health
+                  operations/* (attendance, offline sync, assessments, credentials, public check), health
   src/lib         storage (private files, signed links), csv, crypto
   src/audit       Append-only audit writer
   test            API, isolation and platform tests
-apps/web          React + Vite + Tailwind; one app, four portals
+apps/web          React + Vite + Tailwind; one app, four portals; installable (vite-plugin-pwa)
+  src/offline     The trainer's offline store (IndexedDB) and sync
 packages/shared   Roles, permissions, Zod schemas used by both sides
 e2e               Playwright browser tests
 infra             Docker Compose for local services
@@ -140,10 +151,13 @@ infra             Docker Compose for local services
 - Candidates added by admins or imported have not yet seen a privacy notice. The notice and consent screens come with the Learner portal (Phase 5); until then candidate data should be limited to the pilot.
 - Learners cannot see their results or certificates yet; that is the Learner portal (Phase 5). Results are already marked as released when approved.
 - The issuer printed on certificates comes from `CREDENTIAL_ISSUER_NAME` (default "VTA Talent Cloud") until VTA confirms the legal entity (decision D8).
-- Attendance needs a connection for now; offline attendance is Phase 4.
+- Offline covers attendance only (as the requirements scope it). Assessments, rosters' contact details and admin screens need a connection.
+- The offline store is not encrypted beyond what the phone itself provides; it is kept small instead (names, IDs, attendance). A shared phone should use separate sign-ins: signing in as someone else deletes it.
+- Syncing in the background after the app is closed (Background Sync) is Chrome-only, so it is not used; the app syncs when opened or brought to the front.
+- The app icons are a placeholder mark. Replace `apps/web/public/icons/*` (regenerate with `e2e/scripts/make-icons.mjs`) once VTA supplies its logo.
 - Partner admins cannot create batches yet. That arrives with programmes in Phase 7 (design decision of 24 Oct 2026).
 - The wordmark is plain text. Swap `Wordmark` in `apps/web/src/components/ui.tsx` for the VTA master logo once supplied.
-- The PWA manifest and service worker arrive with offline attendance and the Learner portal (Phases 4 and 5).
+- Install and offline behaviour is tested in Chromium (desktop and Android size). It still needs a manual check on a real iPhone before the pilot (acceptance criterion).
 - Not yet deployed. Hosting is decision D10.
 
 ## Defaults assumed (change any of these at any time)
@@ -157,3 +171,4 @@ infra             Docker Compose for local services
 - **D8 certificates:** "Course completion record", issued by `CREDENTIAL_ISSUER_NAME`; the check page shows name, course, issue date, issuer and status only.
 - **Review:** only Super Admins and Operations Admins review results and issue certificates.
 - **Unassessed criteria** count as zero marks; every required criterion must be assessed before submitting.
+- **Offline conflicts:** the mark taken last (by capture time) wins automatically; if the saved mark is newer than the phone's, the trainer chooses. Offline roster kept for 14 days without a refresh.

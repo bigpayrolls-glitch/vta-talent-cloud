@@ -31,13 +31,30 @@ test.describe('on a phone', () => {
     await page.getByRole('link', { name: /2W Peenya October 2026/ }).click();
     await expect(page.getByText('Venkatesh Learner')).toBeVisible();
     await expectNoHorizontalScroll(page);
-    // Attendance is taken on a phone: the four buttons per person must fit without sideways scrolling.
+    // Attendance on a phone (marking buttons while the batch runs, a read-only view after) must fit without sideways scrolling.
     await page.getByRole('tab', { name: 'Attendance' }).click();
-    await expect(page.getByRole('group', { name: 'Attendance for Venkatesh Learner' })).toBeVisible();
+    await expect(page.getByLabel('Session date')).toBeVisible();
+    await expect(page.getByText('Venkatesh Learner')).toBeVisible();
     await expectNoHorizontalScroll(page);
     await page.getByRole('tab', { name: 'Assessments' }).click();
     await expect(page.getByText('Venkatesh Learner')).toBeVisible();
     await expectNoHorizontalScroll(page);
+  });
+
+  test('a trainer’s Today list, attendance screen and Sync status fit a phone', async ({ page }) => {
+    await signInPhone(page, '9900000101');
+    await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
+    await expectNoHorizontalScroll(page);
+    await page.getByRole('navigation', { name: 'Quick navigation' }).getByRole('link', { name: 'Sync' }).click();
+    await expect(page.getByRole('heading', { name: 'Sync status' })).toBeVisible();
+    await expectNoHorizontalScroll(page);
+    const take = page.getByRole('link', { name: 'Take attendance' });
+    await page.goto('/partner');
+    if (await take.count()) {
+      await take.first().click();
+      await expect(page.getByLabel('Session date')).toBeVisible();
+      await expectNoHorizontalScroll(page);
+    }
   });
 
   test('the public certificate check page fits a phone', async ({ page }) => {

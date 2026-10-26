@@ -16,6 +16,7 @@ let csrfToken = '';
 export const setCsrfToken = (t: string) => {
   csrfToken = t;
 };
+export const hasCsrfToken = () => csrfToken !== '';
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = { accept: 'application/json' };

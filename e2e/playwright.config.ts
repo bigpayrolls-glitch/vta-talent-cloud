@@ -7,6 +7,7 @@ const E2E_DB = process.env.E2E_DATABASE_URL ?? 'postgres://vta:vta_dev@localhost
 /**
  * Runs the real API (on its own database) and the web app, then drives a browser through them.
  * The API log is written to e2e/.api.log so phone sign-in tests can read the development OTP code.
+ * The web app is built and served as in production, with its service worker, so offline tests are real.
  * Tests share one database and run one at a time.
  */
 export default defineConfig({
@@ -45,10 +46,11 @@ export default defineConfig({
       },
     },
     {
-      command: `pnpm --filter @vta/web exec vite --port ${WEB_PORT} --strictPort`,
+      // The built app (not the dev server), so the service worker, install manifest and offline mode are real.
+      command: `pnpm --filter @vta/web exec vite build --logLevel error && pnpm --filter @vta/web exec vite preview --port ${WEB_PORT} --strictPort`,
       url: `http://localhost:${WEB_PORT}`,
       reuseExistingServer: false,
-      timeout: 60_000,
+      timeout: 180_000,
       env: { API_PROXY_TARGET: `http://127.0.0.1:${API_PORT}` },
     },
   ],

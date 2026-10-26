@@ -38,6 +38,16 @@ async function latestOtp(phoneEnding: string, after: number): Promise<string> {
   throw new Error('No OTP code found in the API log');
 }
 
+/** Runs a query against the browser-test database (to check what the server saved). */
+export async function withDb<T>(fn: (db: ReturnType<typeof createDb>) => Promise<T>): Promise<T> {
+  const db = createDb(process.env.E2E_DATABASE_URL ?? 'postgres://vta:vta_dev@localhost:5432/vta_e2e');
+  try {
+    return await fn(db);
+  } finally {
+    await db.destroy();
+  }
+}
+
 /** Clears earlier sign-in codes for a number so repeated test sign-ins are not held up by the 60-second resend gap. */
 async function clearOtp(tenDigits: string) {
   const db = createDb(process.env.E2E_DATABASE_URL ?? 'postgres://vta:vta_dev@localhost:5432/vta_e2e');
