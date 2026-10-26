@@ -78,6 +78,7 @@ export interface OrganisationsTable {
   description: ColumnType<string | null, string | null | undefined, string | null>;
   duplicate_of: ColumnType<string | null, string | null | undefined, string | null>;
   submitted_at: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  programme_interests: ColumnType<string | null, string | null | undefined, string | null>;
   created_at: Timestamp;
   updated_at: Timestamp;
 }
@@ -235,6 +236,8 @@ export interface DocumentsTable {
   scan_status: Generated<'not_scanned' | 'clean' | 'infected'>;
   visibility: Generated<'private' | 'employers'>;
   organisation_id: ColumnType<string | null, string | null | undefined, string | null>;
+  programme_id: ColumnType<string | null, string | null | undefined, string | null>;
+  category: ColumnType<string | null, string | null | undefined, string | null>;
   uploaded_by: string | null;
   deleted_at: Date | null;
   created_at: Timestamp;
@@ -265,6 +268,37 @@ export interface AttendanceRecordsTable {
 
 export type JobStatus = 'draft' | 'pending_review' | 'published' | 'paused' | 'closed' | 'rejected';
 export type ApplicationStatus = 'applied' | 'shortlisted' | 'interview' | 'offer' | 'joined' | 'not_joined' | 'rejected' | 'withdrawn';
+
+export interface ProgrammesTable {
+  id: string;
+  name: string;
+  description: string | null;
+  sponsor_organisation_id: string | null;
+  target_count: number;
+  start_date: ColumnType<string, string, string>;
+  end_date: ColumnType<string, string, string>;
+  status: Generated<'planned' | 'active' | 'closed'>;
+  reporting_requirements: string | null;
+  beneficiary_fields: TextArray;
+  sharing_basis: string | null;
+  budget_reference: string | null;
+  budget_amount: ColumnType<string | null, number | null | undefined, number | null>;
+  budget_source: string | null;
+  budget_as_of: ColumnType<string | null, string | null | undefined, string | null>;
+  created_by: string;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export interface ProgrammePartnersTable {
+  programme_id: string;
+  organisation_id: string;
+}
+
+export interface ProgrammeBatchesTable {
+  programme_id: string;
+  batch_id: string;
+}
 
 export interface JobsTable {
   id: string;
@@ -432,6 +466,9 @@ export interface Database {
   attendance_sync_ops: AttendanceSyncOpsTable;
   consent_events: ConsentEventsTable;
   jobs: JobsTable;
+  programmes: ProgrammesTable;
+  programme_partners: ProgrammePartnersTable;
+  programme_batches: ProgrammeBatchesTable;
   job_applications: JobApplicationsTable;
   application_events: ApplicationEventsTable;
   interviews: InterviewsTable;
@@ -453,3 +490,4 @@ export type CandidateProfile = Selectable<CandidateProfilesTable>;
 export type DocumentRow = Selectable<DocumentsTable>;
 export type Job = Selectable<JobsTable>;
 export type JobApplication = Selectable<JobApplicationsTable>;
+export type Programme = Selectable<ProgrammesTable>;

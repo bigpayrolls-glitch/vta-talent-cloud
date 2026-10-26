@@ -67,6 +67,17 @@ export const PERMISSIONS = {
   'job.moderate': ['super_admin', 'ops_admin'],
   'hiring.verify': ['super_admin', 'ops_admin'],
   'hiring.read': ['super_admin', 'ops_admin'],
+
+  // Phase 7: partner programmes and reports. Partners see only programmes assigned to their organisation.
+  /** PA-01: the partner's own organisation profile and documents. */
+  'partner.profile': ['partner_admin'],
+  'partner.profile.read': ['partner_admin', 'partner_viewer'],
+  'programme.manage': ['super_admin', 'ops_admin'],
+  'programme.read': ['super_admin', 'ops_admin', 'partner_admin', 'partner_viewer'],
+  /** PA-05: programme documents. VTA staff and the assigned partner's admins. */
+  'programme.documents.upload': ['super_admin', 'ops_admin', 'partner_admin'],
+  /** AD-11: platform reports and exports. */
+  'report.read': ['super_admin', 'ops_admin'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Permission = keyof typeof PERMISSIONS;

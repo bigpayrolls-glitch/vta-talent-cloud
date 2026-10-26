@@ -345,6 +345,8 @@ interface CompanyAdminView {
   gstin: string | null;
   website: string | null;
   submittedAt: string | null;
+  programmeInterests: string | null;
+  registrationNumber: string | null;
   possibleDuplicate: { id: string; legalName: string; verificationStatus: string } | null;
   documents: { id: string; title: string; createdAt: string }[];
 }
@@ -368,8 +370,24 @@ export function CompanyVerificationDetails({ orgId }: { orgId: string }) {
         </p>
       )}
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
-        <dt className="text-muted">Sector</dt>
-        <dd>{c.sector?.replace('_', ' ') ?? '—'}</dd>
+        {c.sector && (
+          <>
+            <dt className="text-muted">Sector</dt>
+            <dd>{c.sector.replace('_', ' ')}</dd>
+          </>
+        )}
+        {c.registrationNumber && (
+          <>
+            <dt className="text-muted">Registration no.</dt>
+            <dd>{c.registrationNumber}</dd>
+          </>
+        )}
+        {c.programmeInterests && (
+          <>
+            <dt className="text-muted">Programme interests</dt>
+            <dd>{c.programmeInterests}</dd>
+          </>
+        )}
         <dt className="text-muted">City</dt>
         <dd>{c.city ?? '—'}</dd>
         <dt className="text-muted">GSTIN</dt>

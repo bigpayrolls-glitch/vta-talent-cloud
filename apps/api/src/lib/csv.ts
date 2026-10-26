@@ -52,3 +52,18 @@ export function csvToRecords(text: string): { headers: string[]; records: Record
   const records = body.map((r) => Object.fromEntries(headers.map((h, i) => [h, (r[i] ?? '').trim()])));
   return { headers, records };
 }
+
+/**
+ * Writes CSV for downloads. Cells that a spreadsheet would run as a formula (starting with = + - @ or a tab)
+ * are prefixed with an apostrophe so an exported file cannot carry a formula attack.
+ */
+export function toCsv(rows: (string | number | null | undefined)[][]): string {
+  const cell = (v: string | number | null | undefined) => {
+    if (v === null || v === undefined) return '';
+    let s = String(v);
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
+    return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  // BOM so Excel opens UTF-8 (₹, names in Indian scripts) correctly.
+  return '﻿' + rows.map((r) => r.map(cell).join(',')).join('\r\n') + '\r\n';
+}

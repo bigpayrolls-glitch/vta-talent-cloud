@@ -87,7 +87,7 @@ describe('platform basics', () => {
     const d = (await ops.get('/admin/dashboard')).body;
     expect(d.asOf).toBeTruthy();
     expect(d.employers.total).toBe(3);
-    expect(d.partners.verified).toBe(2);
+    expect(d.partners.verified).toBe(3); // two training partners and one CSR sponsor (Phase 7)
     expect(d.awaitingAction.organisationsPendingVerification).toBe(1);
   });
 

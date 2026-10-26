@@ -238,7 +238,7 @@ function OrgModal({ org, onClose }: { org: OrgRow; onClose: () => void }) {
         <dt className="text-muted">Verified</dt>
         <dd>{formatDate(org.verifiedAt)}</dd>
       </dl>
-      {org.type === 'employer' && <CompanyVerificationDetails orgId={org.id} />}
+      <CompanyVerificationDetails orgId={org.id} />
 
       {can('organisation.verify') && !decision && (
         <div className="mt-6 flex flex-wrap gap-2 border-t border-line pt-5">
