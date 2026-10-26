@@ -19,7 +19,9 @@ import { formatIstDateTime, todayIst } from '../../lib/dates.js';
 import { notify, vtaReviewers } from '../../lib/notify.js';
 import { invalid, notFound } from '../../lib/errors.js';
 import { LINK_TTL_SECONDS, signLink } from '../../lib/storage.js';
+import { assertActiveJobRoom, assertApplicationOpen, assertFeature, currentSubscription, lockedApplicationIds } from '../../lib/subscriptions.js';
 import { iso, parse } from '../../lib/validate.js';
+import { PLAN_INFO } from '@vta/shared';
 import { assertVerified, certificatesOf, employerOrg, employerOrgId, jobDto, ownJob, sharedDocumentsOf } from './common.js';
 
 const idParam = z.object({ id: uuidSchema });
@@ -118,6 +120,8 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
       if (t.needsVerified) assertVerified(await employerOrg(db, req));
       if (!(t.from as readonly string[]).includes(j.status)) throw invalid(`This job is ${j.status.replace('_', ' ')} and cannot be ${action === 'submit' ? 'sent for review' : `${action}d`}.`);
       if (action === 'resume' && j.closing_date < todayIst()) throw invalid('The closing date has passed. Edit the job to set a new one.');
+      // Phase 12: sending for review or resuming makes the job active, which counts against the plan.
+      if (action === 'submit' || action === 'resume') await assertActiveJobRoom(db, j.organisation_id, j.id);
       const now = new Date();
       await db.transaction().execute(async (trx) => {
         await trx
@@ -145,6 +149,7 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
       .where('j.organisation_id', '=', employerOrgId(req))
       .executeTakeFirst();
     if (!a) throw notFound('Application');
+    await assertApplicationOpen(db, a.organisation_id, a.id);
     return a;
   };
 
@@ -160,6 +165,7 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
       .where('a.job_id', '=', id);
     if (status) q = q.where('a.status', '=', status);
     const rows = await q.orderBy('a.applied_at', 'desc').execute();
+    const locked = await lockedApplicationIds(db, employerOrgId(req), rows.map((r) => r.id));
     const certs = rows.length
       ? await db
           .selectFrom('credentials as c')
@@ -171,19 +177,26 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
           .execute()
       : [];
     return {
-      items: rows.map((r) => ({
-        id: r.id,
-        status: r.status,
-        appliedAt: iso(r.applied_at),
-        updatedAt: iso(r.updated_at),
-        // The person applied to this employer, so their name is shared; phone and email are on the detail page (logged).
-        name: r.status === 'withdrawn' ? 'Withdrawn applicant' : r.name,
-        city: r.city,
-        skillAreas: r.skill_areas,
-        experienceMonths: r.experience_months,
-        verificationStatus: r.verification_status,
-        vtaCertificates: Number(certs.find((c) => c.id === r.id)?.n ?? 0),
-      })),
+      items: rows.map((r) =>
+        // Phase 12: beyond the plan's applicant limit, only the fact and date of the application are shown.
+        locked.has(r.id)
+          ? { id: r.id, status: r.status, appliedAt: iso(r.applied_at), updatedAt: iso(r.updated_at), locked: true, name: 'Hidden applicant', city: null, skillAreas: [], experienceMonths: null, verificationStatus: null, vtaCertificates: 0 }
+          : {
+              id: r.id,
+              status: r.status,
+              appliedAt: iso(r.applied_at),
+              updatedAt: iso(r.updated_at),
+              locked: false,
+              // The person applied to this employer, so their name is shared; phone and email are on the detail page (logged).
+              name: r.status === 'withdrawn' ? 'Withdrawn applicant' : r.name,
+              city: r.city,
+              skillAreas: r.skill_areas,
+              experienceMonths: r.experience_months,
+              verificationStatus: r.verification_status,
+              vtaCertificates: Number(certs.find((c) => c.id === r.id)?.n ?? 0),
+            },
+      ),
+      lockedCount: locked.size,
     };
   });
 
@@ -223,7 +236,9 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
       .select(['u.name', 'u.phone', 'u.email', 'cp.candidate_code', 'cp.city', 'cp.state', 'cp.preferred_work_area', 'cp.skill_areas', 'cp.experience_months', 'cp.education', 'cp.languages', 'cp.availability', 'cp.verification_status'])
       .where('u.id', '=', a.candidate_id)
       .executeTakeFirstOrThrow();
-    const contactShared = a.status !== 'withdrawn';
+    const { plan } = await currentSubscription(db, a.organisation_id);
+    const contactOnPlan = PLAN_INFO[plan].contactDetails;
+    const contactShared = a.status !== 'withdrawn' && contactOnPlan;
     if (contactShared) {
       await audit(db, auditCtx(req), { action: 'application.contact_viewed', entityType: 'user', entityId: a.candidate_id, after: { applicationId: a.id, organisationId: a.organisation_id } });
     }
@@ -239,10 +254,12 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
       nextMoves: EMPLOYER_MOVES[a.status],
       consent: a.consent_snapshot,
       candidate: {
-        name: contactShared ? p.name : 'Withdrawn applicant',
+        name: a.status !== 'withdrawn' ? p.name : 'Withdrawn applicant',
         phone: contactShared ? p.phone : null,
         email: contactShared ? p.email : null,
         contactShared,
+        /** Phase 12: the plan does not include contact details (the person did share them). */
+        contactNeedsUpgrade: a.status !== 'withdrawn' && !contactOnPlan,
         code: p.candidate_code,
         city: p.city,
         state: p.state,
@@ -257,6 +274,7 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
       certificates: contactShared ? await certificatesOf(db, a.candidate_id) : [],
       documents: contactShared ? await sharedDocumentsOf(db, a.candidate_id) : [],
       interviews: await interviewsOf(a.id),
+      interviewsOnPlan: PLAN_INFO[plan].interviews,
       timeline: await timeline(a.id),
     };
   });
@@ -266,6 +284,7 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
     const { id, docId } = parse(z.object({ id: uuidSchema, docId: uuidSchema }), req.params);
     const a = await ownApplication(req, id);
     if (a.status === 'withdrawn') throw notFound('Document');
+    await assertFeature(db, a.organisation_id, 'contactDetails');
     const d = await db
       .selectFrom('documents')
       .select(['id', 'title'])
@@ -324,6 +343,7 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
     const { id } = parse(idParam, req.params);
     const b = parse(interviewSchema, req.body);
     const a = await ownApplication(req, id);
+    await assertFeature(db, a.organisation_id, 'interviews');
     if (!(ACTIVE_APPLICATION_STATUSES as readonly string[]).includes(a.status)) throw invalid('Interviews can be added only while the application is in progress.');
     const iid = newId();
     await db.transaction().execute(async (trx) => {
@@ -360,6 +380,7 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
       .where('j.organisation_id', '=', employerOrgId(req))
       .executeTakeFirst();
     if (!i) throw notFound('Interview');
+    await assertFeature(db, employerOrgId(req), 'interviews');
     await db.transaction().execute(async (trx) => {
       await trx
         .updateTable('interviews')
@@ -376,7 +397,7 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/employer/dashboard', { config: { permission: 'job.manage' } }, async (req) => {
     const org = await employerOrg(db, req);
-    const jobs = await db.selectFrom('jobs').select(['id', 'title', 'status', 'closing_date', 'openings']).where('organisation_id', '=', org.id).where('status', '!=', 'closed').orderBy('created_at', 'desc').limit(50).execute();
+    const jobs = await db.selectFrom('jobs').select(['id', 'title', 'status', 'closing_date', 'openings', 'created_at']).where('organisation_id', '=', org.id).where('status', '!=', 'closed').orderBy('created_at', 'desc').limit(50).execute();
     const counts = await pipelineCounts(jobs.map((j) => j.id));
     const interviews = jobs.length
       ? await db
@@ -414,6 +435,7 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
           status: j.status,
           closingDate: j.closing_date,
           openings: j.openings,
+          createdAt: iso(j.created_at),
           applicants: Object.values(c).reduce((s, n) => s + (n ?? 0), 0),
           shortlisted: c.shortlisted ?? 0,
           interviews: Number(interviews.find((i) => i.job_id === j.id)?.n ?? 0),

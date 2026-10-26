@@ -37,6 +37,7 @@ A copy that does not set `APP_ENV=staging` still refuses to start in production 
    | `APP_ORIGIN` | the site address, for example `https://vta-talent-cloud.vercel.app` (no trailing slash) |
    | `FILE_SIGNING_SECRET` | a random value of at least 32 characters. Generate one with `openssl rand -hex 32` |
    | `CREDENTIAL_ISSUER_NAME` | optional; defaults to "AutoTalent Grid" |
+   | `PAYMENT_MODE` | optional; `test` by default on staging (employer plans are "paid" with a marked test payment, no money moves). `none` makes employers ask AutoTalent Grid instead |
 
    Do **not** set `NODE_ENV`. The function sets it itself; setting it in Vercel stops the build tools installing.
 4. **Optional: function region.** Settings → Functions → Function Region → pick the one nearest the database (for example Mumbai, `bom1`).

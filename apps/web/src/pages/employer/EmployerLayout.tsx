@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Briefcase, Building2, LayoutDashboard, Search, Users } from 'lucide-react';
+import { Briefcase, Building2, CreditCard, LayoutDashboard, Search, Users } from 'lucide-react';
 import { Link, Outlet, useLocation } from 'react-router';
 import { PortalLayout, type NavItem } from '../../components/PortalLayout';
 import { api } from '../../lib/api';
@@ -38,6 +38,7 @@ export function EmployerLayout() {
     { to: '/employer/candidates', label: 'Candidates', icon: Search, bottom: true },
     { to: '/employer/company', label: 'Company', icon: Building2, bottom: true },
     ...(can('employer.company') ? [{ to: '/employer/team', label: 'Team', icon: Users }] : []),
+    { to: '/employer/subscription', label: 'Subscription', icon: CreditCard },
   ];
   const c = company.data;
   const showBanner = c && c.verificationStatus !== 'verified' && !location.pathname.startsWith('/employer/company');

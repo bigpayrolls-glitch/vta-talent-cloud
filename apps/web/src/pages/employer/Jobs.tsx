@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { APPLICATION_STATUS_LABEL, APPLICATION_STATUSES, JOB_STATUS_LABEL, jobSchema, SKILL_AREAS, type ApplicationStatus, type JobStatus } from '@vta/shared';
-import { ArrowLeft, Award, Plus } from 'lucide-react';
+import { ArrowLeft, Award, Lock, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useToast } from '../../components/toast';
@@ -249,6 +249,8 @@ interface ApplicantRow {
   experienceMonths: number;
   verificationStatus: string;
   vtaCertificates: number;
+  /** Phase 12: beyond the plan's applicant limit. */
+  locked: boolean;
 }
 
 export function EmployerJobDetailPage() {
@@ -257,8 +259,9 @@ export function EmployerJobDetailPage() {
   const toast = useToast();
   const [filter, setFilter] = useState<'' | ApplicationStatus>('');
   const [error, setError] = useState('');
+  const [needsUpgrade, setNeedsUpgrade] = useState(false);
   const job = useQuery({ queryKey: ['employer', 'job', id], queryFn: () => api.get<JobView>(`/employer/jobs/${id}`) });
-  const apps = useQuery({ queryKey: ['employer', 'job', id, 'applications', filter], queryFn: () => api.get<{ items: ApplicantRow[] }>(`/employer/jobs/${id}/applications${qs({ status: filter })}`) });
+  const apps = useQuery({ queryKey: ['employer', 'job', id, 'applications', filter], queryFn: () => api.get<{ items: ApplicantRow[]; lockedCount: number }>(`/employer/jobs/${id}/applications${qs({ status: filter })}`) });
   if (job.isLoading) return <Spinner />;
   if (job.isError) return <ErrorNote message={(job.error as Error).message} />;
   const j = job.data!;
@@ -271,6 +274,7 @@ export function EmployerJobDetailPage() {
       toast('success', msg);
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Could not change the job');
+      setNeedsUpgrade(e instanceof ApiError && e.fields.plan === 'upgrade');
     }
   };
 
@@ -322,6 +326,11 @@ export function EmployerJobDetailPage() {
       {error && (
         <div className="mb-4">
           <ErrorNote message={error} />
+          {needsUpgrade && (
+            <Link to="/employer/subscription/plans" className="btn-primary mt-2">
+              See plans
+            </Link>
+          )}
         </div>
       )}
       {j.moderationReason && (j.status === 'rejected' || j.status === 'paused' || j.status === 'closed') && (
@@ -355,7 +364,27 @@ export function EmployerJobDetailPage() {
             <EmptyState title="No applicants here" body={j.status === 'published' ? 'Applications appear here as learners apply.' : 'Applications open once AutoTalent Grid publishes the job.'} />
           ) : (
             <ul className="divide-y divide-line">
-              {apps.data.items.map((a) => (
+              {apps.data.lockedCount > 0 && (
+                <li className="flex flex-wrap items-center gap-3 bg-warning-tint px-5 py-3 text-sm text-warning">
+                  <Lock className="size-4 shrink-0" aria-hidden />
+                  <span className="flex-1">
+                    {apps.data.lockedCount} {apps.data.lockedCount === 1 ? 'applicant is' : 'applicants are'} hidden: your plan&apos;s applicant limit is reached.
+                  </span>
+                  <Link to="/employer/subscription/plans" className="font-semibold underline">
+                    Upgrade plan
+                  </Link>
+                </li>
+              )}
+              {apps.data.items.map((a) =>
+                a.locked ? (
+                  <li key={a.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3.5 text-muted">
+                    <Lock className="size-4 shrink-0" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block font-semibold">Hidden applicant</span>
+                      <span className="block text-sm">Applied {shortDate(a.appliedAt)}. Upgrade your plan to see who it is.</span>
+                    </span>
+                  </li>
+                ) : (
                 <li key={a.id}>
                   <Link to={`/employer/applications/${a.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3.5 hover:bg-surface/60">
                     <span className="min-w-0 flex-1">
@@ -373,7 +402,8 @@ export function EmployerJobDetailPage() {
                     <StatusBadge status={a.status} label={APPLICATION_STATUS_LABEL[a.status]} />
                   </Link>
                 </li>
-              ))}
+                ),
+              )}
             </ul>
           )}
         </section>

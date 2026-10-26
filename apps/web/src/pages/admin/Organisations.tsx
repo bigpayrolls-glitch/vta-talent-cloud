@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { createOrganisationSchema, PARTNER_SUBTYPES, reasonSchema, type Page } from '@vta/shared';
+import { adminSetPlanSchema, createOrganisationSchema, formatRupees, PARTNER_SUBTYPES, PLAN_INFO, PLANS, reasonSchema, type Page, type Plan, type SubscriptionDto } from '@vta/shared';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
@@ -253,6 +253,7 @@ function OrgModal({ org, onClose }: { org: OrgRow; onClose: () => void }) {
         <dd>{formatDate(org.verifiedAt)}</dd>
       </dl>
       <CompanyVerificationDetails orgId={org.id} />
+      {org.type === 'employer' && can('subscription.manage') && <EmployerPlanPanel orgId={org.id} />}
 
       {can('organisation.verify') && !decision && (
         <div className="mt-6 flex flex-wrap gap-2 border-t border-line pt-5">
@@ -290,5 +291,93 @@ function OrgModal({ org, onClose }: { org: OrgRow; onClose: () => void }) {
         </form>
       )}
     </Modal>
+  );
+}
+
+/** Phase 12: the employer's plan; AutoTalent Grid can set one by hand (Enterprise, or paid outside the platform). */
+function EmployerPlanPanel({ orgId }: { orgId: string }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const q = useQuery({
+    queryKey: ['organisations', orgId, 'subscription'],
+    queryFn: () => api.get<SubscriptionDto & { payments: { id: string; invoiceNumber: string; plan: Plan; amountPaise: number; paidAt: string; test: boolean }[] }>(`/admin/organisations/${orgId}/subscription`),
+  });
+  const [editing, setEditing] = useState(false);
+  const [plan, setPlan] = useState<Plan>('enterprise');
+  const [months, setMonths] = useState('12');
+  const [reason, setReason] = useState('');
+  const f = useForm(adminSetPlanSchema);
+  if (!q.data) return null;
+  const s = q.data;
+  return (
+    <section className="mt-6 border-t border-line pt-5" aria-labelledby={`plan-${orgId}`}>
+      <h3 id={`plan-${orgId}`} className="font-semibold">
+        Plan
+      </h3>
+      <p className="mt-1 text-sm">
+        <span className="font-semibold">{PLAN_INFO[s.plan].name}</span>
+        {s.plan !== 'free' && s.periodEnd ? `, until ${formatDate(s.periodEnd)}` : ''}
+        {s.source ? ` (${s.source === 'payment' ? 'paid online' : 'set by AutoTalent Grid'})` : ''}. Active jobs {s.usage.activeJobs}
+        {s.usage.activeJobsLimit !== null ? ` of ${s.usage.activeJobsLimit}` : ''}.
+      </p>
+      {s.payments.length > 0 && (
+        <ul className="mt-2 text-sm text-muted">
+          {s.payments.slice(0, 3).map((p) => (
+            <li key={p.id}>
+              {p.invoiceNumber}: {PLAN_INFO[p.plan].name}, {formatRupees(p.amountPaise)}, {formatDate(p.paidAt)}
+              {p.test ? ' (test)' : ''}
+            </li>
+          ))}
+        </ul>
+      )}
+      {!editing ? (
+        <button type="button" className="btn-secondary mt-3" onClick={() => setEditing(true)}>
+          Set plan
+        </button>
+      ) : (
+        <form
+          noValidate
+          className="mt-3 space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void f.submit({ plan, months: plan === 'free' ? undefined : months, reason }, async (data) => {
+              await api.post(`/admin/organisations/${orgId}/subscription`, data);
+              await qc.invalidateQueries({ queryKey: ['organisations', orgId, 'subscription'] });
+              toast('success', 'Plan set');
+              setEditing(false);
+            });
+          }}
+        >
+          {f.formError && <ErrorNote message={f.formError} />}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Plan" htmlFor={`plan-sel-${orgId}`}>
+              <select id={`plan-sel-${orgId}`} className="field-input" value={plan} onChange={(e) => setPlan(e.target.value as Plan)}>
+                {PLANS.map((p) => (
+                  <option key={p} value={p}>
+                    {PLAN_INFO[p].name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {plan !== 'free' && (
+              <Field label="Months" htmlFor={`plan-months-${orgId}`} error={f.errors.months}>
+                <input id={`plan-months-${orgId}`} type="number" min={1} max={36} className="field-input" value={months} onChange={(e) => setMonths(e.target.value)} />
+              </Field>
+            )}
+          </div>
+          <Field label="Reason" htmlFor={`plan-reason-${orgId}`} error={f.errors.reason} hint="For example, the signed agreement or the bank transfer reference. Saved in the audit log.">
+            <input id={`plan-reason-${orgId}`} className="field-input" value={reason} onChange={(e) => setReason(e.target.value)} />
+          </Field>
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn-secondary" onClick={() => setEditing(false)}>
+              Cancel
+            </button>
+            <button type="submit" className="btn-primary" disabled={f.submitting}>
+              Save plan
+            </button>
+          </div>
+        </form>
+      )}
+    </section>
   );
 }

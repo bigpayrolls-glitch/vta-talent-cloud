@@ -377,6 +377,16 @@ export async function seed(db: DB): Promise<SeedResult> {
   await job('jobDraftA', 'employerA', 'recruiterA', 'draft', { title: 'Senior two-wheeler technician', skill: '2W', city: 'Bengaluru', closing: '2026-12-31' });
   await job('jobEvB', 'employerB', 'employerAdminB', 'pending_review', { title: 'EV service technician', skill: 'EV', city: 'Mysuru', closing: '2026-12-20', salary: [18000, 26000] });
 
+  // Phase 12: the two verified demo employers have plans set by AutoTalent Grid for a year; the pending one is on Free.
+  const yearOn = new Date(Date.now() + 365 * 86_400_000);
+  await db
+    .insertInto('employer_subscriptions')
+    .values([
+      { organisation_id: ids.employerA!, plan: 'growth', billing_cycle: null, period_start: new Date(), period_end: yearOn, source: 'admin', updated_by: ids.superAdmin! },
+      { organisation_id: ids.employerB!, plan: 'starter', billing_cycle: null, period_start: new Date(), period_end: yearOn, source: 'admin', updated_by: ids.superAdmin! },
+    ])
+    .execute();
+
   // Anitha applied to Sunrise's job and was shortlisted.
   ids.applicationAnitha = newId();
   await db

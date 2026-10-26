@@ -1,17 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 import { JOB_STATUS_LABEL, type JobStatus } from '@vta/shared';
-import { Plus } from 'lucide-react';
+import { ArrowRight, Plus } from 'lucide-react';
 import { Link } from 'react-router';
 import { EmptyState, ErrorNote, formatDate, Spinner, StatusBadge } from '../../components/ui';
 import { api } from '../../lib/api';
 import { firstName, useAuth } from '../../lib/auth';
 import { shortDate } from '../hiring/format';
+import { CurrentPlanCard } from './Subscription';
 
 interface Dash {
   asOf: string;
   verificationStatus: string;
   totals: { openJobs: number; applicants: number; shortlisted: number; interviews: number; offers: number; joined: number };
-  jobs: { id: string; title: string; status: JobStatus; closingDate: string; openings: number; applicants: number; shortlisted: number; interviews: number; offers: number; joined: number }[];
+  jobs: { id: string; title: string; status: JobStatus; closingDate: string; openings: number; createdAt: string; applicants: number; shortlisted: number; interviews: number; offers: number; joined: number }[];
 }
 
 /** EM-09: vacancies with applicants, shortlisted, interviews, offers and confirmed joinings. */
@@ -22,12 +23,15 @@ export function EmployerDashboard() {
     <>
       <section className="rounded-[20px] bg-brand-tint px-6 py-7 sm:px-10">
         <h1 className="text-[28px] font-extrabold tracking-tight sm:text-[34px]">Hello, {firstName(me?.name ?? '')}!</h1>
-        <p className="mt-1 text-lg text-ink/75">Find skilled and certified technicians.</p>
+        <p className="mt-1 text-lg text-ink/75">Post jobs and hire skilled technicians for your service network.</p>
         <Link to="/employer/jobs/new" className="btn-primary mt-5">
           <Plus className="size-4" aria-hidden />
           Post a job
         </Link>
       </section>
+      <div className="mt-6">
+        <CurrentPlanCard />
+      </div>
       {q.isLoading ? (
         <Spinner />
       ) : q.isError ? (
@@ -56,14 +60,20 @@ export function EmployerDashboard() {
                 ))}
               </div>
               <section className="mt-8">
-                <h2 className="text-xl font-bold">Your jobs</h2>
+                <div className="flex items-baseline justify-between gap-3">
+                  <h2 className="text-xl font-bold">Recent jobs</h2>
+                  <Link to="/employer/jobs" className="inline-flex items-center gap-1 text-sm font-semibold text-[#C8101A] hover:underline">
+                    View all jobs
+                    <ArrowRight className="size-4" aria-hidden />
+                  </Link>
+                </div>
                 {!d.jobs.length ? (
                   <div className="card mt-3">
                     <EmptyState title="No jobs yet" body="Post a job. AutoTalent Grid checks each job before learners see it." />
                   </div>
                 ) : (
                   <div className="card mt-3 overflow-x-auto">
-                    <table className="w-full min-w-[640px] text-sm">
+                    <table className="w-full min-w-[720px] text-sm">
                       <caption className="sr-only">Jobs and their applicants</caption>
                       <thead className="border-b border-line text-left text-[13px] text-muted">
                         <tr>
@@ -73,6 +83,7 @@ export function EmployerDashboard() {
                           <th className="px-3 py-2.5 text-right font-medium">Shortlisted</th>
                           <th className="px-3 py-2.5 text-right font-medium">Interviews</th>
                           <th className="px-3 py-2.5 text-right font-medium">Joined</th>
+                          <th className="px-3 py-2.5 text-right font-medium">Created</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-line">
@@ -91,6 +102,7 @@ export function EmployerDashboard() {
                             <td className="px-3 py-3 text-right">{j.shortlisted}</td>
                             <td className="px-3 py-3 text-right">{j.interviews}</td>
                             <td className="px-3 py-3 text-right font-semibold">{j.joined}</td>
+                            <td className="px-3 py-3 text-right whitespace-nowrap text-muted">{shortDate(j.createdAt.slice(0, 10))}</td>
                           </tr>
                         ))}
                       </tbody>
