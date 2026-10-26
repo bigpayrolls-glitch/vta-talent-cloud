@@ -27,7 +27,7 @@ export async function signInEmail(page: Page, email: string) {
 }
 
 /** Reads the newest development OTP code for this number from the API log. */
-async function latestOtp(phoneEnding: string, after: number): Promise<string> {
+export async function latestOtp(phoneEnding: string, after: number): Promise<string> {
   const log = path.join(here, '../.api.log');
   for (let i = 0; i < 40; i++) {
     const text = readFileSync(log, 'utf8').slice(after);
@@ -49,7 +49,7 @@ export async function withDb<T>(fn: (db: ReturnType<typeof createDb>) => Promise
 }
 
 /** Clears earlier sign-in codes for a number so repeated test sign-ins are not held up by the 60-second resend gap. */
-async function clearOtp(tenDigits: string) {
+export async function clearOtp(tenDigits: string) {
   const db = createDb(process.env.E2E_DATABASE_URL ?? 'postgres://vta:vta_dev@localhost:5432/vta_e2e');
   try {
     await db.deleteFrom('otp_challenges').where('phone', '=', `+91${tenDigits}`).execute();

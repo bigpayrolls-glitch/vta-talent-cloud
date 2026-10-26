@@ -2,7 +2,21 @@
 
 A role-based automotive skills and workforce platform. One backend and one database serve four portals: **Learner**, **Employer**, **Training Partner** (including trainers) and **Admin**. A public website follows in Phase 8.
 
-**Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data), Phase 3 (training operations) and Phase 4 (offline attendance and the installable app).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+**Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data), Phase 3 (training operations), Phase 4 (offline attendance and the installable app) and Phase 5 (Learner portal).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+
+## What works in Phase 5
+
+| Area | What you can do |
+| --- | --- |
+| Self-registration (EE-01) | `/register`: mobile number, name, date of birth (18+), city, and acceptance of the privacy notice and terms; a code proves the number. The profile starts "pending" for VTA to verify and can be finished later. A number that already has an account just signs that person in, so registration cannot be used to find out who is registered. Same name + date of birth is flagged as a possible duplicate. |
+| Consent (SH-05) | Every consent is a new row in `consent_events` (append-only, enforced by the database) with the notice version. Candidates added by staff are asked to accept the notice and terms at first sign-in; nothing else opens until they do. Staff see whether it was accepted. |
+| Profile (EE-02) | The learner edits skills, experience, education, languages, availability, preferred work area, city and an optional email. Name and date of birth are locked once VTA has verified them; a profile sent back for correction returns to "pending" when fixed. Completeness is shown. |
+| Drafts (EE-12) | An unsaved profile edit is kept on the device and restored after a reload; removed on save, cancel or sign-out. |
+| Documents (EE-03) | Upload PDF/JPG/PNG evidence (up to 20), choose "only me and VTA" or "employers I share my profile with", change it later, remove own unverified uploads. Verification status is shown; documents added or verified by VTA cannot be removed by the learner. |
+| Learning (EE-04) | Each course: batch, centre, dates, status, attendance against the course requirement (with a warning when below), and assessment state (not assessed, in progress, result available). |
+| Results (EE-05) | Approved results only: marks, pass mark, each skill's score and trainer comment, and overall trainer feedback. Reviewer identity and internal review notes are never sent. |
+| Certificates (EE-06) | Wallet with status (valid, revoked, replaced), QR code, check link and print. Labelled as VTA course completion records, not official qualifications. Revocation reasons are not shown. |
+| Privacy (EE-10) | Switch "employers can find my profile" on or off (used by employer search in Phase 6), with the full consent history. |
 
 ## What works in Phase 4
 
@@ -93,16 +107,16 @@ The demo data also has three courses (2W, 4W and EV), nine candidates (one flagg
 ## Tests
 
 ```bash
-pnpm test        # 180 tests: API (real PostgreSQL), shared rules, the phone's offline store
-pnpm e2e         # 27 browser tests (Playwright): desktop and phone sizes, including offline
+pnpm test        # 205 tests: API (real PostgreSQL), shared rules, the phone's offline store
+pnpm e2e         # 33 browser tests (Playwright): desktop and phone sizes, including offline
 pnpm lint
 pnpm typecheck
 pnpm build
 ```
 
-API tests use the database in `TEST_DATABASE_URL` (`vta_test`) and reset it for each file. Browser tests reset `vta_e2e`, start their own API (port 3100) and web app (port 5174), and drive Chromium through real journeys: sign-in by email and phone, course to batch to enrolment, CSV import, document upload and download, what a partner and a trainer can see, attendance to assessment to review to certificate to QR check, phone-size layout, and an offline session (the browser is cut off, attendance is taken, the app is reopened offline, then it syncs and a conflict is resolved). Browser tests run the built app with its service worker, as in production.
+API tests use the database in `TEST_DATABASE_URL` (`vta_test`) and reset it for each file. Browser tests reset `vta_e2e`, start their own API (port 3100) and web app (port 5174), and drive Chromium through real journeys: sign-in by email and phone, course to batch to enrolment, CSV import, document upload and download, what a partner and a trainer can see, attendance to assessment to review to certificate to QR check, phone-size layout, self-registration and the Learner portal, and an offline session (the browser is cut off, attendance is taken, the app is reopened offline, then it syncs and a conflict is resolved). Browser tests run the built app with its service worker, as in production.
 
-The demo data uses fixed 2026 dates, so both test suites pin the API's "today" to 26 October 2026 with `VTA_TODAY`. That setting is ignored in production. First time on a new machine: `pnpm --filter @vta/e2e exec playwright install chromium`.
+The demo data uses fixed 2026 dates, so both test suites pin the API's "today" to 26 October 2026 with `VTA_TODAY`. Browser tests also set `VTA_RELAX_RATE_LIMITS=1`, which lifts the per-IP sign-in limits for requests from the same machine only (per-number code limits and lockout still apply). Both settings are ignored in production. First time on a new machine: `pnpm --filter @vta/e2e exec playwright install chromium`.
 
 Phase 2 isolation tests (`test/isolation2.test.ts`) check that partners see only their centres' batches, trainers only their own batches, centre admins only their centre, and nobody outside VTA staff reads candidate records. Breaking the batch access check on purpose makes five of them fail.
 
@@ -148,8 +162,9 @@ infra             Docker Compose for local services
 - Uploaded files are stored on the API server's disk (`STORAGE_DIR`). An S3-compatible driver comes with the hosting decision (D10); the interface is ready for it.
 - Files are not virus-scanned yet and are labelled "not scanned" (D10).
 - No password reset yet. It needs an email provider, so it comes with the email work.
-- Candidates added by admins or imported have not yet seen a privacy notice. The notice and consent screens come with the Learner portal (Phase 5); until then candidate data should be limited to the pilot.
-- Learners cannot see their results or certificates yet; that is the Learner portal (Phase 5). Results are already marked as released when approved.
+- The privacy notice and terms are a plain-language DRAFT (version `2026-10-draft`), marked as such on screen. VTA must approve the wording and add contact details; changing `NOTICE_VERSION` then asks everyone to accept again.
+- Job search, applying and application tracking (EE-07 to EE-09) move to Phase 6 with employer vacancies, so both sides are built and tested together.
+- Closing an account and exporting one's data are support requests for now (no self-service screen).
 - The issuer printed on certificates comes from `CREDENTIAL_ISSUER_NAME` (default "VTA Talent Cloud") until VTA confirms the legal entity (decision D8).
 - Offline covers attendance only (as the requirements scope it). Assessments, rosters' contact details and admin screens need a connection.
 - The offline store is not encrypted beyond what the phone itself provides; it is kept small instead (names, IDs, attendance). A shared phone should use separate sign-ins: signing in as someone else deletes it.
@@ -165,10 +180,11 @@ infra             Docker Compose for local services
 - **D1:** a new standalone app, not an extension of an existing VTA LMS.
 - **D2:** email and password for staff, employers and partners; phone OTP for learners and trainers.
 - **D4:** candidates must be 18 or older during the pilot. Date of birth is required when a candidate is added.
-- **D5:** candidates are added by VTA admins or by CSV import for now; self-registration comes with the Learner portal (Phase 5).
+- **D5:** candidates are added by VTA admins, by CSV import, or register themselves (Phase 5); every profile is verified by VTA.
 - **Uploads:** PDF, JPG and PNG up to 10 MB.
 - **Enrolment:** pending or verified candidates can be enrolled; rejected profiles, profiles needing correction and unreviewed possible duplicates cannot.
 - **D8 certificates:** "Course completion record", issued by `CREDENTIAL_ISSUER_NAME`; the check page shows name, course, issue date, issuer and status only.
 - **Review:** only Super Admins and Operations Admins review results and issue certificates.
 - **Unassessed criteria** count as zero marks; every required criterion must be assessed before submitting.
+- **Consent:** employer search is off until the learner turns it on; staff cannot accept the notice on a learner's behalf.
 - **Offline conflicts:** the mark taken last (by capture time) wins automatically; if the saved mark is newer than the phone's, the trainer chooses. Offline roster kept for 14 days without a refresh.

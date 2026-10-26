@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { hasPermission, type MeDto, type Permission, type Portal, type Role } from '@vta/shared';
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
 import { cachedMe, claimForUser, wipeAll } from '../offline/store';
+import { clearAllDrafts } from './draft';
 import { api, ApiError, setCsrfToken } from './api';
 
 /** `offline` is set when the server cannot be reached and a trainer's details kept on the phone are used instead. */
@@ -69,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } finally {
         // TR-09: nothing from this account stays on the phone after sign-out.
         await wipeAll().catch(() => undefined);
+        clearAllDrafts();
         setCsrfToken('');
         qc.clear();
         window.location.assign('/login');

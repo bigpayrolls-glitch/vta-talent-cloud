@@ -19,6 +19,8 @@ test.describe('sign-in and portal routing', () => {
   test('a user with two roles chooses a portal and can switch', async ({ page }) => {
     await signInEmail(page, EMAIL.multi);
     await expect(page).toHaveURL(/\/choose-portal$/);
+    await expect(page.getByRole('heading', { name: 'Choose a portal' })).toBeVisible();
+    await page.waitForLoadState('networkidle');
     await page.getByRole('link', { name: 'Training Partner Portal' }).click();
     await expect(page).toHaveURL(/\/partner$/);
     await page.getByRole('button', { name: /Nisha Multi-role/ }).click();

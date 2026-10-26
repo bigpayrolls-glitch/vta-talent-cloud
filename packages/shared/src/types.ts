@@ -22,6 +22,8 @@ export interface MeDto {
   roles: RoleAssignmentDto[];
   portals: Portal[];
   csrfToken: string;
+  /** Learners who have not accepted the current privacy notice and terms (Phase 5). */
+  consentRequired?: boolean;
 }
 
 export interface Page<T> {

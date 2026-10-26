@@ -1,7 +1,7 @@
 import { loginSchema, otpRequestSchema, otpVerifySchema, type MeDto } from '@vta/shared';
 import { Building2, GraduationCap, Settings, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router';
+import { Link, Navigate, useNavigate } from 'react-router';
 import { ErrorNote, Field, Wordmark } from '../components/ui';
 import { api, setCsrfToken } from '../lib/api';
 import { homePathFor, useAuth } from '../lib/auth';
@@ -84,7 +84,11 @@ export function LoginPage() {
           </div>
 
           <p className="mt-8 text-sm text-muted">
-            New to VTA Talent Cloud? Accounts are created by invitation during the pilot. Contact your VTA coordinator.
+            Learner or technician, new to VTA?{' '}
+            <Link to="/register" className="font-semibold text-brand underline">
+              Create an account
+            </Link>
+            . Employers, partners and trainers are invited by VTA.
           </p>
         </div>
       </main>

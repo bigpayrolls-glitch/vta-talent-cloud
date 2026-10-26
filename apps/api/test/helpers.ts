@@ -58,6 +58,7 @@ export interface Client {
   post(url: string, body?: unknown, opts?: { csrf?: string | null }): Promise<{ status: number; body: any }>;
   patch(url: string, body?: unknown): Promise<{ status: number; body: any }>;
   put(url: string, body?: unknown): Promise<{ status: number; body: any }>;
+  del(url: string): Promise<{ status: number; body: any }>;
   upload(url: string, data: Buffer, contentType?: string): Promise<{ status: number; body: any }>;
 }
 
@@ -72,7 +73,7 @@ function cookieFrom(res: { headers: Record<string, unknown> }): string {
 export async function clientFromCookie(app: FastifyInstance, cookie: string): Promise<Client> {
   const me = await app.inject({ method: 'GET', url: '/api/v1/auth/me', headers: { cookie } });
   const csrf = me.statusCode === 200 ? (me.json().csrfToken as string) : '';
-  const send = async (method: 'GET' | 'POST' | 'PATCH' | 'PUT', url: string, body?: unknown, token: string | null = csrf) => {
+  const send = async (method: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE', url: string, body?: unknown, token: string | null = csrf) => {
     const headers: Record<string, string> = { cookie };
     if (token && method !== 'GET') headers['x-csrf-token'] = token;
     const res = await app.inject({ method, url: `/api/v1${url}`, headers, ...(body !== undefined ? { payload: body as object } : {}) });
@@ -85,6 +86,7 @@ export async function clientFromCookie(app: FastifyInstance, cookie: string): Pr
     post: (url, body, opts) => send('POST', url, body ?? {}, opts?.csrf === undefined ? csrf : opts.csrf),
     patch: (url, body) => send('PATCH', url, body ?? {}),
     put: (url, body) => send('PUT', url, body ?? {}),
+    del: (url) => send('DELETE', url),
     upload: async (url, data, contentType = 'application/octet-stream') => {
       const res = await app.inject({ method: 'POST', url: `/api/v1${url}`, headers: { cookie, 'x-csrf-token': csrf, 'content-type': contentType }, payload: data });
       return { status: res.statusCode, body: res.body ? res.json() : null };

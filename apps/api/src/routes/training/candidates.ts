@@ -18,6 +18,7 @@ import { conflict, invalid, notFound } from '../../lib/errors.js';
 import { iso, parse } from '../../lib/validate.js';
 import { candidateReadScope, inScope } from '../../policy/index.js';
 import { createCandidate, findPossibleDuplicate, type CandidateInput } from './candidateService.js';
+import { consentRequired, consentState } from '../learner/service.js';
 
 const idParam = z.object({ id: uuidSchema });
 
@@ -121,11 +122,13 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
       .execute();
     const documents = await db
       .selectFrom('documents')
-      .select(['id', 'kind', 'title', 'original_name', 'mime_type', 'size_bytes', 'verification_status', 'scan_status', 'created_at'])
+      .select(['id', 'kind', 'title', 'original_name', 'mime_type', 'size_bytes', 'verification_status', 'scan_status', 'visibility', 'uploaded_by', 'created_at'])
       .where('owner_user_id', '=', id)
       .where('deleted_at', 'is', null)
       .orderBy('created_at', 'desc')
       .execute();
+    // SH-05: staff can see whether the person has accepted the current notice (not change it for them).
+    const consents = await consentState(db, id);
     return {
       id: c.user_id,
       code: c.candidate_code,
@@ -146,6 +149,8 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
       verifiedAt: iso(c.verified_at),
       verifiedByName: c.verified_by_name,
       source: c.source,
+      noticeAccepted: !(await consentRequired(db, id)),
+      noticeAcceptedAt: iso(consents.get('privacy_notice')?.at ?? null),
       userStatus: c.user_status,
       lastLoginAt: iso(c.last_login_at),
       createdAt: iso(c.created_at),
@@ -169,6 +174,8 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
         sizeBytes: d.size_bytes,
         verificationStatus: d.verification_status,
         scanStatus: d.scan_status,
+        visibility: d.visibility,
+        uploadedBySelf: d.uploaded_by === id,
         createdAt: iso(d.created_at),
       })),
     };

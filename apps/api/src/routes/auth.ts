@@ -3,10 +3,12 @@ import {
   loginSchema,
   otpRequestSchema,
   otpVerifySchema,
+  NOTICE_VERSION,
   portalsForRoles,
+  registerSchema,
   type MeDto,
 } from '@vta/shared';
-import type { FastifyPluginAsync } from 'fastify';
+import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { auditCtx } from '../app.js';
 import { audit } from '../audit/service.js';
@@ -23,6 +25,7 @@ import {
 } from '../lib/crypto.js';
 import { ApiError, invalid, notFound, unauthenticated } from '../lib/errors.js';
 import { iso, parse } from '../lib/validate.js';
+import { createSelfRegisteredCandidate, consentRequired } from './learner/service.js';
 
 const MAX_FAILED_LOGINS = 5;
 const LOCK_MINUTES = 15;
@@ -37,6 +40,61 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   const db = app.db;
   const secure = app.config.COOKIE_SECURE;
   const ipLimit = (max: number) => ({ rateLimit: { max, timeWindow: '1 minute' } });
+
+  /**
+   * Checks a phone code and uses it up. Wrong codes count towards the 5 attempts; any failure looks the same
+   * whether or not the number is registered. `purpose` limits which codes count (registration codes only for /register).
+   */
+  async function checkCode(phone: string, code: string, purpose?: 'register'): Promise<void> {
+    let q = db
+      .selectFrom('otp_challenges')
+      .selectAll()
+      .where('phone', '=', phone)
+      .where('consumed_at', 'is', null)
+      .where('expires_at', '>', new Date());
+    if (purpose) q = q.where('purpose', '=', purpose);
+    const challenge = await q.orderBy('created_at', 'desc').executeTakeFirst();
+    const expired = invalid('This code has expired. Request a new one.', { code: 'Code expired' });
+    if (!challenge || challenge.attempts >= OTP_MAX_ATTEMPTS) throw expired;
+
+    if (!safeEqual(challenge.code_hash, otpHash(challenge.id, code))) {
+      const attempts = challenge.attempts + 1;
+      await db
+        .updateTable('otp_challenges')
+        .set({ attempts, consumed_at: attempts >= OTP_MAX_ATTEMPTS ? new Date() : null })
+        .where('id', '=', challenge.id)
+        .execute();
+      const left = OTP_MAX_ATTEMPTS - attempts;
+      if (left <= 0) throw expired;
+      throw invalid(`Incorrect code. ${left} ${left === 1 ? 'attempt' : 'attempts'} left.`, { code: 'Incorrect code' });
+    }
+    await db.updateTable('otp_challenges').set({ consumed_at: new Date() }).where('id', '=', challenge.id).execute();
+  }
+
+  /** Signs in a phone user after their code is checked. First sign-in of an invited user activates the account. */
+  async function signInByPhone(req: FastifyRequest, reply: FastifyReply, phone: string): Promise<void> {
+    const user = await db.selectFrom('users').selectAll().where('phone', '=', phone).executeTakeFirst();
+    if (!user) throw invalid('This code has expired. Request a new one.', { code: 'Code expired' });
+    if (user.status === 'suspended') throw new ApiError('FORBIDDEN', 'This account is suspended. Contact VTA support.');
+    if (user.status !== 'active' && user.status !== 'invited') throw unauthenticated('This account cannot sign in.');
+    await db.transaction().execute(async (trx) => {
+      if (user.status === 'invited') {
+        await trx
+          .updateTable('users')
+          .set({ status: 'active', phone_verified_at: new Date(), updated_at: new Date() })
+          .where('id', '=', user.id)
+          .execute();
+        await audit(trx, { ...auditCtx(req), actorId: user.id }, {
+          action: 'user.activated', entityType: 'user', entityId: user.id,
+          before: { status: 'invited' }, after: { status: 'active', via: 'otp' },
+        });
+      } else if (!user.phone_verified_at) {
+        await trx.updateTable('users').set({ phone_verified_at: new Date() }).where('id', '=', user.id).execute();
+      }
+    });
+    await createSession(db, req, reply, user.id, secure);
+    await audit(db, { ...auditCtx(req), actorId: user.id }, { action: 'auth.login', entityType: 'user', entityId: user.id, after: { method: 'otp' } });
+  }
 
   /** F-03: email + password sign-in for staff. Generic errors so emails cannot be discovered. */
   app.post('/login', { config: { public: true, ...ipLimit(20) } }, async (req, reply) => {
@@ -73,7 +131,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
 
   /** F-04: request a phone OTP. Same response whether or not the number is registered. */
   app.post('/otp/request', { config: { public: true, ...ipLimit(10) } }, async (req) => {
-    const { phone } = parse(otpRequestSchema, req.body);
+    const { phone, purpose } = parse(otpRequestSchema, req.body);
     const recent = await db
       .selectFrom('otp_challenges')
       .select(['created_at'])
@@ -97,72 +155,55 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       .executeTakeFirst();
     const id = newId();
     const code = sixDigitCode();
+    // Registration (EE-01) sends a code to any number: the answer is the same whether or not it is registered,
+    // so numbers cannot be checked here. Sign-in sends a code only to registered numbers.
+    const send = purpose === 'register' || !!user;
     await db
       .insertInto('otp_challenges')
       .values({
         id,
         phone,
         // Unregistered numbers still get a challenge row (keeps the resend limit honest) but no SMS.
-        code_hash: user ? otpHash(id, code) : 'unregistered',
-        purpose: 'login',
+        code_hash: send ? otpHash(id, code) : 'unregistered',
+        purpose,
         expires_at: new Date(Date.now() + OTP_TTL_SECONDS * 1000),
         ip: req.ip,
       })
       .execute();
-    if (user) await app.providers.sms.sendOtp(phone, code);
-    return { ok: true, message: 'If this number is registered, a code has been sent.', expiresInSeconds: OTP_TTL_SECONDS };
+    if (send) await app.providers.sms.sendOtp(phone, code);
+    return {
+      ok: true,
+      message: purpose === 'register' ? 'A code has been sent to this number.' : 'If this number is registered, a code has been sent.',
+      expiresInSeconds: OTP_TTL_SECONDS,
+    };
   });
 
   /** F-04: verify the code and sign in. First sign-in of an invited phone user activates the account. */
   app.post('/otp/verify', { config: { public: true, ...ipLimit(20) } }, async (req, reply) => {
     const { phone, code } = parse(otpVerifySchema, req.body);
-    const challenge = await db
-      .selectFrom('otp_challenges')
-      .selectAll()
-      .where('phone', '=', phone)
-      .where('consumed_at', 'is', null)
-      .where('expires_at', '>', new Date())
-      .orderBy('created_at', 'desc')
-      .executeTakeFirst();
-    const expired = invalid('This code has expired. Request a new one.', { code: 'Code expired' });
-    if (!challenge || challenge.attempts >= OTP_MAX_ATTEMPTS) throw expired;
+    await checkCode(phone, code);
 
-    if (!safeEqual(challenge.code_hash, otpHash(challenge.id, code))) {
-      const attempts = challenge.attempts + 1;
-      await db
-        .updateTable('otp_challenges')
-        .set({ attempts, consumed_at: attempts >= OTP_MAX_ATTEMPTS ? new Date() : null })
-        .where('id', '=', challenge.id)
-        .execute();
-      const left = OTP_MAX_ATTEMPTS - attempts;
-      if (left <= 0) throw expired;
-      throw invalid(`Incorrect code. ${left} ${left === 1 ? 'attempt' : 'attempts'} left.`, { code: 'Incorrect code' });
-    }
-    await db.updateTable('otp_challenges').set({ consumed_at: new Date() }).where('id', '=', challenge.id).execute();
-
-    const user = await db.selectFrom('users').selectAll().where('phone', '=', phone).executeTakeFirst();
-    if (!user) throw expired; // challenge without a user never has a valid hash; defensive
-    if (user.status === 'suspended') throw new ApiError('FORBIDDEN', 'This account is suspended. Contact VTA support.');
-    if (user.status !== 'active' && user.status !== 'invited') throw unauthenticated('This account cannot sign in.');
-
-    await db.transaction().execute(async (trx) => {
-      if (user.status === 'invited') {
-        await trx
-          .updateTable('users')
-          .set({ status: 'active', phone_verified_at: new Date(), updated_at: new Date() })
-          .where('id', '=', user.id)
-          .execute();
-        await audit(trx, { ...auditCtx(req), actorId: user.id }, {
-          action: 'user.activated', entityType: 'user', entityId: user.id,
-          before: { status: 'invited' }, after: { status: 'active', via: 'otp' },
-        });
-      } else if (!user.phone_verified_at) {
-        await trx.updateTable('users').set({ phone_verified_at: new Date() }).where('id', '=', user.id).execute();
-      }
-    });
-    await createSession(db, req, reply, user.id, secure);
-    await audit(db, { ...auditCtx(req), actorId: user.id }, { action: 'auth.login', entityType: 'user', entityId: user.id, after: { method: 'otp' } });
+    await signInByPhone(req, reply, phone);
     return { ok: true };
+  });
+
+  /**
+   * EE-01: self-registration with a phone code. If the number already has an account, the person is simply
+   * signed in (nothing about it is changed), so registering cannot be used to find out who is registered.
+   */
+  app.post('/register', { config: { public: true, ...ipLimit(10) } }, async (req, reply) => {
+    const input = parse(registerSchema, req.body);
+    await checkCode(input.phone, input.code, 'register');
+    const existing = await db.selectFrom('users').select(['id']).where('phone', '=', input.phone).executeTakeFirst();
+    if (existing) {
+      await signInByPhone(req, reply, input.phone);
+      return { ok: true, existing: true };
+    }
+    const id = await db.transaction().execute((trx) => createSelfRegisteredCandidate(trx, req, input));
+    await createSession(db, req, reply, id, secure);
+    await audit(db, { ...auditCtx(req), actorId: id }, { action: 'auth.login', entityType: 'user', entityId: id, after: { method: 'otp', registered: true } });
+    reply.code(201);
+    return { ok: true, existing: false, noticeVersion: NOTICE_VERSION };
   });
 
   app.post('/logout', { config: { permission: 'self.read' } }, async (req, reply) => {
@@ -201,6 +242,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       })),
       portals: portalsForRoles(actor.roles),
       csrfToken: actor.csrfToken,
+      // Learners must accept the current privacy notice and terms before using the Learner portal (SH-05).
+      consentRequired: actor.roles.includes('learner') ? await consentRequired(db, actor.userId) : false,
     };
   });
 

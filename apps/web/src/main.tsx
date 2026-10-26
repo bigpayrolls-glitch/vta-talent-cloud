@@ -57,7 +57,34 @@ const router = createBrowserRouter([
     ],
   },
   { path: '/employer/*', element: <RequirePortal portal="employer"><PortalHome portal="employer" /></RequirePortal> },
-  { path: '/learn/*', element: <RequirePortal portal="learn"><PortalHome portal="learn" /></RequirePortal> },
+  // Phase 5: self-registration and the public notice pages.
+  { path: '/register', lazy: () => import('./pages/RegisterPage').then((m) => ({ Component: m.RegisterPage })) },
+  { path: '/privacy', lazy: () => import('./pages/public/NoticePages').then((m) => ({ Component: m.PrivacyPage })) },
+  { path: '/terms', lazy: () => import('./pages/public/NoticePages').then((m) => ({ Component: m.TermsPage })) },
+  {
+    path: '/learn',
+    lazy: async () => {
+      const { LearnerLayout } = await import('./pages/learner/LearnerLayout');
+      return {
+        Component: () => (
+          <RequirePortal portal="learn">
+            <LearnerLayout />
+          </RequirePortal>
+        ),
+      };
+    },
+    children: [
+      { index: true, lazy: () => import('./pages/learner/Home').then((m) => ({ Component: m.LearnerHomePage })) },
+      { path: 'learning', lazy: () => import('./pages/learner/Learning').then((m) => ({ Component: m.LearningPage })) },
+      { path: 'learning/:id/result', lazy: () => import('./pages/learner/Learning').then((m) => ({ Component: m.ResultPage })) },
+      { path: 'certificates', lazy: () => import('./pages/learner/Certificates').then((m) => ({ Component: m.WalletPage })) },
+      { path: 'certificates/:id', lazy: () => import('./pages/learner/Certificates').then((m) => ({ Component: m.CertificatePage })) },
+      { path: 'profile', lazy: () => import('./pages/learner/Profile').then((m) => ({ Component: m.ProfilePage })) },
+      { path: 'documents', lazy: () => import('./pages/learner/Documents').then((m) => ({ Component: m.DocumentsPage })) },
+      { path: 'privacy', lazy: () => import('./pages/learner/PrivacySettings').then((m) => ({ Component: m.PrivacySettingsPage })) },
+      { path: '*', element: <NotFound /> },
+    ],
+  },
   {
     path: '/partner',
     element: (

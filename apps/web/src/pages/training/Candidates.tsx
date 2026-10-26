@@ -50,7 +50,9 @@ interface CandidateDetail extends Omit<CandidateRow, 'possibleDuplicate'> {
   createdAt: string;
   possibleDuplicate: { id: string; name: string; code: string; city: string; status: string } | null;
   enrolments: { id: string; status: string; enrolledAt: string; batchId: string; batchName: string; batchStatus: string; courseTitle: string; centreName: string }[];
-  documents: { id: string; kind: keyof typeof DOCUMENT_KIND_LABEL; title: string; fileName: string; mimeType: string; sizeBytes: number; verificationStatus: string; scanStatus: string; createdAt: string }[];
+  noticeAccepted: boolean;
+  noticeAcceptedAt: string | null;
+  documents: { id: string; kind: keyof typeof DOCUMENT_KIND_LABEL; title: string; fileName: string; mimeType: string; sizeBytes: number; verificationStatus: string; scanStatus: string; visibility: 'private' | 'employers'; uploadedBySelf: boolean; createdAt: string }[];
 }
 
 const experience = (m: number) => (m === 0 ? 'No experience' : m < 12 ? `${m} months` : `${Math.floor(m / 12)} yr${m >= 24 ? 's' : ''}${m % 12 ? ` ${m % 12} mo` : ''}`);
@@ -385,6 +387,8 @@ export function CandidateDetailPage() {
             <dd>{c.searchable ? 'Visible' : 'Hidden until the candidate opts in'}</dd>
             <dt className="text-muted">Added</dt>
             <dd>{formatDate(c.createdAt)} ({c.source === 'import' ? 'CSV import' : c.source === 'self' ? 'self-registered' : 'by an admin'})</dd>
+            <dt className="text-muted">Privacy notice</dt>
+            <dd>{c.noticeAccepted ? `Accepted${c.noticeAcceptedAt ? ` ${formatDate(c.noticeAcceptedAt)}` : ''}` : 'Not yet accepted (asked at first sign-in)'}</dd>
           </dl>
         </section>
 
@@ -407,7 +411,11 @@ export function CandidateDetailPage() {
                   <FileText className="size-5 shrink-0 text-muted" aria-hidden />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium">{d.title}</p>
-                    <p className="text-[13px] text-muted">{DOCUMENT_KIND_LABEL[d.kind]}, {fileSize(d.sizeBytes)}, {formatDate(d.createdAt)}</p>
+                    <p className="text-[13px] text-muted">
+                      {DOCUMENT_KIND_LABEL[d.kind]}, {fileSize(d.sizeBytes)}, {formatDate(d.createdAt)}
+                      {d.uploadedBySelf ? ', uploaded by the candidate' : ''}
+                      {d.visibility === 'employers' ? ', employers may see it' : ''}
+                    </p>
                   </div>
                   <button className="btn-secondary btn-sm" onClick={() => void openDocument(d.id)} aria-label={`Download ${d.title}`}>
                     <Download className="size-4" aria-hidden />
