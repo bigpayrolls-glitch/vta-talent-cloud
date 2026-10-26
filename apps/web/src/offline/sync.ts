@@ -38,7 +38,7 @@ function explain(e: unknown): string {
   if (e instanceof ApiError) {
     if (e.status === 0) return offlineMessage;
     if (e.status === 401) return 'Your sign-in has ended. Sign in again to sync; your changes are kept on this phone.';
-    if (e.status === 403) return 'This account can no longer record attendance. Ask a VTA administrator.';
+    if (e.status === 403) return 'This account can no longer record attendance. Ask an AutoTalent Grid administrator.';
     return e.message;
   }
   return 'Sync failed. Your changes are kept on this phone.';

@@ -68,7 +68,7 @@ export const consentChangeSchema = z.object({
 /** EE-03: each evidence file is private, or visible to employers the person shares their profile with. */
 export const DOCUMENT_VISIBILITIES = ['private', 'employers'] as const;
 export type DocumentVisibility = (typeof DOCUMENT_VISIBILITIES)[number];
-export const DOCUMENT_VISIBILITY_LABEL: Record<DocumentVisibility, string> = { private: 'Only me and VTA', employers: 'Employers I share my profile with' };
+export const DOCUMENT_VISIBILITY_LABEL: Record<DocumentVisibility, string> = { private: 'Only me and AutoTalent Grid', employers: 'Employers I share my profile with' };
 
 export const learnerUploadQuery = z.object({
   kind: z.enum(DOCUMENT_KINDS),

@@ -43,7 +43,7 @@ export function PrivacySettingsPage() {
               Employers can find my profile
             </h2>
             <p className="mt-1 text-sm text-muted">
-              When on, employers on VTA Talent Cloud can find your profile in search: your name, city, skills, experience, languages, availability, VTA certificates,
+              When on, employers on AutoTalent Grid can find your profile in search: your name, city, skills, experience, languages, availability, AutoTalent Grid certificates,
               and the documents you let employers see. Your phone number and date of birth are not shown until you apply for a job.
             </p>
             <p className="mt-2 text-sm text-muted">Turning it off stops future sharing. It cannot recall what an employer has already seen.</p>
@@ -159,7 +159,7 @@ function YourData() {
         {closure.isLoading ? null : open ? (
           <>
             <p className="mt-1 text-sm">
-              You asked VTA to close your account on <span className="font-semibold">{formatDate(open.createdAt)}</span>. Employers can no longer find your profile. VTA will close the account and
+              You asked AutoTalent Grid to close your account on <span className="font-semibold">{formatDate(open.createdAt)}</span>. Employers can no longer find your profile. AutoTalent Grid will close the account and
               withdraw any open job applications.
             </p>
             <button type="button" className="btn-secondary mt-4" disabled={busy} onClick={() => void act(() => api.post('/me/closure-request/cancel'), 'Request cancelled. Your account stays open.')}>
@@ -169,7 +169,7 @@ function YourData() {
         ) : (
           <>
             <p className="mt-1 text-sm text-muted">
-              VTA closes the account for you: you can no longer sign in, open applications are withdrawn and employers cannot find you. Your training records and certificates are kept, so they can
+              AutoTalent Grid closes the account for you: you can no longer sign in, open applications are withdrawn and employers cannot find you. Your training records and certificates are kept, so they can
               still be checked.
             </p>
             <button type="button" className="btn-secondary mt-4 text-brand" onClick={() => setAsking(true)}>
@@ -183,19 +183,19 @@ function YourData() {
       <Modal
         open={asking}
         onClose={() => setAsking(false)}
-        title="Ask VTA to close your account?"
+        title="Ask AutoTalent Grid to close your account?"
         footer={
           <>
             <button type="button" className="btn-secondary" onClick={() => setAsking(false)}>
               Keep my account
             </button>
-            <button type="button" className="btn-primary" disabled={busy} onClick={() => void act(() => api.post('/me/closure-request', reason.trim() ? { reason: reason.trim() } : {}), 'Request sent to VTA.')}>
+            <button type="button" className="btn-primary" disabled={busy} onClick={() => void act(() => api.post('/me/closure-request', reason.trim() ? { reason: reason.trim() } : {}), 'Request sent to AutoTalent Grid.')}>
               {busy ? 'Sending…' : 'Send request'}
             </button>
           </>
         }
       >
-        <p className="text-sm">Employers stop seeing your profile straight away. You can cancel until VTA closes the account. Download your data first if you want a copy.</p>
+        <p className="text-sm">Employers stop seeing your profile straight away. You can cancel until AutoTalent Grid closes the account. Download your data first if you want a copy.</p>
         <div className="mt-4">
           <Field label="Reason (optional)" htmlFor="closure-reason">
             <textarea id="closure-reason" className="field-input min-h-20" maxLength={500} value={reason} onChange={(e) => setReason(e.target.value)} />

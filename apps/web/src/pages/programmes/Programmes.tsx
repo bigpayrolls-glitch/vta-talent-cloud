@@ -90,7 +90,7 @@ export function ProgrammesPage({ base }: { base: '/partner/programmes' | '/admin
           {filtered ? (
             <EmptyState title="No programmes match" body="Try another name or status." />
           ) : (
-            <EmptyState title="No programmes" body={admin ? 'Create a programme and assign it to a training partner.' : 'VTA assigns programmes to your organisation. They appear here.'} />
+            <EmptyState title="No programmes" body={admin ? 'Create a programme and assign it to a training partner.' : 'AutoTalent Grid assigns programmes to your organisation. They appear here.'} />
           )}
         </div>
       ) : (
@@ -127,7 +127,7 @@ export function ProgrammesPage({ base }: { base: '/partner/programmes' | '/admin
   );
 }
 
-const BASIS_LABEL: Record<Metric['basis'], string> = { actual: 'Actual', target: 'Target', employer_reported: 'Employer-reported', vta_verified: 'VTA-verified' };
+const BASIS_LABEL: Record<Metric['basis'], string> = { actual: 'Actual', target: 'Target', employer_reported: 'Employer-reported', vta_verified: 'AutoTalent Grid-verified' };
 const rate = (m: Metric) => (m.denominator && m.denominator.value ? `${Math.round((m.value / m.denominator.value) * 1000) / 10}%` : null);
 
 /** PA-03: every figure with its definition, type (actual, target, reported, verified) and denominator. */
@@ -278,7 +278,7 @@ function Beneficiaries({ p }: { p: ProgrammeDetail }) {
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <p className="flex max-w-2xl items-start gap-2 text-sm text-muted">
           <ShieldCheck className="mt-0.5 size-4 shrink-0" aria-hidden />
-          Only the fields VTA approved for this programme are shown.
+          Only the fields AutoTalent Grid approved for this programme are shown.
           {sharingBasis ? ` Basis for sharing personal details: ${sharingBasis}.` : ' Names, mobile numbers and dates of birth are not shared.'}
         </p>
         <a href={`/api/v1/programmes/${p.id}/beneficiaries.csv`} className="btn-secondary btn-sm" download>

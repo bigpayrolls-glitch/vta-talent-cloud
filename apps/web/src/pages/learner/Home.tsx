@@ -8,10 +8,10 @@ import { AttendanceMeter } from './Learning';
 import type { LearnerCredential, LearnerProfile, LearningItem } from './types';
 
 const VERIFY_TEXT: Record<LearnerProfile['verificationStatus'], string> = {
-  pending: 'VTA is checking your details.',
-  verified: 'Your details are verified by VTA.',
-  needs_correction: 'VTA asked you to correct your details.',
-  rejected: 'VTA could not verify your details.',
+  pending: 'AutoTalent Grid is checking your details.',
+  verified: 'Your details are verified by AutoTalent Grid.',
+  needs_correction: 'AutoTalent Grid asked you to correct your details.',
+  rejected: 'AutoTalent Grid could not verify your details.',
 };
 
 /** Learner home: who they are, what to do next, the current course and the latest certificate. */

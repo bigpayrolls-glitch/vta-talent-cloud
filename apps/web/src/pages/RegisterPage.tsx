@@ -48,7 +48,7 @@ export function RegisterPage() {
   return (
     <div className="min-h-dvh bg-white">
       <header className="flex h-16 items-center border-b border-line px-4 lg:px-6">
-        <Link to="/login" aria-label="VTA Talent Cloud sign in">
+        <Link to="/login" aria-label="AutoTalent Grid sign in">
           <Wordmark compact />
         </Link>
       </header>

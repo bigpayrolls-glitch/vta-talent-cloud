@@ -37,7 +37,7 @@ beforeAll(async () => {
 afterAll(() => ctx.close());
 
 describe('EM-01 / EM-02 company onboarding and team', () => {
-  it('a pending employer completes the profile, uploads a document and sends it to VTA', async () => {
+  it('a pending employer completes the profile, uploads a document and sends it to AutoTalent Grid', async () => {
     const p = c.employerAdminPending!;
     const missing = await p.post('/employer/company/submit');
     expect(missing.status).toBe(400);
@@ -70,7 +70,7 @@ describe('EM-01 / EM-02 company onboarding and team', () => {
     expect(draft.status).toBe(201); // drafts are fine
     const submit = await p.post(`/employer/jobs/${draft.body.id}/submit`);
     expect(submit.status).toBe(403);
-    expect(submit.body.error.message).toMatch(/VTA needs to verify your company/);
+    expect(submit.body.error.message).toMatch(/AutoTalent Grid needs to verify your company/);
     expect((await p.get('/employer/candidates')).status).toBe(403);
   });
 
@@ -110,7 +110,7 @@ describe('EM-01 / EM-02 company onboarding and team', () => {
       contactEmail: 'employer-a@demo.vta.local',
       contactPhone: '9900000301',
     });
-    expect(res.body.error.fields.legalName).toBe('Verified by VTA');
+    expect(res.body.error.fields.legalName).toBe('Verified by AutoTalent Grid');
   });
 
   it('the employer admin invites and removes a recruiter; recruiters cannot manage the team or company', async () => {
@@ -130,7 +130,7 @@ describe('EM-01 / EM-02 company onboarding and team', () => {
 
 describe('EM-03 / AD-09 jobs and moderation', () => {
   let jobId = '';
-  it('a recruiter posts a job; it goes to VTA, which publishes it', async () => {
+  it('a recruiter posts a job; it goes to AutoTalent Grid, which publishes it', async () => {
     const created = await c.recruiterA!.post('/employer/jobs', newJob());
     expect(created.body.status).toBe('draft');
     jobId = created.body.id;
@@ -153,7 +153,7 @@ describe('EM-03 / AD-09 jobs and moderation', () => {
     expect(past.body.error.fields.closingDate).toBe('Choose today or later');
   });
 
-  it('editing a published job sends it back to VTA; VTA can pause or close with a reason', async () => {
+  it('editing a published job sends it back to AutoTalent Grid; AutoTalent Grid can pause or close with a reason', async () => {
     const edited = await c.recruiterA!.put(`/employer/jobs/${jobId}`, newJob({ openings: 4 }));
     expect(edited.body.status).toBe('pending_review');
     await c.opsAdmin!.post(`/admin/jobs/${jobId}/moderate`, { action: 'publish' });
@@ -172,7 +172,7 @@ describe('EM-03 / AD-09 jobs and moderation', () => {
     expect((await c.employerAdminB!.get('/employer/jobs')).body.items.map((j: { id: string }) => j.id)).not.toContain(jobId);
   });
 
-  it('only VTA moderates; employers and partners cannot', async () => {
+  it('only AutoTalent Grid moderates; employers and partners cannot', async () => {
     expect((await c.employerAdminA!.post(`/admin/jobs/${jobId}/moderate`, { action: 'close', reason: 'x' })).status).toBe(403);
     expect((await c.partnerAdminA!.get('/admin/jobs')).status).toBe(403);
   });
@@ -258,7 +258,7 @@ describe('EM-05 to EM-08, EM-10 the employer’s pipeline', () => {
     expect(JSON.stringify(audits)).not.toMatch(/Strong on brakes/);
   });
 
-  it('offer, then joined with a joining date; VTA verifies the outcome', async () => {
+  it('offer, then joined with a joining date; AutoTalent Grid verifies the outcome', async () => {
     await c.recruiterA!.post(`/employer/applications/${appId}/move`, { to: 'offer' });
     expect((await c.recruiterA!.post(`/employer/applications/${appId}/move`, { to: 'joined' })).body.error.fields.joiningDate).toBe('Enter the joining date');
     expect((await c.recruiterA!.post(`/employer/applications/${appId}/move`, { to: 'joined', joiningDate: '2026-11-30' })).body.error.fields.joiningDate).toBe('Not in the future');

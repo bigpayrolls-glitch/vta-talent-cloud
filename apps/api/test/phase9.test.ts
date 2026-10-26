@@ -25,7 +25,7 @@ describe('SH-07 notifications', () => {
   let jobId = '';
   let appId = '';
 
-  it('a job sent for review reaches VTA reviewers; publishing it reaches the employer team, never the person who acted', async () => {
+  it('a job sent for review reaches AutoTalent Grid reviewers; publishing it reaches the employer team, never the person who acted', async () => {
     const job = await c.recruiterA!.post('/employer/jobs', {
       title: 'Brake specialist',
       skillArea: '2W',
@@ -100,7 +100,7 @@ describe('SH-07 notifications', () => {
     await c.opsAdmin!.post(`/admin/organisations/${ctx.ids.employerPending}/request-info`, { reason: 'Upload a clearer GST certificate' });
     const pending = await loginEmail(ctx, EMAIL.employerAdminPending);
     const n = (await pending.get('/notifications')).body.items[0];
-    expect(n).toMatchObject({ title: 'VTA needs more information', link: '/employer/company' });
+    expect(n).toMatchObject({ title: 'AutoTalent Grid needs more information', link: '/employer/company' });
     expect(n.body).toContain('clearer GST certificate');
   });
 
@@ -194,7 +194,7 @@ describe('learner data download and account closure', () => {
     expect((await c.employerAdminA!.get('/me/export')).status).toBe(403);
   });
 
-  it('a closure request takes the profile out of search at once and tells VTA; it can be cancelled', async () => {
+  it('a closure request takes the profile out of search at once and tells AutoTalent Grid; it can be cancelled', async () => {
     await ctx.db.updateTable('candidate_profiles').set({ searchable: true }).where('user_id', '=', (await ctx.db.selectFrom('users').select('id').where('phone', '=', PHONE.learner).executeTakeFirstOrThrow()).id).execute();
     const r = await c.learner!.post('/me/closure-request', { reason: 'Moving abroad' });
     expect(r.status).toBe(201);

@@ -53,7 +53,7 @@ test.describe.serial('training operations: attendance to certificate', () => {
     await expect(page.locator('li').filter({ hasText: 'Venkatesh Learner' }).getByText('Awaiting review')).toBeVisible();
   });
 
-  test('a VTA reviewer approves from the review queue', async ({ page }) => {
+  test('an AutoTalent Grid reviewer approves from the review queue', async ({ page }) => {
     await signInEmail(page, EMAIL.opsAdmin);
     await page.getByRole('link', { name: 'Assessment review' }).click();
     await page.getByRole('link', { name: /Venkatesh Learner/ }).click();
@@ -91,7 +91,7 @@ test.describe.serial('training operations: attendance to certificate', () => {
     await expect(check.getByText('Valid certificate')).toBeVisible();
     await expect(check.getByText('Venkatesh Learner')).toBeVisible();
     await expect(check.getByText('2W Service Technician')).toBeVisible();
-    await expect(check.getByText(/\+91|VTA26/)).toHaveCount(0);
+    await expect(check.getByText(/\+91|ATG26/)).toHaveCount(0);
   });
 
   test('a revoked certificate shows as revoked on its check page, without signing in', async ({ page, browser }) => {

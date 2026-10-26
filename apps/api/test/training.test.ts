@@ -92,8 +92,8 @@ describe('T-02 trainers and centres', () => {
     expect(t.body.centres.map((c: { name: string; organisationName: string }) => [c.name, c.organisationName])).toEqual([['Skill Bridge Peenya Centre', 'Skill Bridge Foundation (demo)']]);
   });
 
-  it('adds a trainer at a VTA-run centre with no partner organisation', async () => {
-    const res = await ops.post('/admin/trainers', { name: 'Lata VTA Trainer', phone: '9900000402', centreId: ctx.ids.centreVta });
+  it('adds a trainer at an AutoTalent Grid-run centre with no partner organisation', async () => {
+    const res = await ops.post('/admin/trainers', { name: 'Lata AutoTalent Grid Trainer', phone: '9900000402', centreId: ctx.ids.centreVta });
     expect(res.status).toBe(201);
     const ra = await ctx.db.selectFrom('role_assignments').select(['organisation_id']).where('user_id', '=', res.body.id).executeTakeFirstOrThrow();
     expect(ra.organisation_id).toBeNull();
@@ -129,7 +129,7 @@ describe('T-03 candidates: create, duplicates, approval', () => {
   it('creates an invited candidate with a unique candidate code and the learner role', async () => {
     const res = await ops.post('/admin/candidates', base);
     expect(res.status).toBe(201);
-    expect(res.body.code).toMatch(/^VTA\d{7}$/);
+    expect(res.body.code).toMatch(/^ATG\d{7}$/);
     expect(res.body.possibleDuplicate).toBe(false);
     const c = await ops.get(`/admin/candidates/${res.body.id}`);
     expect(c.body).toMatchObject({ name: 'Harish Bhat', phone: '+919900000501', verificationStatus: 'pending', userStatus: 'invited', source: 'admin', searchable: false });
@@ -185,7 +185,7 @@ describe('T-03 candidates: create, duplicates, approval', () => {
   });
 
   it('searches and filters candidates on the server (T-05)', async () => {
-    const byCode = await ops.get('/admin/candidates?q=VTA2600002');
+    const byCode = await ops.get('/admin/candidates?q=ATG2600002');
     expect(byCode.body.items.map((c: { name: string }) => c.name)).toEqual(['Ravi Kumar']);
     const byPhone = await ops.get('/admin/candidates?q=00000215');
     expect(byPhone.body.items[0].name).toBe('Naveen Shetty');

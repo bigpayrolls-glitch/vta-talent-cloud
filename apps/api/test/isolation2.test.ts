@@ -151,11 +151,11 @@ describe('trainer records', () => {
   it('partner admins see only their own trainers; centre admins those at their centre', async () => {
     expect(names(await c.partnerAdminA!.get('/trainers'))).toEqual(['Kavya New Trainer', 'Prakash Trainer']);
     expect(names(await c.partnerAdminB!.get('/trainers'))).toEqual(['Imran Trainer B']);
-    expect(names(await c.centreAdmin!.get('/trainers'))).toEqual(['Suresh VTA Trainer']);
+    expect(names(await c.centreAdmin!.get('/trainers'))).toEqual(['Suresh AutoTalent Grid Trainer']);
     expect((await c.partnerAdminA!.get(`/trainers/${ctx.ids.trainerB}`)).status).toBe(404);
   });
 
-  it('only VTA admins add or verify trainers', async () => {
+  it('only AutoTalent Grid admins add or verify trainers', async () => {
     for (const who of ['partnerAdminA', 'centreAdmin', 'trainerA']) {
       expect((await c[who]!.post(`/admin/trainers/${ctx.ids.trainerPending}/verify`)).status, who).toBe(403);
       expect((await c[who]!.post('/admin/trainers', { name: 'New Person', phone: '9900000888', centreId: ctx.ids.centrePartnerA })).status, who).toBe(403);

@@ -15,7 +15,7 @@ test.describe.serial('partner programmes and reports', () => {
     const enrolled = page.locator('li').filter({ hasText: /^Enrolled/ });
     await expect(enrolled).toContainText('of 40');
     await expect(enrolled).toContainText('Candidate-to-batch enrolments');
-    await expect(page.locator('li').filter({ hasText: 'Joined (VTA-verified)' })).toContainText('people who completed');
+    await expect(page.locator('li').filter({ hasText: 'Joined (AutoTalent Grid-verified)' })).toContainText('people who completed');
     await expect(page.getByText(/A manually recorded figure, not finance data/)).toBeVisible();
 
     await page.getByRole('tab', { name: 'beneficiaries' }).click();
@@ -56,7 +56,7 @@ test.describe.serial('partner programmes and reports', () => {
     await other.close();
   });
 
-  test('VTA creates a programme for another partner, who then sees it', async ({ page, browser }) => {
+  test('AutoTalent Grid creates a programme for another partner, who then sees it', async ({ page, browser }) => {
     await signInEmail(page, EMAIL.opsAdmin);
     await page.getByRole('link', { name: 'Programmes' }).first().click();
     await page.getByRole('link', { name: 'New programme' }).click();
@@ -82,7 +82,7 @@ test.describe.serial('partner programmes and reports', () => {
     await other.close();
   });
 
-  test('VTA filters the cohort report and downloads it', async ({ page }) => {
+  test('AutoTalent Grid filters the cohort report and downloads it', async ({ page }) => {
     await signInEmail(page, EMAIL.opsAdmin);
     await page.goto('/admin/reports');
     await page.getByLabel('Programme').selectOption({ label: PROGRAMME });

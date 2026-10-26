@@ -41,7 +41,7 @@ export function CandidateSearchPage() {
 
   return (
     <>
-      <PageHeader title="Find candidates" description="Only people who chose to let employers find them, verified by VTA. Contact details are shared when they apply to your job." />
+      <PageHeader title="Find candidates" description="Only people who chose to let employers find them, verified by AutoTalent Grid. Contact details are shared when they apply to your job." />
       <form
         className="card mb-4 grid gap-3 px-4 py-4 sm:grid-cols-2 lg:grid-cols-5"
         onSubmit={(e) => {
@@ -81,11 +81,11 @@ export function CandidateSearchPage() {
         </div>
         <div>
           <label className="field-label" htmlFor="f-cert">
-            VTA certificate
+            AutoTalent Grid certificate
           </label>
           <select id="f-cert" className="field-input" value={filters.hasCertificate} onChange={(e) => set('hasCertificate', e.target.value)}>
             <option value="">Any</option>
-            <option value="yes">Has a VTA certificate</option>
+            <option value="yes">Has an AutoTalent Grid certificate</option>
           </select>
         </div>
         <div className="flex items-end">
@@ -172,7 +172,7 @@ export function CandidateProfilePage() {
         <div>
           <h1 className="text-[26px] font-bold tracking-tight">{c.name}</h1>
           <p className="mt-1 text-muted">
-            {[c.city, c.state].filter(Boolean).join(', ')}. Verified by VTA.
+            {[c.city, c.state].filter(Boolean).join(', ')}. Verified by AutoTalent Grid.
           </p>
         </div>
         <button className="btn-primary" onClick={() => setInviting(true)}>
@@ -204,7 +204,7 @@ export function CandidateProfilePage() {
         </section>
         <aside className="space-y-6">
           <section className="card px-5 py-4 text-sm">
-            <h2 className="font-semibold">VTA certificates</h2>
+            <h2 className="font-semibold">AutoTalent Grid certificates</h2>
             {!c.certificates.length ? (
               <p className="mt-1 text-muted">None yet.</p>
             ) : (

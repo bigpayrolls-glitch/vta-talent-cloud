@@ -63,7 +63,7 @@ export function InstallCard() {
     <section className="card mt-6 flex items-start gap-4 px-5 py-4" aria-label="Install the app">
       <img src="/icons/icon-192.png" alt="" className="size-11 shrink-0 rounded-xl" />
       <div className="min-w-0 flex-1">
-        <p className="font-semibold">Add VTA to your home screen</p>
+        <p className="font-semibold">Add AutoTalent Grid to your home screen</p>
         {ios ? (
           <p className="mt-0.5 text-sm text-muted">
             In Safari, tap <Share className="inline size-4 align-text-bottom" aria-label="Share" /> Share, then <strong>Add to Home Screen</strong>. It opens like an app and takes attendance offline.

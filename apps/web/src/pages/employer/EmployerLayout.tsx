@@ -46,12 +46,12 @@ export function EmployerLayout() {
       {showBanner && (
         <p role="status" className="mb-5 rounded-xl bg-warning-tint px-4 py-3 text-sm text-warning">
           {c.verificationStatus === 'more_info_needed'
-            ? `VTA needs more information: ${c.verificationReason ?? ''} `
+            ? `AutoTalent Grid needs more information: ${c.verificationReason ?? ''} `
             : c.verificationStatus === 'rejected'
-              ? 'VTA could not verify your company. Contact VTA to discuss it. '
+              ? 'AutoTalent Grid could not verify your company. Contact AutoTalent Grid to discuss it. '
               : c.submittedAt
-                ? 'VTA is checking your company. You can prepare job drafts meanwhile; publishing and candidate search open once it is verified. '
-                : 'Complete your company profile and send it to VTA for checking before you can publish jobs or search candidates. '}
+                ? 'AutoTalent Grid is checking your company. You can prepare job drafts meanwhile; publishing and candidate search open once it is verified. '
+                : 'Complete your company profile and send it to AutoTalent Grid for checking before you can publish jobs or search candidates. '}
           <Link to="/employer/company" className="font-semibold underline">
             Company profile
           </Link>

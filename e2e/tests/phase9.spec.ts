@@ -9,7 +9,7 @@ async function apiPost(page: Page, url: string, data: unknown) {
   expect(res.status(), await res.text()).toBeLessThan(300);
 }
 
-test('a VTA decision shows on the bell; opening it goes to the right page and marks it read', async ({ page, browser }) => {
+test('an AutoTalent Grid decision shows on the bell; opening it goes to the right page and marks it read', async ({ page, browser }) => {
   await signInEmail(page, EMAIL.opsAdmin);
   await apiPost(page, `/admin/organisations/${ids.employerPending}/request-info`, { reason: 'Please upload a clearer GST certificate' });
 
@@ -20,14 +20,14 @@ test('a VTA decision shows on the bell; opening it goes to the right page and ma
   await expect(bell).toBeVisible();
   await bell.click();
   await expect(emp).toHaveURL(/\/employer\/notifications$/);
-  const item = emp.getByRole('button', { name: /VTA needs more information/ }).first();
+  const item = emp.getByRole('button', { name: /AutoTalent Grid needs more information/ }).first();
   await expect(item).toContainText('clearer GST certificate');
   await expect(item).toContainText('(unread)');
   await item.click();
   await expect(emp).toHaveURL(/\/employer\/company$/);
 
   await emp.goto('/employer/notifications');
-  await expect(emp.getByRole('button', { name: /VTA needs more information/ }).first()).not.toContainText('(unread)');
+  await expect(emp.getByRole('button', { name: /AutoTalent Grid needs more information/ }).first()).not.toContainText('(unread)');
   const markAll = emp.getByRole('button', { name: 'Mark all as read' });
   if (await markAll.isVisible()) await markAll.click();
   await expect(emp.getByText('You are up to date.')).toBeVisible();
@@ -86,7 +86,7 @@ test('a learner downloads their data and can ask to close the account, then canc
   await page.getByRole('button', { name: 'Ask to close my account' }).click();
   await page.getByLabel('Reason (optional)').fill('Testing');
   await page.getByRole('button', { name: 'Send request' }).click();
-  await expect(page.getByText(/You asked VTA to close your account on/)).toBeVisible();
+  await expect(page.getByText(/You asked AutoTalent Grid to close your account on/)).toBeVisible();
   await expect(page.getByRole('switch', { name: 'Employers can find my profile' })).toHaveAttribute('aria-checked', 'false');
   await expectNoHorizontalScroll(page);
 

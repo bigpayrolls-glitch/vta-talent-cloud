@@ -1,6 +1,6 @@
 # Requirements traceability
 
-This file maps the VTA Talent Cloud requirements document (Version 1.0, proposed MVP) to what is built. It was checked against the code and tests, not only README. State: Phases 1 to 10 (26 Oct 2026). Drafted by a reviewer that had not written the code, then updated after the Phase 9 and 10 changes and the fixes its review led to.
+This file maps the AutoTalent Grid requirements document (Version 1.0, proposed MVP) to what is built. It was checked against the code and tests, not only README. State: Phases 1 to 10 (26 Oct 2026). Drafted by a reviewer that had not written the code, then updated after the Phase 9 and 10 changes and the fixes its review led to.
 
 Paths are relative to the repository root. `api/` means `apps/api/src/`, `web/` means `apps/web/src/pages/`. Tests are cited as *file › test name*.
 

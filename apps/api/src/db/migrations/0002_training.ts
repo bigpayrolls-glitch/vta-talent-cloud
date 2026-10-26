@@ -54,7 +54,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       updated_at timestamptz NOT NULL DEFAULT now()
     );
 
-    -- Human-readable candidate codes: VTA2600001 (year + sequence).
+    -- Human-readable candidate codes: ATG2600001 (VTA before the AutoTalent Grid rename) (year + sequence).
     CREATE SEQUENCE candidate_code_seq START 1;
 
     CREATE TABLE candidate_profiles (

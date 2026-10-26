@@ -155,7 +155,7 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
 
     return db.transaction().execute(async (trx) => {
       let live = await trx.selectFrom('assessment_results').selectAll().where('enrolment_id', '=', id).where('status', '!=', 'rejected').forUpdate().executeTakeFirst();
-      if (live && live.status !== 'draft' && live.status !== 'returned') throw invalid('This result has been submitted and cannot be changed unless VTA returns it for correction.');
+      if (live && live.status !== 'draft' && live.status !== 'returned') throw invalid('This result has been submitted and cannot be changed unless AutoTalent Grid returns it for correction.');
       if (!live) {
         const rid = newId();
         await trx

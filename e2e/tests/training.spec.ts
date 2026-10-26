@@ -68,7 +68,7 @@ test.describe.serial('training operations', () => {
     await page.getByRole('link', { name: /EV Mysuru Battery January 2027/ }).click();
     await expect(page.getByText('Pooja Naik')).toBeVisible();
     await expect(page.getByText('+91 99000')).toHaveCount(0);
-    await expect(page.getByText('Contact details are shown to the batch trainer and VTA staff only.')).toBeVisible();
+    await expect(page.getByText('Contact details are shown to the batch trainer and AutoTalent Grid staff only.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Enrol candidates' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Cancel batch' })).toHaveCount(0);
   });
@@ -84,6 +84,6 @@ test.describe.serial('training operations', () => {
     await expect(page.getByRole('link', { name: /EV Mysuru Battery January 2027/ })).toBeVisible();
     await expect(page.getByRole('link', { name: /2W Peenya/ })).toHaveCount(0);
     await page.getByRole('link', { name: /EV Mysuru Battery January 2027/ }).click();
-    await expect(page.getByText(/VTA26\d{5}, \+91 99000 00216/)).toBeVisible();
+    await expect(page.getByText(/ATG26\d{5}, \+91 99000 00216/)).toBeVisible();
   });
 });

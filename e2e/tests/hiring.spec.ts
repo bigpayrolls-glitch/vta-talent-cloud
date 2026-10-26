@@ -9,7 +9,7 @@ const PDF = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(200, 0x20), B
 const JOB = 'Two-wheeler workshop technician (e2e)';
 
 test.describe.serial('hiring: vacancy to verified joining', () => {
-  test('a recruiter posts a job and sends it to VTA; VTA publishes it', async ({ page, browser }) => {
+  test('a recruiter posts a job and sends it to AutoTalent Grid; AutoTalent Grid publishes it', async ({ page, browser }) => {
     await signInEmail(page, EMAIL.recruiterA);
     await page.getByRole('link', { name: 'Post a job' }).first().click();
     await page.getByLabel('Job title').fill(JOB);
@@ -27,7 +27,7 @@ test.describe.serial('hiring: vacancy to verified joining', () => {
     await page.getByRole('button', { name: 'Save draft' }).click();
     await expect(page.getByRole('heading', { name: JOB })).toBeVisible();
     await page.getByRole('button', { name: 'Send for review' }).click();
-    await expect(page.getByText('Waiting for VTA review').first()).toBeVisible();
+    await expect(page.getByText('Waiting for AutoTalent Grid review').first()).toBeVisible();
 
     const admin = await browser.newContext();
     const a = await admin.newPage();
@@ -94,7 +94,7 @@ test.describe.serial('hiring: vacancy to verified joining', () => {
     await expect(page.getByText(/Good on brakes/)).toHaveCount(0);
   });
 
-  test('VTA confirms the recorded joining', async ({ page }) => {
+  test('AutoTalent Grid confirms the recorded joining', async ({ page }) => {
     await signInEmail(page, EMAIL.opsAdmin);
     await page.getByRole('link', { name: /hiring outcomes? to confirm/ }).click();
     const row = page.locator('li').filter({ hasText: 'Venkatesh Learner' });
@@ -127,24 +127,24 @@ test.describe.serial('hiring: vacancy to verified joining', () => {
     await learner.close();
   });
 
-  test('a new employer completes its company profile and sends it to VTA, which checks the documents and verifies it', async ({ page, browser }) => {
+  test('a new employer completes its company profile and sends it to AutoTalent Grid, which checks the documents and verifies it', async ({ page, browser }) => {
     await signInEmail(page, EMAIL.employerAdminPending);
-    await expect(page.getByText(/Complete your company profile and send it to VTA/)).toBeVisible();
+    await expect(page.getByText(/Complete your company profile and send it to AutoTalent Grid/)).toBeVisible();
     await page.getByRole('link', { name: 'Company profile' }).click();
     await page.getByLabel('Contact person').fill('Meera Employer Pending');
     await page.getByLabel('Contact mobile').fill('9900000303');
     await page.getByLabel('Contact email').fill('employer-pending@demo.vta.local');
     await page.getByRole('button', { name: 'Save company profile' }).click();
     await expect(page.getByText('Company profile saved')).toBeVisible();
-    await page.getByRole('button', { name: 'Send to VTA' }).click();
+    await page.getByRole('button', { name: 'Send to AutoTalent Grid' }).click();
     await expect(page.getByText(/Upload at least one registration document/)).toBeVisible();
     await page.getByRole('button', { name: 'Upload' }).click();
     const up = page.getByRole('dialog', { name: 'Upload registration document' });
     await up.getByLabel('File').setInputFiles({ name: 'gst-certificate.pdf', mimeType: 'application/pdf', buffer: PDF });
     await up.getByRole('button', { name: 'Upload' }).click();
     await expect(page.getByText('Document uploaded')).toBeVisible();
-    await page.getByRole('button', { name: 'Send to VTA' }).click();
-    await expect(page.getByText('Sent to VTA for checking')).toBeVisible();
+    await page.getByRole('button', { name: 'Send to AutoTalent Grid' }).click();
+    await expect(page.getByText('Sent to AutoTalent Grid for checking')).toBeVisible();
 
     const admin = await browser.newContext();
     const a = await admin.newPage();
@@ -158,6 +158,6 @@ test.describe.serial('hiring: vacancy to verified joining', () => {
     await admin.close();
 
     await page.reload();
-    await expect(page.getByText('Verified by VTA', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Verified by AutoTalent Grid', { exact: true }).first()).toBeVisible();
   });
 });

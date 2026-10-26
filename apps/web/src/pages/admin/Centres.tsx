@@ -45,7 +45,7 @@ export function CentresPage() {
     <div>
       <PageHeader
         title="Centres"
-        description={manage ? 'Training centres run by VTA or by training partners.' : 'The centres you manage.'}
+        description={manage ? 'Training centres run by AutoTalent Grid or by training partners.' : 'The centres you manage.'}
         actions={
           manage && (
             <button className="btn-primary" onClick={() => setEditing('new')}>
@@ -84,7 +84,7 @@ export function CentresPage() {
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold">{c.name}</p>
                     <p className="text-sm text-muted">
-                      {[c.city, c.organisationName ?? 'Run by VTA'].filter(Boolean).join(', ')}
+                      {[c.city, c.organisationName ?? 'Run by AutoTalent Grid'].filter(Boolean).join(', ')}
                     </p>
                   </div>
                   <StatusBadge status={c.status} />
@@ -176,7 +176,7 @@ function CentreModal({ centre, onClose }: { centre: CentreRow | null; onClose: (
         </Field>
         <Field label="Run by" htmlFor="c-org" error={f.errors.organisationId} hint="Trainers can only be assigned to centres run by their own training partner.">
           <select id="c-org" className="field-input" value={v.organisationId} onChange={upd('organisationId')}>
-            <option value="">VTA</option>
+            <option value="">AutoTalent Grid</option>
             {partners.data?.items.map((p) => <option key={p.id} value={p.id}>{p.legalName}</option>)}
           </select>
         </Field>

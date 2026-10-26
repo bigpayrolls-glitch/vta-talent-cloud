@@ -122,7 +122,7 @@ export const learnerJobRoutes: FastifyPluginAsync = async (app) => {
       .where('u.id', '=', userId)
       .executeTakeFirstOrThrow();
     return {
-      fields: ['Name', 'Mobile number', ...(p.email ? ['Email'] : []), 'City and preferred work area', 'Skills, experience, education, languages and availability', 'Candidate ID and VTA verification status'],
+      fields: ['Name', 'Mobile number', ...(p.email ? ['Email'] : []), 'City and preferred work area', 'Skills, experience, education, languages and availability', 'Candidate ID and AutoTalent Grid verification status'],
       contact: { name: p.name, phone: p.phone, email: p.email },
       certificates: (await certificatesOf(db, userId)).map((c) => ({ id: c.id, course: c.course })),
       documents: (await sharedDocumentsOf(db, userId)).map((d) => ({ id: d.id, title: d.title })),

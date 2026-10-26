@@ -14,7 +14,7 @@ export type CandidateInput = z.infer<typeof candidateSchema>;
 export async function nextCandidateCode(db: Executor): Promise<string> {
   const { rows } = await sql<{ n: string }>`select nextval('candidate_code_seq') as n`.execute(db);
   const yy = String(new Date().getUTCFullYear()).slice(-2);
-  return `VTA${yy}${String(rows[0]!.n).padStart(5, '0')}`;
+  return `ATG${yy}${String(rows[0]!.n).padStart(5, '0')}`;
 }
 
 /**

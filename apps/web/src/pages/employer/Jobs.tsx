@@ -29,7 +29,7 @@ export function EmployerJobsPage() {
     <>
       <PageHeader
         title="Jobs"
-        description="VTA checks each job before learners see it."
+        description="AutoTalent Grid checks each job before learners see it."
         actions={
           <Link to="/employer/jobs/new" className="btn-primary">
             <Plus className="size-4" aria-hidden />
@@ -142,7 +142,7 @@ function JobForm({ id, initial, status }: { id?: string; initial: typeof blank; 
         const res = id ? await api.put<JobView>(`/employer/jobs/${id}`, data) : await api.post<JobView>('/employer/jobs', data);
         draft.clear();
         await qc.invalidateQueries({ queryKey: ['employer'] });
-        toast('success', id ? (res.status === 'pending_review' && status !== 'pending_review' ? 'Saved. The change goes to VTA for review.' : 'Job saved') : 'Draft saved. Send it to VTA when ready.');
+        toast('success', id ? (res.status === 'pending_review' && status !== 'pending_review' ? 'Saved. The change goes to AutoTalent Grid for review.' : 'Job saved') : 'Draft saved. Send it to AutoTalent Grid when ready.');
         navigate(`/employer/jobs/${res.id}`);
       },
     );
@@ -154,7 +154,7 @@ function JobForm({ id, initial, status }: { id?: string; initial: typeof blank; 
         {id ? 'Back to the job' : 'Jobs'}
       </Link>
       <h1 className="mb-5 mt-3 text-[26px] font-bold tracking-tight">{id ? 'Edit job' : 'Post a job'}</h1>
-      {(status === 'published' || status === 'paused') && <p className="mb-4 rounded-lg bg-info-tint px-3 py-2 text-sm text-info">Saving changes sends this job back to VTA for review. It is hidden from learners until approved again.</p>}
+      {(status === 'published' || status === 'paused') && <p className="mb-4 rounded-lg bg-info-tint px-3 py-2 text-sm text-info">Saving changes sends this job back to AutoTalent Grid for review. It is hidden from learners until approved again.</p>}
       <form
         noValidate
         className="card max-w-3xl space-y-4 px-5 py-5"
@@ -217,7 +217,7 @@ function JobForm({ id, initial, status }: { id?: string; initial: typeof blank; 
         </Field>
         <label className="flex items-center gap-3 text-sm">
           <input type="checkbox" className="size-4 accent-[var(--color-brand)]" checked={v.vtaCertificatePreferred} onChange={set('vtaCertificatePreferred')} />
-          VTA certificate preferred
+          AutoTalent Grid certificate preferred
         </label>
         <div className="flex flex-wrap gap-2 pt-2">
           <button type="submit" className="btn-primary" disabled={f.submitting}>
@@ -298,7 +298,7 @@ export function EmployerJobDetailPage() {
             </Link>
           )}
           {(j.status === 'draft' || j.status === 'rejected') && (
-            <button className="btn-primary" onClick={() => void act('submit', 'Sent to VTA for review')}>
+            <button className="btn-primary" onClick={() => void act('submit', 'Sent to AutoTalent Grid for review')}>
               Send for review
             </button>
           )}
@@ -326,7 +326,7 @@ export function EmployerJobDetailPage() {
       )}
       {j.moderationReason && (j.status === 'rejected' || j.status === 'paused' || j.status === 'closed') && (
         <p className="mb-4 rounded-lg bg-warning-tint px-4 py-3 text-sm text-warning">
-          <span className="font-semibold">VTA&apos;s note:</span> {j.moderationReason}
+          <span className="font-semibold">AutoTalent Grid&apos;s note:</span> {j.moderationReason}
         </p>
       )}
 
@@ -352,7 +352,7 @@ export function EmployerJobDetailPage() {
           {apps.isLoading ? (
             <Spinner />
           ) : !apps.data?.items.length ? (
-            <EmptyState title="No applicants here" body={j.status === 'published' ? 'Applications appear here as learners apply.' : 'Applications open once VTA publishes the job.'} />
+            <EmptyState title="No applicants here" body={j.status === 'published' ? 'Applications appear here as learners apply.' : 'Applications open once AutoTalent Grid publishes the job.'} />
           ) : (
             <ul className="divide-y divide-line">
               {apps.data.items.map((a) => (
@@ -366,7 +366,7 @@ export function EmployerJobDetailPage() {
                       {a.vtaCertificates > 0 && (
                         <span className="mt-1 inline-flex items-center gap-1 text-[13px] font-medium text-brand">
                           <Award className="size-3.5" aria-hidden />
-                          {a.vtaCertificates} VTA {a.vtaCertificates === 1 ? 'certificate' : 'certificates'}
+                          {a.vtaCertificates} AutoTalent Grid {a.vtaCertificates === 1 ? 'certificate' : 'certificates'}
                         </span>
                       )}
                     </span>
@@ -383,7 +383,7 @@ export function EmployerJobDetailPage() {
           <p>{experienceText(j.minExperienceMonths)}</p>
           {j.shift && <p>{j.shift}</p>}
           {j.skills.length > 0 && <p className="text-muted">Skills: {j.skills.join(', ')}</p>}
-          {j.vtaCertificatePreferred && <p className="font-medium text-brand">VTA certificate preferred</p>}
+          {j.vtaCertificatePreferred && <p className="font-medium text-brand">AutoTalent Grid certificate preferred</p>}
           <p className="whitespace-pre-line border-t border-line pt-3 text-muted">{j.description}</p>
         </aside>
       </div>

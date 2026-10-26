@@ -1,22 +1,28 @@
 import { X } from 'lucide-react';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { MARK_DARK, MARK_RED, MARK_VIEWBOX } from './logo-paths';
+
+/** The "Road A" symbol on its own (app icons, small spaces). Decorative unless given a label. */
+export function LogoMark({ className = 'h-7 w-auto', label, inverse = false }: { className?: string; label?: string; inverse?: boolean }) {
+  return (
+    <svg viewBox={MARK_VIEWBOX} className={className} role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : true}>
+      <path fill={inverse ? '#FFFFFF' : '#202124'} fillRule="evenodd" d={MARK_DARK} />
+      <path fill="#E31B23" fillRule="evenodd" d={MARK_RED} />
+    </svg>
+  );
+}
 
 /**
- * Text wordmark. A placeholder until VTA supplies the master logo file (requirements §16:
- * do not recreate or distort the logo). Swap this component for the official asset.
+ * AutoTalent Grid logo: the symbol and the name, with "Talent" in red (brand artwork of 26 Oct 2026).
+ * `tight`: on narrow phones only the symbol shows, leaving room in a busy header.
  */
-/** `tight`: on narrow phones only the VTA mark shows, leaving room in a busy header. */
-export function Wordmark({ compact = false, tight = false }: { compact?: boolean; tight?: boolean }) {
+export function Wordmark({ compact = false, tight = false, inverse = false }: { compact?: boolean; tight?: boolean; inverse?: boolean }) {
   const narrowHide = tight ? 'max-[479px]:hidden' : '';
   return (
-    <span className="inline-flex items-center gap-2 select-none" role="img" aria-label="VTA Talent Cloud">
-      <span className={`font-black tracking-tight text-brand italic ${compact ? 'text-2xl' : 'text-[28px]'}`} aria-hidden>
-        VTA
-      </span>
-      <span className={`h-7 w-px bg-ink/30 ${narrowHide}`} aria-hidden />
-      <span className={`flex flex-col leading-[1.05] text-ink ${narrowHide}`} aria-hidden>
-        <span className="text-[11px] font-medium tracking-wide">TALENT</span>
-        <span className="text-[13px] font-bold tracking-wide">CLOUD</span>
+    <span className="inline-flex items-center gap-2 select-none" role="img" aria-label="AutoTalent Grid">
+      <LogoMark className={compact ? 'h-7 w-auto' : 'h-9 w-auto'} inverse={inverse} />
+      <span className={`whitespace-nowrap font-extrabold tracking-tight ${compact ? 'text-[19px]' : 'text-[23px]'} ${inverse ? 'text-white' : 'text-ink'} ${narrowHide}`} aria-hidden>
+        Auto<span className={inverse ? 'text-[#FF4D55]' : 'text-[#D7141C]'}>Talent</span> Grid
       </span>
     </span>
   );

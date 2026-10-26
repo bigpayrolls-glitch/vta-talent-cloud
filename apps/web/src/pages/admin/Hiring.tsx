@@ -28,7 +28,7 @@ export function JobModerationPage() {
   const q = useQuery({ queryKey: ['admin', 'jobs', status, page], queryFn: () => api.get<Page<AdminJob>>(`/admin/jobs${qs({ status, page })}`), placeholderData: (p) => p });
   return (
     <>
-      <PageHeader title="Jobs" description="Learners see a job only after VTA publishes it." />
+      <PageHeader title="Jobs" description="Learners see a job only after AutoTalent Grid publishes it." />
       <div role="tablist" aria-label="Job status" className="mb-4 flex flex-wrap gap-1 rounded-xl bg-surface p-1">
         {TABS.map((t) => (
           <button key={t.key} role="tab" aria-selected={status === t.key} onClick={() => setParams({ status: t.key })} className={`h-9 rounded-lg px-3 text-sm font-semibold ${status === t.key ? 'bg-white shadow-sm' : 'text-muted hover:text-ink'}`}>
@@ -166,7 +166,7 @@ export function JobModerationDetailPage() {
           )}
         </dl>
         <p className="mt-4 whitespace-pre-line border-t border-line pt-4">{j.description}</p>
-        <p className="mt-4 text-[13px] text-muted">Check for: a real role with clear duties, lawful pay and conditions, no fees asked from candidates, and no promise VTA cannot keep.</p>
+        <p className="mt-4 text-[13px] text-muted">Check for: a real role with clear duties, lawful pay and conditions, no fees asked from candidates, and no promise AutoTalent Grid cannot keep.</p>
       </section>
       {action && <ModerationModal id={id} action={action} onClose={() => setAction(null)} />}
     </>
@@ -392,7 +392,7 @@ export function CompanyVerificationDetails({ orgId }: { orgId: string }) {
         <dd>{c.city ?? '—'}</dd>
         <dt className="text-muted">GSTIN</dt>
         <dd>{c.gstin ?? '—'}</dd>
-        <dt className="text-muted">Sent to VTA</dt>
+        <dt className="text-muted">Sent to AutoTalent Grid</dt>
         <dd>{c.submittedAt ? shortDate(c.submittedAt) : 'Not yet'}</dd>
       </dl>
       <div>

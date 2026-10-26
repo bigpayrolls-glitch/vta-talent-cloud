@@ -541,7 +541,7 @@ function UploadModal({ candidateId, onClose, onDone }: { candidateId: string; on
         <Field label="Title" htmlFor="up-title" error={errors.title}>
           <input id="up-title" className="field-input" placeholder="For example, ITI certificate" value={title} onChange={(e) => setTitle(e.target.value)} />
         </Field>
-        <p className="text-[13px] text-muted">Do not upload Aadhaar or other ID documents unless VTA policy requires it.</p>
+        <p className="text-[13px] text-muted">Do not upload Aadhaar or other ID documents unless AutoTalent Grid policy requires it.</p>
       </div>
     </Modal>
   );

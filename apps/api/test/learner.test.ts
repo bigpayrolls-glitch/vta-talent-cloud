@@ -51,7 +51,7 @@ describe('EE-01 self-registration', () => {
     const me = await clientFromCookie(ctx.app, cookieFrom(res));
     const profile = (await me.get('/me/profile')).body;
     expect(profile).toMatchObject({ name: 'Suresh Babu', phone, city: 'Mandya', verificationStatus: 'pending', consentRequired: false, identityLocked: false, searchable: false });
-    expect(profile.candidateCode).toMatch(/^VTA\d{7}$/);
+    expect(profile.candidateCode).toMatch(/^ATG\d{7}$/);
     expect(profile.completeness.pct).toBeLessThan(50); // incomplete profiles are allowed (EE-01)
 
     const consents = (await me.get('/me/consents')).body;
@@ -98,7 +98,7 @@ describe('EE-01 self-registration', () => {
     expect(ctx.mem.sentOtps.get('+919811114444')).toBeUndefined();
   });
 
-  it('a possible duplicate (same name and date of birth) is flagged for VTA to review', async () => {
+  it('a possible duplicate (same name and date of birth) is flagged for AutoTalent Grid to review', async () => {
     await requestCode('+919811115555', 'register');
     const res = await register(registration('+919811115555', ctx.mem.sentOtps.get('+919811115555')!, { name: 'ravi  kumar', dateOfBirth: '2002-08-01' }));
     expect(res.statusCode).toBe(201);
@@ -166,7 +166,7 @@ describe('EE-02 own profile', () => {
     expect((ev.after as Record<string, unknown>).experience_months).toBe(18);
   });
 
-  it('name and date of birth are locked once VTA has verified them', async () => {
+  it('name and date of birth are locked once AutoTalent Grid has verified them', async () => {
     const res = await c.learner!.patch('/me/profile', { name: 'Venky L' });
     expect(res.status).toBe(400);
     expect(res.body.error.fields.name).toMatch(/Ask your training centre/);
@@ -174,7 +174,7 @@ describe('EE-02 own profile', () => {
     expect((await c.learner!.patch('/me/profile', { name: 'Venkatesh Learner', city: 'Bengaluru' })).status).toBe(200);
   });
 
-  it('a profile sent back for correction goes back to VTA after the person fixes it', async () => {
+  it('a profile sent back for correction goes back to AutoTalent Grid after the person fixes it', async () => {
     await ctx.db.updateTable('candidate_profiles').set({ verification_status: 'needs_correction', verification_reason: 'Date of birth does not match the ID' }).where('user_id', '=', ctx.ids.cand2!).execute();
     const anitha = await loginPhone(ctx, ANITHA);
     for (const purpose of ['privacy_notice', 'terms'] as const) await anitha.post('/me/consents', { purpose, granted: true, noticeVersion: NOTICE_VERSION });
@@ -224,7 +224,7 @@ describe('EE-03 evidence documents', () => {
     expect((await c.ravi!.del(`/me/documents/${docId}`)).status).toBe(404);
   });
 
-  it('documents VTA added or verified cannot be deleted by the learner; their own can', async () => {
+  it('documents AutoTalent Grid added or verified cannot be deleted by the learner; their own can', async () => {
     const staffDoc = await c.opsAdmin!.upload(`/admin/candidates/${ctx.ids.learner}/documents?kind=certificate&title=Staff%20upload&fileName=s.pdf`, PDF);
     const list = (await c.learner!.get('/me/documents')).body.items;
     expect(list.find((d: { id: string }) => d.id === staffDoc.body.id)).toMatchObject({ uploadedBySelf: false, canDelete: false });

@@ -73,9 +73,9 @@ export const companyRoutes: FastifyPluginAsync = async (app) => {
     const org = await employerOrg(db, req);
     const reg = (typeof org.registration_ids === 'string' ? JSON.parse(org.registration_ids) : org.registration_ids) as Record<string, string>;
     if (org.verification_status === 'verified' && (b.legalName !== org.legal_name || (b.gstin ?? null) !== (reg.gstin ?? null))) {
-      throw invalid('The registered name and GSTIN were verified by VTA. Contact VTA to change them.', {
-        ...(b.legalName !== org.legal_name ? { legalName: 'Verified by VTA' } : {}),
-        ...((b.gstin ?? null) !== (reg.gstin ?? null) ? { gstin: 'Verified by VTA' } : {}),
+      throw invalid('The registered name and GSTIN were verified by AutoTalent Grid. Contact AutoTalent Grid to change them.', {
+        ...(b.legalName !== org.legal_name ? { legalName: 'Verified by AutoTalent Grid' } : {}),
+        ...((b.gstin ?? null) !== (reg.gstin ?? null) ? { gstin: 'Verified by AutoTalent Grid' } : {}),
       });
     }
     const duplicateOf = await findDuplicateOrg(db, org.id, b.legalName, b.gstin);
@@ -110,14 +110,14 @@ export const companyRoutes: FastifyPluginAsync = async (app) => {
   app.post('/employer/company/submit', { config: { permission: 'employer.company' } }, async (req) => {
     const org = await employerOrg(db, req);
     if (org.verification_status === 'verified') throw invalid('Your company is already verified.');
-    if (org.verification_status === 'rejected') throw invalid('VTA could not verify this company. Contact VTA to discuss it.');
+    if (org.verification_status === 'rejected') throw invalid('AutoTalent Grid could not verify this company. Contact AutoTalent Grid to discuss it.');
     const missing: Record<string, string> = {};
     if (!org.sector) missing.sector = 'Add the sector';
     if (!org.city) missing.city = 'Add the city';
     if (!org.contact_email || !org.contact_phone) missing.contact = 'Add contact details';
     const { n } = await db.selectFrom('documents').select(sql<string>`count(*)`.as('n')).where('organisation_id', '=', org.id).where('deleted_at', 'is', null).executeTakeFirstOrThrow();
     if (Number(n) === 0) missing.documents = 'Upload at least one registration document';
-    if (Object.keys(missing).length) throw invalid('Complete the company profile before sending it to VTA.', missing);
+    if (Object.keys(missing).length) throw invalid('Complete the company profile before sending it to AutoTalent Grid.', missing);
     const now = new Date();
     await db.transaction().execute(async (trx) => {
       await trx.updateTable('organisations').set({ submitted_at: now, verification_status: 'pending', verification_reason: null, updated_at: now }).where('id', '=', org.id).execute();
@@ -243,7 +243,7 @@ export const companyRoutes: FastifyPluginAsync = async (app) => {
     const ra = await db.selectFrom('role_assignments').selectAll().where('id', '=', id).where('organisation_id', '=', orgId).where('revoked_at', 'is', null).executeTakeFirst();
     if (!ra || (ra.role !== 'employer_recruiter' && ra.role !== 'employer_admin')) throw notFound('Team member');
     if (ra.user_id === req.actor!.userId) throw forbidden('You cannot remove yourself.');
-    if (ra.role === 'employer_admin') throw forbidden('Only VTA can remove an employer admin.');
+    if (ra.role === 'employer_admin') throw forbidden('Only AutoTalent Grid can remove an employer admin.');
     await db.transaction().execute(async (trx) => {
       await trx.updateTable('role_assignments').set({ revoked_at: new Date(), revoked_by: req.actor!.userId }).where('id', '=', id).execute();
       await audit(trx, auditCtx(req), { action: 'employer.recruiter_removed', entityType: 'organisation', entityId: orgId, before: { userId: ra.user_id, role: ra.role } });

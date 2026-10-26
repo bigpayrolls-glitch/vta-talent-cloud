@@ -42,7 +42,7 @@ export const BENEFICIARY_FIELD_LABEL: Record<BeneficiaryField, string> = {
   enrolmentStatus: 'Enrolment status',
   attendance: 'Attendance %',
   assessment: 'Assessment result',
-  certificate: 'VTA certificate',
+  certificate: 'AutoTalent Grid certificate',
   employment: 'Employment outcome',
 };
 

@@ -25,9 +25,9 @@ export async function employerOrg(db: DB, req: FastifyRequest): Promise<Organisa
 
 /** EM-01: an employer can post jobs and search candidates only once VTA has verified it. */
 export function assertVerified(org: Organisation): void {
-  if (org.status !== 'active') throw new ApiError('FORBIDDEN', 'This employer account is inactive. Contact VTA.');
+  if (org.status !== 'active') throw new ApiError('FORBIDDEN', 'This employer account is inactive. Contact AutoTalent Grid.');
   if (org.verification_status !== 'verified') {
-    throw new ApiError('FORBIDDEN', 'VTA needs to verify your company first. Complete your company profile and send it for checking.');
+    throw new ApiError('FORBIDDEN', 'AutoTalent Grid needs to verify your company first. Complete your company profile and send it for checking.');
   }
 }
 

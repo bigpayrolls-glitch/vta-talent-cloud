@@ -1,4 +1,4 @@
-# Running VTA Talent Cloud
+# Running AutoTalent Grid
 
 What to do every day, every month and when something goes wrong. Commands run from the repository root with the database address set in `DATABASE_URL` (for Neon, use the direct address in `DATABASE_URL_UNPOOLED`).
 

@@ -75,7 +75,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   async function signInByPhone(req: FastifyRequest, reply: FastifyReply, phone: string): Promise<void> {
     const user = await db.selectFrom('users').selectAll().where('phone', '=', phone).executeTakeFirst();
     if (!user) throw invalid('This code has expired. Request a new one.', { code: 'Code expired' });
-    if (user.status === 'suspended') throw new ApiError('FORBIDDEN', 'This account is suspended. Contact VTA support.');
+    if (user.status === 'suspended') throw new ApiError('FORBIDDEN', 'This account is suspended. Contact AutoTalent Grid support.');
     if (user.status !== 'active' && user.status !== 'invited') throw unauthenticated('This account cannot sign in.');
     await db.transaction().execute(async (trx) => {
       if (user.status === 'invited') {
@@ -122,7 +122,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       if (lock) await audit(db, { ...auditCtx(req), actorId: null }, { action: 'auth.locked', entityType: 'user', entityId: user.id });
       throw unauthenticated('Email or password is incorrect');
     }
-    if (user.status === 'suspended') throw new ApiError('FORBIDDEN', 'This account is suspended. Contact VTA support.');
+    if (user.status === 'suspended') throw new ApiError('FORBIDDEN', 'This account is suspended. Contact AutoTalent Grid support.');
     if (user.status !== 'active') throw unauthenticated('Email or password is incorrect');
     await createSession(db, req, reply, user.id, secure);
     await audit(db, { ...auditCtx(req), actorId: user.id }, { action: 'auth.login', entityType: 'user', entityId: user.id, after: { method: 'password' } });

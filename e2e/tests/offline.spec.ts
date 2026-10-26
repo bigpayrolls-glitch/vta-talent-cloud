@@ -37,7 +37,7 @@ test.describe.serial('offline attendance', () => {
     await page.goto('/login');
     const href = await page.locator('link[rel="manifest"]').getAttribute('href');
     const manifest = await (await request.get(href!)).json();
-    expect(manifest).toMatchObject({ name: 'VTA Talent Cloud', short_name: 'VTA', display: 'standalone', start_url: '/login', theme_color: '#B5121B' });
+    expect(manifest).toMatchObject({ name: 'AutoTalent Grid', short_name: 'AutoTalent', display: 'standalone', start_url: '/login', theme_color: '#B5121B' });
     for (const icon of manifest.icons) expect((await request.get(icon.src)).headers()['content-type']).toBe('image/png');
     expect(manifest.icons.map((i: { sizes: string }) => i.sizes)).toEqual(expect.arrayContaining(['192x192', '512x512']));
     expect(manifest.icons.some((i: { purpose?: string }) => i.purpose === 'maskable')).toBe(true);

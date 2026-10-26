@@ -87,7 +87,7 @@ describe('PA-04 beneficiaries: only approved fields', () => {
     expect(ravi).toMatchObject({ enrolmentStatus: 'completed', assessment: 'Passed' });
   });
 
-  it('VTA can approve names only with a recorded basis; the change is audited', async () => {
+  it('AutoTalent Grid can approve names only with a recorded basis; the change is audited', async () => {
     const current = (await c.opsAdmin!.get(`/programmes/${ctx.ids.programmeA}`)).body;
     const body = {
       name: current.name,
@@ -130,8 +130,8 @@ describe('PA-06 / AD-11 reports and exports', () => {
     expect(res.headers['content-type']).toMatch(/text\/csv/);
     expect(res.headers['content-disposition']).toMatch(/two-wheeler-livelihoods-bengaluru-2026-outcomes\.csv/);
     expect(res.body).toMatch(/No personal data/);
-    expect(res.body).toMatch(/Joined \(VTA-verified\)/);
-    expect(res.body).not.toMatch(/Ravi|Anitha|VTA26/);
+    expect(res.body).toMatch(/Joined \(AutoTalent Grid-verified\)/);
+    expect(res.body).not.toMatch(/Ravi|Anitha|ATG26/);
     const ev = await ctx.db.selectFrom('audit_events').select(['actor_id', 'after']).where('action', '=', 'report.exported').orderBy('created_at', 'desc').executeTakeFirstOrThrow();
     expect(ev).toMatchObject({ actor_id: ctx.ids.partnerViewerA, after: { report: 'programme_outcomes', personalData: false } });
   });
@@ -139,7 +139,7 @@ describe('PA-06 / AD-11 reports and exports', () => {
   it('the beneficiary download has only the approved columns and is logged with what was exported', async () => {
     const res = await get(c.partnerAdminA!, `/programmes/${ctx.ids.programmeA}/beneficiaries.csv`);
     const header = res.body.replace(/^﻿/, '').split('\r\n')[0];
-    expect(header).toBe('Candidate ID,City,Batch,Enrolment status,Attendance %,Assessment result,VTA certificate,Employment outcome');
+    expect(header).toBe('Candidate ID,City,Batch,Enrolment status,Attendance %,Assessment result,AutoTalent Grid certificate,Employment outcome');
     expect(res.body).not.toMatch(/Ravi Kumar/);
     const ev = await ctx.db.selectFrom('audit_events').select('after').where('action', '=', 'report.exported').orderBy('created_at', 'desc').executeTakeFirstOrThrow();
     expect(ev.after).toMatchObject({ report: 'beneficiaries', rows: 7 });
@@ -149,7 +149,7 @@ describe('PA-06 / AD-11 reports and exports', () => {
     expect(toCsv([['=HYPERLINK("x")', '+91 9', 'a,b', 'ok']])).toBe('﻿"\'=HYPERLINK(""x"")",\'+91 9,"a,b",ok\r\n');
   });
 
-  it('VTA filters the cohort report by programme, partner, course and dates', async () => {
+  it('AutoTalent Grid filters the cohort report by programme, partner, course and dates', async () => {
     const byProgramme = await c.opsAdmin!.get(`/admin/reports/cohort?programmeId=${ctx.ids.programmeA}`);
     expect(byProgramme.body).toMatchObject({ batches: 2, filters: { programme: 'Two-Wheeler Livelihoods Bengaluru 2026' } });
     const byPartnerB = await c.opsAdmin!.get(`/admin/reports/cohort?partnerId=${ctx.ids.partnerB}`);
@@ -177,7 +177,7 @@ describe('PA-05 programme documents', () => {
 });
 
 describe('AD-10 creating programmes', () => {
-  it('VTA creates a programme for a partner; the partner then sees it', async () => {
+  it('AutoTalent Grid creates a programme for a partner; the partner then sees it', async () => {
     const bad = await c.opsAdmin!.post('/admin/programmes', programmeBody({ partnerOrganisationIds: [ctx.ids.employerA], endDate: '2026-01-01', budgetAmount: 50000 }));
     expect(bad.status).toBe(400);
     expect(Object.keys(bad.body.error.fields)).toEqual(expect.arrayContaining(['endDate', 'budgetSource']));
@@ -204,7 +204,7 @@ describe('PA-01 partner organisation profile', () => {
     };
     // Verified already: the registered name and number are locked.
     const locked = await c.partnerAdminA!.put('/partner/organisation', body);
-    expect(locked.body.error.fields.legalName).toBe('Verified by VTA');
+    expect(locked.body.error.fields.legalName).toBe('Verified by AutoTalent Grid');
     const ok = await c.partnerAdminA!.put('/partner/organisation', { ...body, registrationNumber: undefined });
     expect(ok.body).toMatchObject({ city: 'Bengaluru', programmeInterests: expect.stringMatching(/EV technician/), identityLocked: true });
     expect((await c.partnerViewerA!.get('/partner/organisation')).body.programmeInterests).toMatch(/EV/);

@@ -31,7 +31,7 @@ export function DocumentsPage() {
     const visibility: DocumentVisibility = d.visibility === 'private' ? 'employers' : 'private';
     await api.patch(`/me/documents/${d.id}`, { visibility });
     await refresh();
-    toast('success', visibility === 'private' ? `${d.title}: only you and VTA` : `${d.title}: employers you share your profile with can see it`);
+    toast('success', visibility === 'private' ? `${d.title}: only you and AutoTalent Grid` : `${d.title}: employers you share your profile with can see it`);
   };
 
   return (
@@ -62,16 +62,16 @@ export function DocumentsPage() {
                   <p className="font-medium">{d.title}</p>
                   <p className="text-[13px] text-muted">
                     {DOCUMENT_KIND_LABEL[d.kind as keyof typeof DOCUMENT_KIND_LABEL]}, {size(d.sizeBytes)}, {fmtDate(d.createdAt)}
-                    {!d.uploadedBySelf && ', added by VTA'}
+                    {!d.uploadedBySelf && ', added by AutoTalent Grid'}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px]">
-                    <StatusBadge status={d.verificationStatus} label={d.verificationStatus === 'verified' ? 'Verified by VTA' : d.verificationStatus === 'rejected' ? 'Not accepted' : 'Not checked yet'} />
+                    <StatusBadge status={d.verificationStatus} label={d.verificationStatus === 'verified' ? 'Verified by AutoTalent Grid' : d.verificationStatus === 'rejected' ? 'Not accepted' : 'Not checked yet'} />
                     <span className="inline-flex items-center gap-1 rounded-full bg-surface px-2.5 py-1 font-medium">
                       {d.visibility === 'private' ? <EyeOff className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
                       {DOCUMENT_VISIBILITY_LABEL[d.visibility]}
                     </span>
                   </div>
-                  {d.reviewReason && <p className="mt-2 text-[13px] text-brand">VTA&apos;s note: {d.reviewReason}</p>}
+                  {d.reviewReason && <p className="mt-2 text-[13px] text-brand">AutoTalent Grid&apos;s note: {d.reviewReason}</p>}
                 </div>
               </div>
               <div className="mt-3 flex flex-wrap gap-2 pl-8">
@@ -148,7 +148,7 @@ function UploadModal({ onClose, onDone }: { onClose: () => void; onDone: () => P
     try {
       await uploadFile(`/me/documents${qs({ kind, title: title.trim(), fileName: file!.name, visibility })}`, file!);
       await onDone();
-      toast('success', 'Document uploaded. VTA will check it.');
+      toast('success', 'Document uploaded. AutoTalent Grid will check it.');
       onClose();
     } catch (err) {
       const x = err as { fields?: Record<string, string>; message: string };

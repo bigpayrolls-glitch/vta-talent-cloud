@@ -112,9 +112,9 @@ export const learnerRoutes: FastifyPluginAsync = async (app) => {
     const locked = before.verification_status === 'verified' || before.verification_status === 'rejected';
     if ((nameChange || dobChange) && locked) {
       const fields: Record<string, string> = {};
-      if (nameChange) fields.name = 'Verified by VTA. Ask your training centre to correct it.';
-      if (dobChange) fields.dateOfBirth = 'Verified by VTA. Ask your training centre to correct it.';
-      throw invalid('Your name and date of birth have been checked by VTA and cannot be changed here.', fields);
+      if (nameChange) fields.name = 'Verified by AutoTalent Grid. Ask your training centre to correct it.';
+      if (dobChange) fields.dateOfBirth = 'Verified by AutoTalent Grid. Ask your training centre to correct it.';
+      throw invalid('Your name and date of birth have been checked by AutoTalent Grid and cannot be changed here.', fields);
     }
 
     const email = input.email === undefined ? undefined : input.email === '' ? null : input.email.toLowerCase();
@@ -193,7 +193,7 @@ export const learnerRoutes: FastifyPluginAsync = async (app) => {
     const { purpose, granted, noticeVersion } = parse(consentChangeSchema, req.body);
     const userId = me(req);
     if (purpose === 'privacy_notice' || purpose === 'terms') {
-      if (!granted) throw invalid('These cannot be withdrawn here. To stop using VTA Talent Cloud, ask VTA support to close your account.');
+      if (!granted) throw invalid('These cannot be withdrawn here. To stop using AutoTalent Grid, ask AutoTalent Grid support to close your account.');
       if (noticeVersion !== NOTICE_VERSION) throw invalid('The privacy notice has changed. Reload the page and read it again.');
     } else {
       await requireConsent(req);
@@ -308,8 +308,8 @@ export const learnerRoutes: FastifyPluginAsync = async (app) => {
     await requireConsent(req);
     const { id } = parse(idParam, req.params);
     const d = await myDoc(me(req), id);
-    if (d.uploaded_by !== me(req)) throw new ApiError('FORBIDDEN', 'This document was added by VTA. Ask your training centre to remove it.');
-    if (d.verification_status === 'verified') throw new ApiError('FORBIDDEN', 'This document has been verified by VTA and is kept on your record.');
+    if (d.uploaded_by !== me(req)) throw new ApiError('FORBIDDEN', 'This document was added by AutoTalent Grid. Ask your training centre to remove it.');
+    if (d.verification_status === 'verified') throw new ApiError('FORBIDDEN', 'This document has been verified by AutoTalent Grid and is kept on your record.');
     await db.transaction().execute(async (trx) => {
       await trx.updateTable('documents').set({ deleted_at: new Date() }).where('id', '=', id).execute();
       await audit(trx, auditCtx(req), { action: 'document.deleted', entityType: 'user', entityId: me(req), before: { documentId: id, title: d.title }, after: { by: 'self' } });

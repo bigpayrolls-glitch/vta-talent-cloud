@@ -117,7 +117,7 @@ export function EmployerApplicationPage() {
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
             <StatusBadge status={a.status} label={APPLICATION_STATUS_LABEL[a.status]} />
-            <StatusBadge status={p.verificationStatus} label={p.verificationStatus === 'verified' ? 'Verified by VTA' : `Profile ${p.verificationStatus.replace('_', ' ')}`} />
+            <StatusBadge status={p.verificationStatus} label={p.verificationStatus === 'verified' ? 'Verified by AutoTalent Grid' : `Profile ${p.verificationStatus.replace('_', ' ')}`} />
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -133,7 +133,7 @@ export function EmployerApplicationPage() {
           <ErrorNote message={error} />
         </div>
       )}
-      {a.status === 'joined' && a.joiningDate && <p className="mb-4 rounded-lg bg-success-tint px-4 py-3 text-sm text-success">Joined on {shortDate(a.joiningDate)}. VTA may contact you to confirm it.</p>}
+      {a.status === 'joined' && a.joiningDate && <p className="mb-4 rounded-lg bg-success-tint px-4 py-3 text-sm text-success">Joined on {shortDate(a.joiningDate)}. AutoTalent Grid may contact you to confirm it.</p>}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
         <div className="space-y-6">
@@ -194,7 +194,7 @@ export function EmployerApplicationPage() {
                   <li key={c.id} className="flex flex-wrap items-center gap-3 py-2.5">
                     <Award className="size-4 text-brand" aria-hidden />
                     <span className="min-w-0 flex-1">
-                      VTA certificate: <span className="font-medium">{c.course}</span>, {shortDate(c.issueDate)}
+                      AutoTalent Grid certificate: <span className="font-medium">{c.course}</span>, {shortDate(c.issueDate)}
                     </span>
                     <a href={c.verifyPath} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-brand">
                       Check <ExternalLink className="size-3.5" aria-hidden />
@@ -317,7 +317,7 @@ function MoveModal({ id, to, onClose, onDone }: { id: string; to: ApplicationSta
           <input id="m-join" type="date" className="field-input" value={joiningDate} onChange={(e) => setJoiningDate(e.target.value)} />
         </Field>
       ) : (
-        <Field label="Reason (seen only by your team and VTA)" htmlFor="m-reason" error={f.errors.reason}>
+        <Field label="Reason (seen only by your team and AutoTalent Grid)" htmlFor="m-reason" error={f.errors.reason}>
           <textarea id="m-reason" rows={3} className="field-input h-auto py-2" value={reason} onChange={(e) => setReason(e.target.value)} />
         </Field>
       )}
