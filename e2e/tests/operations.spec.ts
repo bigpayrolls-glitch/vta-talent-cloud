@@ -11,7 +11,7 @@ test.describe.serial('training operations: attendance to certificate', () => {
     await expect(page.getByRole('heading', { name: 'Today' })).toBeVisible();
     const today = page.locator('li').filter({ hasText: '2W Peenya October 2026' });
     await today.getByRole('link', { name: 'Take attendance' }).click();
-    await expect(page.getByRole('tab', { name: 'Attendance', selected: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '2W Peenya October 2026' })).toBeVisible();
     await expect(page.getByLabel('Session date')).toHaveValue('2026-10-26');
 
     await page.getByRole('group', { name: 'Attendance for Mohammed Shafi' }).getByRole('button', { name: 'Absent' }).click();
@@ -22,6 +22,7 @@ test.describe.serial('training operations: attendance to certificate', () => {
     await expect(page.getByText(/Attendance saved for .*26 Oct,? 2026 \(4 changes\)/)).toBeVisible();
     await expect(page.getByText('All saved')).toBeVisible();
 
+    await page.getByRole('link', { name: 'Batch details' }).click();
     await page.getByRole('tab', { name: /Roster/ }).click();
     await expect(page.getByRole('tab', { name: /1 at risk/ })).toBeVisible();
     await expect(page.locator('li').filter({ hasText: 'Mohammed Shafi' }).getByText(/% below needed/)).toBeVisible();

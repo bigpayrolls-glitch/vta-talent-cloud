@@ -254,6 +254,16 @@ export interface AttendanceRecordsTable {
   updated_at: Timestamp;
 }
 
+export interface AttendanceSyncOpsTable {
+  op_id: string;
+  user_id: string;
+  batch_id: string;
+  outcome: 'applied' | 'unchanged' | 'conflict' | 'rejected';
+  message: string | null;
+  captured_at: Date;
+  received_at: Timestamp;
+}
+
 export interface AssessmentResultsTable {
   id: string;
   enrolment_id: string;
@@ -321,6 +331,7 @@ export interface Database {
   documents: DocumentsTable;
   attendance_sessions: AttendanceSessionsTable;
   attendance_records: AttendanceRecordsTable;
+  attendance_sync_ops: AttendanceSyncOpsTable;
   assessment_results: AssessmentResultsTable;
   assessment_scores: AssessmentScoresTable;
   credentials: CredentialsTable;

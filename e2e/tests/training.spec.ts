@@ -45,10 +45,11 @@ test.describe.serial('training operations', () => {
     const enrol = page.getByRole('dialog', { name: 'Enrol candidates' });
     await enrol.getByLabel('Search candidates to enrol').fill('Pooja');
     await enrol.getByLabel('Search candidates to enrol').press('Enter');
-    await enrol.getByRole('checkbox').first().check();
+    // Wait for each search's own result before ticking it (the list updates after the search returns).
+    await enrol.getByRole('checkbox', { name: /Pooja/ }).check();
     await enrol.getByLabel('Search candidates to enrol').fill('Deepa');
     await enrol.getByLabel('Search candidates to enrol').press('Enter');
-    await enrol.getByRole('checkbox').first().check();
+    await enrol.getByRole('checkbox', { name: /Deepa/ }).check();
     await expect(enrol.getByText('2 selected, 2 places left')).toBeVisible();
     await enrol.getByRole('button', { name: 'Enrol 2' }).click();
 

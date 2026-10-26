@@ -3,6 +3,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router';
 import { ToastProvider } from './components/toast';
+import { UpdatePrompt } from './components/UpdatePrompt';
 import { AuthProvider } from './lib/auth';
 import { AcceptInvitation, ChoosePortal, HomeRedirect, NoAccess, NotFound, RequirePortal } from './pages/AccessPages';
 import { LoginPage } from './pages/LoginPage';
@@ -68,6 +69,9 @@ const router = createBrowserRouter([
       { index: true, element: <PortalHomeContent portal="partner" /> },
       { path: 'batches', lazy: () => import('./pages/training/Batches').then((m) => ({ Component: () => <m.BatchesPage base="/partner/batches" /> })) },
       { path: 'batches/:id', lazy: () => import('./pages/training/Batches').then((m) => ({ Component: () => <m.BatchDetailPage base="/partner/batches" /> })) },
+      // Phase 4: trainer screens that work offline.
+      { path: 'attendance/:id', lazy: () => import('./pages/trainer/TakeAttendance').then((m) => ({ Component: m.TakeAttendancePage })) },
+      { path: 'sync', lazy: () => import('./pages/trainer/SyncStatus').then((m) => ({ Component: m.SyncStatusPage })) },
       { path: '*', element: <NotFound /> },
     ],
   },
@@ -80,6 +84,7 @@ createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <ToastProvider>
           <RouterProvider router={router} />
+          <UpdatePrompt />
         </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>
