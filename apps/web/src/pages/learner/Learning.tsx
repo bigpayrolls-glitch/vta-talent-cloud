@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { SKILL_AREA_LABEL, type SkillArea } from '@vta/shared';
-import { AlertTriangle, ArrowLeft, Award, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Award, CheckCircle2, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { courseImage } from '../public/Courses';
