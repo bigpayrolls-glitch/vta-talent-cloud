@@ -73,7 +73,7 @@ writeFileSync(
       version: 3,
       routes: [
         // Phase 10: security headers on every page and file (the API sets its own, stricter ones).
-        { src: '/(.*)', headers: { ...webHeaders, 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' }, continue: true },
+        { src: '/(?!api/)(.*)', headers: { ...webHeaders, 'Strict-Transport-Security': 'max-age=31536000; includeSubDomains' }, continue: true },
         // The service worker and manifest must always be fresh, so new versions are found.
         { src: '/(sw\\.js|manifest\\.webmanifest)', headers: { 'cache-control': 'no-cache' }, continue: true },
         { src: '/assets/(.*)', headers: { 'cache-control': 'public, max-age=31536000, immutable' }, continue: true },

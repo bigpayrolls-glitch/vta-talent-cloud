@@ -4,8 +4,10 @@ import { ArrowLeft, Download, FileText, Info, Pencil, Plus, ShieldCheck, Upload 
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useToast } from '../../components/toast';
-import { EmptyState, ErrorNote, Field, formatDate, Modal, PageHeader, Spinner, StatusBadge } from '../../components/ui';
+import { SearchBox, Select } from '../../components/form';
+import { EmptyState, ErrorNote, Field, formatDate, Modal, PageHeader, Pagination, Spinner, StatusBadge } from '../../components/ui';
 import { api, qs, uploadFile } from '../../lib/api';
+import { useListParams } from '../../lib/useListParams';
 import { shortDate } from '../hiring/format';
 
 export interface ProgrammeRow {
@@ -41,8 +43,14 @@ export interface ProgrammeDetail {
 
 /** PA-02: programmes the partner's organisation is assigned to (VTA staff see all). */
 export function ProgrammesPage({ base }: { base: '/partner/programmes' | '/admin/programmes' }) {
-  const q = useQuery({ queryKey: ['programmes'], queryFn: () => api.get<{ items: ProgrammeRow[] }>('/programmes') });
+  const { values, page, set, setPage } = useListParams(['q', 'status'] as const);
+  const q = useQuery({
+    queryKey: ['programmes', values, page],
+    queryFn: () => api.get<{ items: ProgrammeRow[]; page: number; pageSize: number; total: number }>(`/programmes${qs({ ...values, page, pageSize: 20 })}`),
+    placeholderData: (prev) => prev,
+  });
   const admin = base.startsWith('/admin');
+  const filtered = !!(values.q || values.status);
   return (
     <>
       <PageHeader
@@ -57,15 +65,36 @@ export function ProgrammesPage({ base }: { base: '/partner/programmes' | '/admin
           )
         }
       />
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+        <SearchBox initial={values.q} onSearch={(v) => set('q', v)} placeholder="Search by programme name" label="Search programmes" />
+        <Select
+          id="programme-status"
+          label="Status"
+          value={values.status}
+          onChange={(v) => set('status', v)}
+          className="sm:w-48"
+          options={[
+            { value: '', label: 'Any status' },
+            { value: 'planned', label: 'Planned' },
+            { value: 'active', label: 'Active' },
+            { value: 'closed', label: 'Closed' },
+          ]}
+        />
+      </div>
       {q.isLoading ? (
         <Spinner />
       ) : q.isError ? (
         <ErrorNote message={(q.error as Error).message} />
       ) : !q.data!.items.length ? (
         <div className="card">
-          <EmptyState title="No programmes" body={admin ? 'Create a programme and assign it to a training partner.' : 'VTA assigns programmes to your organisation. They appear here.'} />
+          {filtered ? (
+            <EmptyState title="No programmes match" body="Try another name or status." />
+          ) : (
+            <EmptyState title="No programmes" body={admin ? 'Create a programme and assign it to a training partner.' : 'VTA assigns programmes to your organisation. They appear here.'} />
+          )}
         </div>
       ) : (
+        <>
         <ul className="grid gap-3 md:grid-cols-2">
           {q.data!.items.map((p) => (
             <li key={p.id}>
@@ -87,6 +116,12 @@ export function ProgrammesPage({ base }: { base: '/partner/programmes' | '/admin
             </li>
           ))}
         </ul>
+        {q.data!.total > q.data!.pageSize && (
+          <div className="card mt-4">
+            <Pagination page={q.data!.page} pageSize={q.data!.pageSize} total={q.data!.total} onPage={setPage} />
+          </div>
+        )}
+        </>
       )}
     </>
   );
@@ -228,7 +263,13 @@ function Overview({ p }: { p: ProgrammeDetail }) {
 }
 
 function Beneficiaries({ p }: { p: ProgrammeDetail }) {
-  const q = useQuery({ queryKey: ['programme', p.id, 'beneficiaries'], queryFn: () => api.get<{ fields: BeneficiaryField[]; sharingBasis: string | null; items: Record<string, string | number | null>[] }>(`/programmes/${p.id}/beneficiaries`) });
+  const [page, setPage] = useState(1);
+  const q = useQuery({
+    queryKey: ['programme', p.id, 'beneficiaries', page],
+    queryFn: () =>
+      api.get<{ fields: BeneficiaryField[]; sharingBasis: string | null; items: Record<string, string | number | null>[]; page: number; pageSize: number; total: number }>(`/programmes/${p.id}/beneficiaries${qs({ page })}`),
+    placeholderData: (prev) => prev,
+  });
   if (q.isLoading) return <Spinner />;
   if (!q.data) return <ErrorNote message="Could not load beneficiaries." />;
   const { fields, items, sharingBasis } = q.data;
@@ -274,6 +315,7 @@ function Beneficiaries({ p }: { p: ProgrammeDetail }) {
               ))}
             </tbody>
           </table>
+          {q.data.total > q.data.pageSize && <Pagination page={q.data.page} pageSize={q.data.pageSize} total={q.data.total} onPage={setPage} />}
         </div>
       )}
     </>

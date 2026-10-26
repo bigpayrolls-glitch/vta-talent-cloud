@@ -1,6 +1,6 @@
 # Requirements traceability
 
-This file maps the VTA Talent Cloud requirements document (Version 1.0, proposed MVP) to what is built on this branch. It was checked against the code and tests, not only README. Branch state: Phases 1 to 8 as described in README. README has no "Phase 9" section on this branch.
+This file maps the VTA Talent Cloud requirements document (Version 1.0, proposed MVP) to what is built. It was checked against the code and tests, not only README. State: Phases 1 to 10 (26 Oct 2026). Drafted by a reviewer that had not written the code, then updated after the Phase 9 and 10 changes and the fixes its review led to.
 
 Paths are relative to the repository root. `api/` means `apps/api/src/`, `web/` means `apps/web/src/pages/`. Tests are cited as *file › test name*.
 
@@ -20,27 +20,29 @@ Functional requirements (61 IDs: SH 10, AD 12, EM 10, EE 12, TR 9, PA 8):
 
 | Status | Count | IDs |
 | --- | --- | --- |
-| Built | 48 | SH-02 to 06, SH-08, SH-10; AD-02 to 11; EM-01 to 10; EE-01, 02, 05 to 10; TR-01 to 04, 06, 08, 09; PA-01 to 06 |
+| Built | 51 | SH-02 to 10; AD-02 to 11; EM-01 to 10; EE-01 to 03, 05 to 10; TR-01 to 04, 06, 08, 09; PA-01 to 06 |
 | Built, untested | 0 | none |
-| Partial | 8 | SH-09, AD-01, EE-03, EE-04, EE-11, EE-12, TR-05, TR-07 |
-| Not built | 4 | SH-07, AD-12, PA-07, PA-08 |
+| Partial | 6 | AD-01, EE-04, EE-11, EE-12, TR-05, TR-07 |
+| Not built | 3 | AD-12, PA-07, PA-08 |
 | External dependency | 1 | SH-01 |
 
-Non-functional requirements (§15, 10 areas): Built 1, Partial 7, Not built 1, External dependency 1.
+Non-functional requirements (§15, 10 areas): Built 3, Partial 6, External dependency 1.
 
 Acceptance criteria (§18, 11 items): Built 9, Partial 2. Appendix A scenario (9 steps): Built 9.
+
+Changed after the review: SH-07 (Phase 9), SH-09 (programme and beneficiary paging), EE-03 and AD-05 (document verification), and new tests for EM-07, EM-08 and AD-11's course and centre filters.
 
 ### Items that need a VTA decision
 
 Numbers in brackets are the requirements document's §20 list. README uses its own D-numbers (D1, D2, D4, D5, D8, D10), which do not match §20; both are given where known.
 
-1. **SMS/OTP vendor and account recovery** (§20.4; README D10). Phone sign-in only prints codes to the console. Production start is refused until a provider is set. Password reset waits for this too.
-2. **Email provider** (README D10). Needed for invitations, organisation sign-up confirmation and password reset.
-3. **Hosting, file storage, virus scanning, monitoring and backups** (§20.8; README D10). Files sit on the API server's disk and are labelled "not scanned".
+1. **SMS/OTP vendor and account recovery** (§20.4; README D10). Phone sign-in only prints codes to the console. Production start is refused until a provider is set. There is no way yet for staff to change a learner's phone number.
+2. **Email provider** (README D10). Needed for invitations, organisation sign-up confirmation and password reset (all built; the emails go nowhere yet).
+3. **Hosting, file storage, virus scanning, monitoring and backups** (§20.8; README D10). Files sit on the API server's disk (or in the database on the staging copy) and are labelled "not scanned". A backup script and a tested restore drill exist (docs/operations.md); the host's own backups still need choosing.
 4. **Pilot service target, RPO and RTO** (§15 Availability and Backups).
 5. **Legal entity and certificate issuer name** (§20.2; README D8). The issuer comes from `CREDENTIAL_ISSUER_NAME` for now.
 6. **Credential types, approval authority, QR fields, accreditation** (§20.5). Assumed: one "course completion record" type; Super and Operations Admins approve.
-7. **Privacy notice wording, consent text, employer visibility rules, retention and deletion policy** (§20.6). The notice is a DRAFT (`2026-10-draft`). Closing an account and exporting one's data are support requests.
+7. **Privacy notice wording, consent text, employer visibility rules, retention and deletion policy** (§20.6). The notice is a DRAFT (`2026-10-draft`). Learners can download their data and ask to close their account (Phase 9); retention periods are still needed.
 8. **Minimum age** (§15 Privacy; README D4). 18+ is assumed for the pilot.
 9. **Roles in the MVP** (§20.3). Centre Admin and Partner Viewer are both built. Confirm that they stay.
 10. **Standalone app or LMS extension** (§20.1; README D1). Standalone is assumed. EE-04 has no LMS data.
@@ -53,15 +55,15 @@ Numbers in brackets are the requirements document's §20 list. README uses its o
 
 | ID | Name | Priority | Status | Where | Evidence | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| SH-01 | Authentication | Must | External dependency | `api/routes/auth.ts`, `web/LoginPage.tsx` | `auth.test.ts` › "locks the account for 15 minutes after 5 failures…", "rejects a code after 5 minutes", "caps codes at 5 an hour per number"; `e2e/tests/auth.spec.ts` › "a learner signs in with a phone code" | Sign-in logic, expiry and rate limits are built and tested. No SMS vendor yet, so codes go to the console. No password reset. |
+| SH-01 | Authentication | Must | External dependency | `api/routes/auth.ts`, `web/LoginPage.tsx` | `auth.test.ts` › "locks the account for 15 minutes after 5 failures…", "rejects a code after 5 minutes", "caps codes at 5 an hour per number"; `e2e/tests/auth.spec.ts` › "a learner signs in with a phone code" | Sign-in logic, expiry and rate limits are built and tested. No SMS vendor yet, so codes go to the console. Password reset and change are built (`phase9.test.ts` › "the link sets a new password once…"); the emails need a provider. |
 | SH-02 | Role-based access control | Must | Built | `packages/shared/src/permissions.ts`, `api/policy/index.ts` | `platform.test.ts` › "the app refuses to start if a route forgets its permission"; `isolation.test.ts` › "returns 404 (not 403) for out-of-scope records…"; `isolation2.test.ts` › "a centre admin manages batches at their centre only" | Every route names a permission. Records out of scope return "not found". |
 | SH-03 | User lifecycle | Must | Built | `api/routes/admin/users.ts`, `web/admin/Users.tsx` | `lifecycle.test.ts` › "suspend → 401 at once; reactivate → can sign in again", "approves a pending user", "only a Super Admin can deactivate"; `auth.test.ts` › "invites by email, accepts with a password…" | Actions are audited. |
 | SH-04 | Candidate master record | Must | Built | `api/routes/training/candidates.ts` | `training.test.ts` › "creates an invited candidate with a unique candidate code…", "edits are saved with before and after values…", "flags the same name and date of birth as a possible duplicate…" | IDs look like VTA2600042. |
 | SH-05 | Consent and privacy | Must | Built | `api/routes/learner/routes.ts`, `web/learner/PrivacySettings.tsx` | `learner.test.ts` › "a candidate added by staff must accept the current notice and terms on first sign-in", "consent records cannot be changed or deleted, even directly in the database" | Consent is append-only, with the notice version. Each job application keeps a snapshot of what was shared. |
 | SH-06 | File/document upload | Must | Built | `api/routes/training/files.ts`, `api/lib/storage.ts` | `files.test.ts` › "checks the real file type…", "refuses files over 10 MB and empty files", "there is no direct URL…" | PDF/JPG/PNG up to 10 MB; 5-minute signed links. No virus scan yet (D10). |
-| SH-07 | Notifications | Should | Not built | none | none | README: "No notifications yet". Even in-app notifications are missing. SMS, WhatsApp and email wait for the provider (D10). |
+| SH-07 | Notifications | Should | Built | `api/lib/notify.ts`, `api/routes/notifications.ts`, `web/components/Notifications.tsx` | `phase9.test.ts` › "an application reaches the employer; each move reaches the learner…", "unread count, mark one read, mark all read; only your own"; `e2e/tests/phase9.spec.ts` › "a VTA decision shows on the bell…" | In-app only. Each record has recipient, template, channel and delivery state, so SMS, WhatsApp or email can be added with a provider (D10). |
 | SH-08 | Audit log | Must | Built | `api/audit/service.ts`, `api/routes/admin/audit.ts`, `web/admin/Audit.tsx` | `platform.test.ts` › "sensitive actions write actor, action, target, request ID and before/after", "rows cannot be updated or deleted, even by the table owner" | The database blocks edits and deletes. |
-| SH-09 | Search and filters | Must | Partial | `packages/shared/src/schemas.ts` (`listQuerySchema`), list routes | `lifecycle.test.ts` › "lists users with server-side search, filters and pagination"; `training.test.ts` › "searches and filters candidates on the server (T-05)", "lists batches with server-side filters" | Candidate, batch, course, trainer, user, learner-job and admin-job lists are paged (max 100). **Missing:** `GET /programmes` has no paging, search or filters. Programme beneficiaries are returned unpaged. Employer jobs are capped at 200, with no paging. |
+| SH-09 | Search and filters | Must | Built | `packages/shared/src/schemas.ts` (`listQuerySchema`), list routes | `lifecycle.test.ts` › "lists users with server-side search, filters and pagination"; `training.test.ts` › "searches and filters candidates on the server (T-05)", "lists batches with server-side filters"; `phase10.test.ts` › "pages, searches by name and filters by status…", "beneficiaries come back a page at a time…" | Candidate, batch, course, trainer, user, learner-job, admin-job and programme lists are paged (max 100); programmes can be searched by name and filtered by status; beneficiaries are paged. The employer's own job list shows up to 200 without paging (enough for the pilot). |
 | SH-10 | Export | Should | Built | `api/routes/programmes/programmes.ts`, `api/routes/programmes/partner.ts` | `programmes.test.ts` › "the beneficiary download has only the approved columns and is logged…", "exported cells cannot carry spreadsheet formulas" | The only CSV exports are the programme, beneficiary and cohort reports. There is no general candidate-list export. |
 
 ## Admin portal (§7)
@@ -72,13 +74,13 @@ Numbers in brackets are the requirements document's §20 list. README uses its o
 | AD-02 | Manage courses and levels | Must | Built | `api/routes/training/courses.ts`, `web/training/Courses.tsx` | `training.test.ts` › "creates a course with criteria, a pass rule and an attendance threshold", "an inactive course cannot get new batches" | "Category" is the skill area (a fixed list). |
 | AD-03 | Manage centres and trainers | Must | Built | `api/routes/admin/centres.ts`, `api/routes/training/trainers.ts` | `lifecycle.test.ts` › "creates, edits, deactivates and searches centres"; `training.test.ts` › "assigns a trainer to a second centre and verifies them"; `isolation2.test.ts` › "each role lists exactly the batches it should" | |
 | AD-04 | Create training batch | Must | Built | `api/routes/training/batches.ts`, `web/training/Batches.tsx` | `training.test.ts` › "creates a batch with course, centre, verified trainer…", "enforces capacity"; `e2e/tests/training.spec.ts` › "an admin creates a batch and enrols candidates" | |
-| AD-05 | Candidate approval | Must | Built | `api/routes/training/candidates.ts`, `web/training/Candidates.tsx` | `training.test.ts` › "records approval decisions with reasons and keeps history in the audit log"; `e2e/tests/candidates.spec.ts` › "verify a candidate, upload a certificate…" | Candidate status is pending, verified, rejected or needs correction. No API marks a single document as verified (see EE-03). |
+| AD-05 | Candidate approval | Must | Built | `api/routes/training/candidates.ts`, `web/training/Candidates.tsx` | `training.test.ts` › "records approval decisions with reasons and keeps history in the audit log"; `e2e/tests/candidates.spec.ts` › "verify a candidate, upload a certificate…" | Candidate status is pending, verified, rejected or needs correction. Each document can be verified or rejected with a reason (`phase10.test.ts` › "VTA verifies a learner document…", "rejecting needs a reason…"). |
 | AD-06 | Assessment review | Must | Built | `api/routes/operations/assessments.ts`, `web/operations/ReviewQueue.tsx` | `operations.test.ts` › "trainers cannot review; a reviewer returns a result for correction with a reason", "nobody can approve a result they submitted (API and database)" | |
 | AD-07 | Certificate management | Must | Built | `api/routes/operations/credentials.ts`, `web/VerifyPage.tsx` | `operations.test.ts` › "issues credentials only to candidates who completed, passed and were approved", "revoking shows "revoked" on the verify page; reissuing marks the old one as replaced" | "Supersede" is called "reissue". |
 | AD-08 | Employer and partner verification | Must | Built | `api/routes/admin/organisations.ts`, `api/routes/hiring/admin.ts`, `web/admin/Organisations.tsx` | `lifecycle.test.ts` › "verifies, rejects and requests information with reasons"; `hiring.test.ts` › "a pending employer completes the profile…" | |
 | AD-09 | Job moderation | Must | Built | `api/routes/hiring/admin.ts`, `web/admin/Hiring.tsx` | `hiring.test.ts` › "editing a published job sends it back to VTA; VTA can pause or close with a reason", "only VTA moderates…" | |
 | AD-10 | Programme management | Must | Built | `api/routes/programmes/programmes.ts`, `web/programmes/ProgrammeForm.tsx` | `programmes.test.ts` › "VTA creates a programme for a partner; the partner then sees it", "the programme shows its sponsor, batches and a budget reference with source and date" | The programme has no centre field. Its centres come from the batches linked to it. |
-| AD-11 | Reports | Must | Built | `api/routes/programmes/partner.ts` (cohort report), `web/programmes/Reports.tsx` | `programmes.test.ts` › "VTA filters the cohort report by programme, partner, course and dates"; `e2e/tests/programmes.spec.ts` › "VTA filters the cohort report and downloads it" | The course and centre filters are coded but not tested (the test named "…course…" does not use `courseId`). The cohort report is aggregate only. |
+| AD-11 | Reports | Must | Built | `api/routes/programmes/partner.ts` (cohort report), `web/programmes/Reports.tsx` | `programmes.test.ts` › "VTA filters the cohort report by programme, partner, course and dates"; `e2e/tests/programmes.spec.ts` › "VTA filters the cohort report and downloads it" | Course and centre filters are tested in `phase10.test.ts` › "the cohort report filters by course and by centre". The cohort report is aggregate only. |
 | AD-12 | Platform configuration | Should | Not built | none | none | Skill areas, levels and partner types are fixed lists in `packages/shared`. There are no screens for locations, qualification labels or notification templates. README does not mention this. |
 
 ## Employer portal (§8)
@@ -91,8 +93,8 @@ Numbers in brackets are the requirements document's §20 list. README uses its o
 | EM-04 | Candidate search | Must | Built | `api/routes/hiring/search.ts`, `web/employer/Candidates.tsx` | `hiring.test.ts` › "only verified candidates who opted in appear…", "filters by certificate and experience…" | Filters: skill, city or area, experience, certificate or course, availability. Only some are tested. |
 | EM-05 | View candidate profile | Must | Built | `api/routes/hiring/search.ts`, `web/employer/Application.tsx` | `hiring.test.ts` › "only verified candidates who opted in appear, with a masked name and no contact details" | Contact details are shared only through an application. |
 | EM-06 | Shortlist and application pipeline | Must | Built | `api/routes/hiring/employerJobs.ts` | `hiring.test.ts` › "moves follow the pipeline with a timestamped timeline…", "a withdrawn application hides…"; `e2e/tests/hiring.spec.ts` › "the recruiter shortlists, interviews, offers and records the joining" | "Rejected" shows as "not selected". |
-| EM-07 | Interview notes | Should | Built | `api/routes/hiring/employerJobs.ts` | `hiring.test.ts` › "scheduling an interview moves it to interview; notes stay with the employer" | Recording an interview outcome (`PUT /employer/interviews/:id`) has no test. |
-| EM-08 | Hiring outcome | Must | Built | `api/routes/hiring/employerJobs.ts`, `api/routes/hiring/admin.ts`, `web/admin/Hiring.tsx` | `hiring.test.ts` › "offer, then joined with a joining date; VTA verifies the outcome"; `e2e/tests/hiring.spec.ts` › "VTA confirms the recorded joining" | Flagging is only tested for refusal without a note. No test makes a flag succeed. |
+| EM-07 | Interview notes | Should | Built | `api/routes/hiring/employerJobs.ts` | `hiring.test.ts` › "scheduling an interview moves it to interview; notes stay with the employer" | Recording an outcome is tested in `phase10.test.ts` › "an interview outcome is recorded; private notes stay with the employer". |
+| EM-08 | Hiring outcome | Must | Built | `api/routes/hiring/employerJobs.ts`, `api/routes/hiring/admin.ts`, `web/admin/Hiring.tsx` | `hiring.test.ts` › "offer, then joined with a joining date; VTA verifies the outcome"; `e2e/tests/hiring.spec.ts` › "VTA confirms the recorded joining" | Flagging is tested in `phase10.test.ts` › "VTA can flag a recorded joining with a note". |
 | EM-09 | Employer reporting | Should | Built | `api/routes/hiring/employerJobs.ts` (`/employer/dashboard`), `web/employer/Dashboard.tsx` | `hiring.test.ts` › "the employer dashboard counts applicants, shortlists, interviews and joinings per job" | |
 | EM-10 | Candidate contact | Must | Built | `api/routes/hiring/employerJobs.ts`, `api/routes/hiring/search.ts` | `hiring.test.ts` › "the employer sees applicants; opening one shows contact details and is logged", "opening a profile is logged…" | |
 
@@ -102,7 +104,7 @@ Numbers in brackets are the requirements document's §20 list. README uses its o
 | --- | --- | --- | --- | --- | --- | --- |
 | EE-01 | Mobile-first onboarding | Must | Built | `api/routes/auth.ts` (`/register`), `web/RegisterPage.tsx` | `learner.test.ts` › "a new number gets a code; registering creates an active learner…"; `e2e/tests/learner.spec.ts` › "a technician creates their own account and fills in the profile…" | Real SMS sending waits for SH-01's vendor. |
 | EE-02 | Technician profile | Must | Built | `api/routes/learner/routes.ts`, `web/learner/Profile.tsx` | `learner.test.ts` › "saves part of a profile at a time and reports what is missing", "name and date of birth are locked once VTA has verified them" | |
-| EE-03 | Evidence upload | Should | Partial | `api/routes/learner/routes.ts`, `web/learner/Documents.tsx` | `learner.test.ts` › "the learner uploads their own evidence and chooses who may see it", "documents VTA added or verified cannot be deleted…" | Upload and visibility work. **Missing:** no route lets VTA verify a document, so every document stays "pending". |
+| EE-03 | Evidence upload | Should | Built | `api/routes/learner/routes.ts`, `api/routes/training/files.ts`, `web/learner/Documents.tsx` | `learner.test.ts` › "the learner uploads their own evidence and chooses who may see it"; `phase10.test.ts` › "VTA verifies a learner document; the learner can then no longer delete it", "rejecting needs a reason, which the learner sees…" | Status shows as "Not checked yet", "Verified by VTA" or "Not accepted" with VTA's note. |
 | EE-04 | Learning dashboard | Must | Partial | `api/routes/learner/routes.ts` (`/me/learning`), `web/learner/Learning.tsx` | `learner.test.ts` › "the learning dashboard shows each course with attendance and assessment state" | Shows courses, attendance progress and assessment state. **Missing:** upcoming sessions, because there is no session timetable and no LMS link (D1). |
 | EE-05 | Assessment results | Must | Built | `api/routes/learner/routes.ts` (`/me/results/:id`), `web/learner/Learning.tsx` | `learner.test.ts` › "a released result shows marks and trainer feedback, never reviewer details", "a result not yet approved is not shown…" | |
 | EE-06 | Credential wallet | Must | Built | `api/routes/learner/routes.ts`, `web/learner/Certificates.tsx` | `learner.test.ts` › "the wallet lists the person's certificates with a check link…", "a revoked certificate shows as revoked, without the internal reason" | Labelled "course completion record", not an official qualification. |
@@ -169,19 +171,19 @@ Numbers in brackets are the requirements document's §20 list. README uses its o
 
 ## Non-functional requirements (§15)
 
-A Phase 10 pilot-readiness pass (accessibility audit, security headers, performance check, backup and restore drill, maintenance job) is in progress on another branch. The rows below show the state on this branch.
+Phase 10 (pilot readiness) added the accessibility checks, web security headers, the performance check, the backup and restore drill and the maintenance job. See docs/operations.md and SECURITY.md.
 
 | Area | Status | Evidence | Notes |
 | --- | --- | --- | --- |
-| Security | Partial | `auth.test.ts` › "session cookie is httpOnly and SameSite=Lax", "rate-limits sign-in attempts…"; `auth.test.ts` › "refuses a state-changing request without the CSRF header"; `platform.test.ts` › "sets security headers…"; CI runs `pnpm audit` and gitleaks | HSTS is on only when `COOKIE_SECURE` is set. HTTPS and a managed secret store depend on hosting (D10). Phase 10 in progress. |
-| Privacy | Partial | `learner.test.ts` SH-05 tests; `training.test.ts` › "blocks under-18s during the pilot (decision D4)" | The notice is a DRAFT. **Missing:** retention, deletion and self-service export; these are support requests for now. Needs VTA decision §20.6. |
-| Performance | Partial | none (no load test) | Paging (max 100) and indexes are in place. Some lists are unbounded (SH-09). The p95 target has not been measured. Phase 10 in progress. |
+| Security | Built | `auth.test.ts` › "session cookie is httpOnly and SameSite=Lax", "rate-limits sign-in attempts…", "refuses a state-changing request without the CSRF header"; `e2e/tests/security.spec.ts` (web headers, no Content Security Policy violations, no framing); CI runs `pnpm audit`, gitleaks and Dependabot | HTTPS and a managed secret store come with hosting (D10). An independent penetration test is still recommended (SECURITY.md). |
+| Privacy | Partial | `learner.test.ts` SH-05 tests; `training.test.ts` › "blocks under-18s during the pilot (decision D4)"; `phase9.test.ts` › "downloads everything kept about the learner…", "only a Super Admin completes it…" | Self-service data download and closure requests are built. **Missing:** approved notice wording and retention periods (§20.6). |
+| Performance | Built | `pnpm --filter @vta/api perf` (docs/operations.md) | Measured 26 Oct 2026: slowest p95 69 ms at 10,000 learners and 402 ms at 50,000, against a 2.5 s target (in-process; hosting adds network time). The pilot load is still to be agreed. |
 | Availability | External dependency | none | `/health/live` and `/health/ready` exist. No uptime monitoring. The service target and hosting wait for VTA (D10). |
-| Accessibility | Partial | Browser tests find elements by role and label (for example `offline.spec.ts`). No automated accessibility checker. | States are shown in words as well as colour. WCAG 2.2 AA has not been audited. Phase 10 in progress. |
+| Accessibility | Partial | `e2e/tests/a11y.spec.ts` (axe-core WCAG 2.2 A/AA rules on 40 screens in every portal, dialogs, menus, keyboard sign-in) | Automated checks pass. **Missing:** a manual check with a screen reader and keyboard by a person (automated tools find about a third of issues). |
 | Responsive UI | Partial | `e2e/tests/mobile.spec.ts` (8 tests at phone size) | Chromium only. **Missing:** no Safari, iOS or Edge runs. |
 | PWA | Partial | `e2e/tests/offline.spec.ts` › "the app is installable…" and the offline tests | **Missing:** no test of the update prompt; real-iPhone check outstanding. |
-| Backups | Not built | none | No backup set-up or restore procedure on this branch. RPO and RTO wait for VTA (D10). Phase 10 in progress (restore drill). |
-| Observability | Partial | `files.test.ts` › "signatures never appear in request logs"; audit tests | Logs are structured and secrets are redacted. **Missing:** central logging, exception monitoring and uptime checks (D10). Phase 10 in progress. |
+| Backups | Partial | `pnpm --filter @vta/api backup -- --drill` (docs/operations.md) | Backup script and restore drill built and run (2.15 million rows, 36 tables restored with no differences). **Missing:** the host's automatic backups and agreed RPO/RTO (D10). |
+| Observability | Partial | `files.test.ts` › "signatures never appear in request logs"; audit tests | Logs are structured, secrets are redacted, every response has a request id, health endpoints exist. **Missing:** central logging, exception monitoring and uptime checks (D10). |
 | Data export | Built | `programmes.test.ts` › "the beneficiary download has only the approved columns and is logged…", "the programme report is aggregate only…" | Least privilege: `report.read` is for VTA staff only. |
 
 ## Acceptance criteria (§18)
@@ -198,7 +200,7 @@ A Phase 10 pilot-readiness pass (accessibility audit, security headers, performa
 | 8 | Partner sees assigned programme only | Built | `programmes.test.ts` › PA-02 tests; `e2e/tests/programmes.spec.ts` | |
 | 9 | Exports are permission-scoped and audited | Built | `programmes.test.ts` › PA-06 / AD-11 tests | |
 | 10 | Mobile tested on Android and iOS browsers; PWA install and offline sync tested | Partial | `e2e/tests/mobile.spec.ts`, `e2e/tests/offline.spec.ts` | Chromium at Android size only. A real-iPhone check is still needed (README). |
-| 11 | Backup restore, error monitoring, consent logging, account deactivation demonstrated | Partial | `learner.test.ts` › "consent records cannot be changed…"; `lifecycle.test.ts` › "only a Super Admin can deactivate" | Consent logging and deactivation are done. Backups and monitoring are not (D10). Phase 10 in progress. |
+| 11 | Backup restore, error monitoring, consent logging, account deactivation demonstrated | Partial | `learner.test.ts` › "consent records cannot be changed…"; `lifecycle.test.ts` › "only a Super Admin can deactivate" | Consent logging, deactivation and a restore drill are done. Error monitoring waits for hosting (D10). |
 
 ## Appendix A scenario
 
@@ -214,11 +216,12 @@ A Phase 10 pilot-readiness pass (accessibility audit, security headers, performa
 | 8. Partner sees aggregate progress and authorised beneficiaries only | Built | `e2e/tests/programmes.spec.ts` › "the partner sees its programme with defined figures, beneficiaries without names…" |
 | 9. Admin report shows counts with definitions and denominators; audit records approval and issue | Built | `programmes.test.ts` › "VTA filters the cohort report…"; `operations.test.ts` › "every step is in the audit log" |
 
-## Points to check (README against code)
+## Points the review raised, and what happened
 
-- README has no "What works in Phase 9" section on this branch.
-- README test counts look out of date. Counting test declarations gives 254 unit and API tests (README says 245) and 50 browser tests (README says 46), before `it.each` expansion.
-- Known limits says partner admins get batch creation "with programmes in Phase 7". In the code, `batch.manage` still excludes `partner_admin`.
-- No API sets a document's `verification_status` to verified, so the EE-03 statuses and the "verified documents cannot be removed" rule can never take effect outside the database.
-- README's decision numbers (D1, D2, D4, D5, D8, D10) do not match the numbering in requirements §20.
-- The root `package.json` description still says "Phase 3".
+- README had no Phase 9 section on the reviewed branch: added with Phase 9.
+- README test counts were out of date: updated (Phase 10).
+- Known limits said partner admins would create batches with Phase 7; they still cannot (`batch.manage` excludes `partner_admin`). README now says so plainly.
+- No API could verify a document: fixed in Phase 10 (AD-05/EE-03).
+- README's decision numbers (D1, D2, D4, D5, D8, D10) differ from requirements §20: README now explains the mapping.
+- The root `package.json` description said "Phase 3": fixed.
+- Not built and not mentioned before: PA-07 (partner admins inviting their own viewers) and AD-12 (settings screens for lookup lists). Both are "Should"; README now lists them.

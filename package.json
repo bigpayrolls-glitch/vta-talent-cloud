@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "version": "0.1.0",
-  "description": "VTA Talent Cloud — role-based automotive skills and workforce platform (Phase 3: training operations)",
+  "description": "VTA Talent Cloud — role-based automotive skills and workforce platform",
   "packageManager": "pnpm@10.28.0",
   "engines": {
     "node": ">=22"

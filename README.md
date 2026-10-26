@@ -2,7 +2,18 @@
 
 A role-based automotive skills and workforce platform. One backend and one database serve four portals: **Learner**, **Employer**, **Training Partner** (including trainers) and **Admin**, plus a public front page.
 
-**Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data), Phase 3 (training operations), Phase 4 (offline attendance and the installable app), Phase 5 (Learner portal), Phase 6 (Employer portal and hiring), Phase 7 (partner programmes and reports), Phase 8 (public site and organisation sign-up) and Phase 9 (notifications and account self-service).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+**Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data), Phase 3 (training operations), Phase 4 (offline attendance and the installable app), Phase 5 (Learner portal), Phase 6 (Employer portal and hiring), Phase 7 (partner programmes and reports), Phase 8 (public site and organisation sign-up), Phase 9 (notifications and account self-service) and Phase 10 (pilot readiness).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+
+## Phase 10: pilot readiness
+
+| Area | What was done |
+| --- | --- |
+| Requirements check | [docs/traceability.md](docs/traceability.md) maps every requirement ID to its status, code and tests (51 of 61 built, 6 partial, 3 not built, 1 waiting for a vendor), plus the non-functional requirements, acceptance criteria and the decisions VTA still needs to make. A reviewer that had not written the code drafted it; the gaps it found were fixed below. |
+| Accessibility (WCAG 2.2 AA) | Automated checks (axe-core) on 40 screens across every portal, with dialogs and menus open and form errors showing, plus keyboard-only sign-in. Fixed: the logo's label, low-contrast text on the sign-in page, and the account menu's structure for screen readers. A manual screen-reader check is still recommended. |
+| Security | The web app now sends a strict Content Security Policy (own scripts only, no eval, no framing) and other security headers, defined once in `apps/web/security-headers.json`; browser tests run under it and fail on any violation. See [SECURITY.md](SECURITY.md). Dependabot opens weekly dependency updates. |
+| Performance | `pnpm --filter @vta/api perf` loads pilot-scale data and times 17 common read APIs: slowest p95 69 ms at 10,000 learners, 402 ms at 50,000 (target 2.5 s). |
+| Operations | A daily maintenance job (old codes, sessions and reset links; sign-ups never confirmed in 30 days are closed, and registering again reopens them), a backup script and a restore drill that compares every table and database rule. Runbook: [docs/operations.md](docs/operations.md). |
+| Fixes from the review | VTA can verify or reject each candidate document with a reason (AD-05/EE-03: before, every document stayed "pending"). Programme lists are paged, searchable and filterable, and beneficiaries are paged (SH-09). New tests for interview outcomes (EM-07), flagging a joining (EM-08) and the cohort report's course and centre filters (AD-11). |
 
 ## What works in Phase 9
 
@@ -154,8 +165,8 @@ The demo data also has three courses (2W, 4W and EV), nine candidates (one flagg
 ## Tests
 
 ```bash
-pnpm test        # 245 tests: API (real PostgreSQL), shared rules, the phone's offline store
-pnpm e2e         # 46 browser tests (Playwright): desktop and phone sizes, including offline
+pnpm test        # 288 tests: API (real PostgreSQL), shared rules, the phone's offline store
+pnpm e2e         # 65 browser tests (Playwright): desktop and phone sizes, offline, accessibility (axe) and security headers
 pnpm lint
 pnpm typecheck
 pnpm build
@@ -219,12 +230,19 @@ infra             Docker Compose for local services
 - The offline store is not encrypted beyond what the phone itself provides; it is kept small instead (names, IDs, attendance). A shared phone should use separate sign-ins: signing in as someone else deletes it.
 - Syncing in the background after the app is closed (Background Sync) is Chrome-only, so it is not used; the app syncs when opened or brought to the front.
 - The app icons are a placeholder mark. Replace `apps/web/public/icons/*` (regenerate with `e2e/scripts/make-icons.mjs`) once VTA supplies its logo.
-- Partner admins cannot create batches yet. That arrives with programmes in Phase 7 (design decision of 24 Oct 2026).
+- Partner admins cannot create batches; VTA creates them. (README once said this would come with Phase 7; it did not. Decide whether partners need it for the pilot.)
+- Partner admins cannot invite their own viewers (PA-07, Should); VTA adds them under Users & Roles.
+- Lookup lists (skill areas, levels, partner types, sectors) are fixed in code; there are no settings screens (AD-12, Should). Notification wording is in `packages/shared/src/notifications.ts`.
+- There is no screen to change a learner's phone number (their sign-in). See docs/operations.md.
+- The learning dashboard has no upcoming sessions (no timetable or LMS link, EE-04); assessments have no evidence-reference field (TR-05); "at risk" means low attendance only (TR-07); the admin dashboard has no date-range filter (AD-01).
 - The wordmark is plain text. Swap `Wordmark` in `apps/web/src/components/ui.tsx` for the VTA master logo once supplied.
 - Install and offline behaviour is tested in Chromium (desktop and Android size). It still needs a manual check on a real iPhone before the pilot (acceptance criterion).
 - A **staging** copy can run on Vercel for review (see [docs/deploy-vercel.md](docs/deploy-vercel.md)): demo data, sign-in codes shown on screen, files kept in the database, uploads up to about 4.5 MB. Pilot hosting is still decision D10.
 
 ## Defaults assumed (change any of these at any time)
+
+The D-numbers here are this project's own; requirements §20 numbers its open decisions differently. docs/traceability.md gives both.
+
 
 - **D1:** a new standalone app, not an extension of an existing VTA LMS.
 - **D2:** email and password for staff, employers and partners; phone OTP for learners and trainers.
