@@ -67,6 +67,11 @@ export const PERMISSIONS = {
   'job.moderate': ['super_admin', 'ops_admin'],
   'hiring.verify': ['super_admin', 'ops_admin'],
   'hiring.read': ['super_admin', 'ops_admin'],
+  /** Phase 12: the employer's plan. Both employer roles see it; only the employer admin buys or changes it. */
+  'employer.subscription.read': ['employer_admin', 'employer_recruiter'],
+  'employer.subscription': ['employer_admin'],
+  /** AutoTalent Grid sets a plan by hand (Enterprise, or paid outside the platform). */
+  'subscription.manage': ['super_admin', 'ops_admin'],
 
   // Phase 7: partner programmes and reports. Partners see only programmes assigned to their organisation.
   /** PA-01: the partner's own organisation profile and documents. */

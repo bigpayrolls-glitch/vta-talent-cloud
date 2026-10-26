@@ -27,6 +27,12 @@ const envSchema = z.object({
   STORAGE_DIR: z.string().default('.storage'),
   /** Name printed as the issuer on credentials and the verify page (decision D8: the legal entity). */
   CREDENTIAL_ISSUER_NAME: z.string().trim().min(2).max(120).default('AutoTalent Grid'),
+  /**
+   * Phase 12: how employers pay for a plan. 'test' completes a marked test payment with no money moving
+   * (allowed on local and staging only); 'none' means employers ask AutoTalent Grid and an admin sets the plan.
+   * A real payment provider (for example Razorpay) needs an account and keys from AutoTalent Grid.
+   */
+  PAYMENT_MODE: z.enum(['test', 'none']).optional(),
   /** Secret for signing file download links. Required in production; random per start in development. */
   FILE_SIGNING_SECRET: z.preprocess(
     (v) => (v === '' ? undefined : v),
@@ -39,6 +45,7 @@ export type Config = Omit<z.infer<typeof envSchema>, 'FILE_SIGNING_SECRET'> & {
   fileSigningSecret: string;
   /** Staging only: return sign-in codes to the screen (there is no SMS provider yet). */
   showCodes: boolean;
+  paymentMode: 'test' | 'none';
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -52,11 +59,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     if (!parsed.COOKIE_SECURE) throw new Error('COOKIE_SECURE must be true in production.');
     if (!parsed.FILE_SIGNING_SECRET) throw new Error('FILE_SIGNING_SECRET is required in production.');
   }
+  if (parsed.APP_ENV === 'production' && parsed.PAYMENT_MODE === 'test') throw new Error('PAYMENT_MODE=test is not allowed in production.');
   const { FILE_SIGNING_SECRET, ...rest } = parsed;
   return {
     ...rest,
     databaseUrl: parsed.NODE_ENV === 'test' ? parsed.TEST_DATABASE_URL : parsed.DATABASE_URL,
     fileSigningSecret: FILE_SIGNING_SECRET ?? randomBytes(32).toString('base64url'),
     showCodes: parsed.APP_ENV === 'staging' && parsed.SMS_PROVIDER === 'console',
+    paymentMode: parsed.PAYMENT_MODE ?? (parsed.APP_ENV === 'production' ? 'none' : 'test'),
   };
 }

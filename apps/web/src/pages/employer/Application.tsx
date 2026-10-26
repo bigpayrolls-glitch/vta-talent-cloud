@@ -42,6 +42,8 @@ interface ApplicationDetail {
     phone: string | null;
     email: string | null;
     contactShared: boolean;
+    /** Phase 12: shared by the candidate, but not part of the employer's plan. */
+    contactNeedsUpgrade: boolean;
     code: string;
     city: string;
     state: string | null;
@@ -56,6 +58,7 @@ interface ApplicationDetail {
   certificates: { id: string; course: string; issueDate: string; verifyPath: string }[];
   documents: { id: string; kind: string; title: string; verificationStatus: string }[];
   interviews: Interview[];
+  interviewsOnPlan: boolean;
   timeline: { id: string; from: string | null; to: ApplicationStatus; by: string; byName: string | null; at: string }[];
 }
 
@@ -78,7 +81,17 @@ export function EmployerApplicationPage() {
   const [interview, setInterview] = useState<Interview | 'new' | null>(null);
   const [error, setError] = useState('');
   if (q.isLoading) return <Spinner />;
-  if (q.isError) return <ErrorNote message={(q.error as Error).message} />;
+  if (q.isError)
+    return (
+      <>
+        <ErrorNote message={(q.error as Error).message} />
+        {q.error instanceof ApiError && q.error.fields.plan === 'upgrade' && (
+          <Link to="/employer/subscription/plans" className="btn-primary mt-3">
+            See plans
+          </Link>
+        )}
+      </>
+    );
   const a = q.data!;
   const p = a.candidate;
   const refresh = () => qc.invalidateQueries({ queryKey: ['employer'] });
@@ -157,6 +170,14 @@ export function EmployerApplicationPage() {
                 )}
                 <li className="pt-1 text-[13px] text-muted">Shared by the candidate when they applied on {shortDate(a.consent.sharedAt)}. Opening this page is logged.</li>
               </ul>
+            ) : p.contactNeedsUpgrade ? (
+              <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted">
+                <Lock className="size-4" aria-hidden />
+                Contact details and documents are part of the Starter plan and above.
+                <Link to="/employer/subscription/plans" className="font-semibold text-brand underline">
+                  Upgrade plan
+                </Link>
+              </p>
             ) : (
               <p className="mt-2 flex items-center gap-2 text-sm text-muted">
                 <Lock className="size-4" aria-hidden />
@@ -221,14 +242,21 @@ export function EmployerApplicationPage() {
           <section className="card px-5 py-4">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold">Interviews</h2>
-              {['applied', 'shortlisted', 'interview', 'offer'].includes(a.status) && (
+              {a.interviewsOnPlan && ['applied', 'shortlisted', 'interview', 'offer'].includes(a.status) && (
                 <button className="btn-secondary btn-sm" onClick={() => setInterview('new')}>
                   <CalendarPlus className="size-4" aria-hidden />
                   Schedule
                 </button>
               )}
             </div>
-            {!a.interviews.length ? (
+            {!a.interviewsOnPlan ? (
+              <p className="mt-2 text-sm text-muted">
+                Interview management is part of the Starter plan and above.{' '}
+                <Link to="/employer/subscription/plans" className="font-semibold text-brand underline">
+                  Upgrade plan
+                </Link>
+              </p>
+            ) : !a.interviews.length ? (
               <p className="mt-2 text-sm text-muted">None yet.</p>
             ) : (
               <ul className="mt-2 divide-y divide-line text-sm">

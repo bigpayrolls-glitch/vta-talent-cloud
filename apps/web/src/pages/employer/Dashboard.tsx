@@ -6,6 +6,7 @@ import { EmptyState, ErrorNote, formatDate, Spinner, StatusBadge } from '../../c
 import { api } from '../../lib/api';
 import { firstName, useAuth } from '../../lib/auth';
 import { shortDate } from '../hiring/format';
+import { CurrentPlanCard } from './Subscription';
 
 interface Dash {
   asOf: string;
@@ -22,12 +23,15 @@ export function EmployerDashboard() {
     <>
       <section className="rounded-[20px] bg-brand-tint px-6 py-7 sm:px-10">
         <h1 className="text-[28px] font-extrabold tracking-tight sm:text-[34px]">Hello, {firstName(me?.name ?? '')}!</h1>
-        <p className="mt-1 text-lg text-ink/75">Find skilled and certified technicians.</p>
+        <p className="mt-1 text-lg text-ink/75">Post jobs and hire skilled technicians for your service network.</p>
         <Link to="/employer/jobs/new" className="btn-primary mt-5">
           <Plus className="size-4" aria-hidden />
           Post a job
         </Link>
       </section>
+      <div className="mt-6">
+        <CurrentPlanCard />
+      </div>
       {q.isLoading ? (
         <Spinner />
       ) : q.isError ? (

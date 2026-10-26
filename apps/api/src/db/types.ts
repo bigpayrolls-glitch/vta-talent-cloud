@@ -285,6 +285,35 @@ export interface NotificationsTable {
   created_at: Timestamp;
 }
 
+export interface EmployerSubscriptionsTable {
+  organisation_id: string;
+  plan: 'starter' | 'growth' | 'enterprise';
+  billing_cycle: 'monthly' | 'yearly' | null;
+  period_start: Date;
+  period_end: Date;
+  source: 'payment' | 'admin';
+  updated_by: string;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
+export interface SubscriptionPaymentsTable {
+  id: string;
+  organisation_id: string;
+  plan: 'starter' | 'growth';
+  billing_cycle: 'monthly' | 'yearly';
+  amount_paise: number;
+  currency: Generated<string>;
+  method: 'card' | 'upi' | 'netbanking';
+  provider: 'test';
+  status: 'succeeded';
+  invoice_number: string;
+  period_start: Date;
+  period_end: Date;
+  paid_by: string;
+  created_at: Timestamp;
+}
+
 export interface PasswordResetsTable {
   id: string;
   user_id: string;
@@ -513,6 +542,8 @@ export interface Database {
   stored_files: StoredFilesTable;
   notifications: NotificationsTable;
   password_resets: PasswordResetsTable;
+  employer_subscriptions: EmployerSubscriptionsTable;
+  subscription_payments: SubscriptionPaymentsTable;
   account_requests: AccountRequestsTable;
   programme_partners: ProgrammePartnersTable;
   programme_batches: ProgrammeBatchesTable;

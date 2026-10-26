@@ -47,6 +47,8 @@ export const NOTIFICATION_TEMPLATES = {
   job_published: { title: (p) => `${p.job} is live`, body: () => 'AutoTalent Grid approved it. Learners can now see and apply.' },
   job_paused: { title: (p) => `AutoTalent Grid paused ${p.job}`, body: (p) => (p.reason ? `AutoTalent Grid's note: ${p.reason}` : 'It is hidden from learners for now.') },
   job_rejected: { title: (p) => `AutoTalent Grid could not publish ${p.job}`, body: (p) => `AutoTalent Grid's note: ${p.reason}` },
+  plan_activated: { title: (p) => `Your ${p.plan} plan is active`, body: (p) => `Paid until ${p.until}. Invoice ${p.invoice}.` },
+  plan_set: { title: (p) => (p.plan === 'Free' ? 'Your plan is now Free' : `AutoTalent Grid set your plan to ${p.plan}`), body: (p) => (p.until ? `Until ${p.until}.` : 'Upgrade any time from Subscription.') },
   // Employers and partners
   org_verified: { title: (p) => `${p.org} is verified`, body: (p) => (p.type === 'employer' ? 'You can now post jobs and search candidates.' : 'AutoTalent Grid can now link you to programmes.') },
   org_more_info: { title: () => 'AutoTalent Grid needs more information', body: (p) => `AutoTalent Grid's note: ${p.reason}` },
@@ -56,6 +58,7 @@ export const NOTIFICATION_TEMPLATES = {
   org_submitted: { title: (p) => `${p.org} sent for verification`, body: (p) => (p.type === 'employer' ? 'An employer is waiting to be verified.' : 'A training partner is waiting to be verified.') },
   job_submitted: { title: (p) => `Job waiting for review: ${p.job}`, body: (p) => `From ${p.company}.` },
   joining_reported: { title: (p) => `Joining to verify: ${p.job}`, body: (p) => `${p.company} recorded a joining.` },
+  plan_requested: { title: (p) => `${p.org} asked about the ${p.plan} plan`, body: (p) => (p.note ? `Their note: ${p.note}` : 'Contact them to set it up.') },
   account_closure_requested: { title: () => 'A learner asked to close their account', body: () => 'Open Users to review the request.' },
 } satisfies Record<string, Template>;
 

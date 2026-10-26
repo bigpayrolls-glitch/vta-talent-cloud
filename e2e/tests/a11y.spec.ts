@@ -45,7 +45,7 @@ test.describe('accessibility (axe, WCAG 2.2 AA)', () => {
 
   test('employer portal', async ({ page }) => {
     await signInEmail(page, EMAIL.employerAdminA);
-    for (const path of ['/employer', '/employer/jobs', '/employer/jobs/new', '/employer/candidates', '/employer/company', '/employer/team', '/employer/account']) {
+    for (const path of ['/employer', '/employer/jobs', '/employer/jobs/new', '/employer/candidates', '/employer/company', '/employer/team', '/employer/account', '/employer/subscription', '/employer/subscription/plans', '/employer/subscription/plans/starter', '/employer/subscription/checkout?plan=starter&cycle=monthly']) {
       await page.goto(path);
       await check(page, path);
     }

@@ -4,6 +4,7 @@ import { companyRoutes } from './company.js';
 import { employerJobRoutes } from './employerJobs.js';
 import { learnerJobRoutes } from './learnerJobs.js';
 import { searchRoutes } from './search.js';
+import { subscriptionRoutes } from './subscription.js';
 
 /** Phase 6: employers, jobs, applications and hiring outcomes. */
 export const hiringRoutes: FastifyPluginAsync = async (app) => {
@@ -12,4 +13,5 @@ export const hiringRoutes: FastifyPluginAsync = async (app) => {
   await app.register(searchRoutes);
   await app.register(learnerJobRoutes);
   await app.register(hiringAdminRoutes);
+  await app.register(subscriptionRoutes);
 };

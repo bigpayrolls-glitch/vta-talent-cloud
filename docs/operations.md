@@ -74,6 +74,13 @@ Results on 26 Oct 2026 (one laptop-class machine, local PostgreSQL 16):
 
 Everything is well under the 2.5-second target. The cohort report, audit log and name search grow with the data; if the pilot grows well beyond 50,000 people, add a trigram index for name search and page the audit log without an exact total.
 
+## Employer plans (Phase 12)
+
+- Plans and limits are in `packages/shared/src/plans.ts` (Free, Starter, Growth, Enterprise). The server enforces them: active jobs, applicants an employer can open (per job on Free, per calendar month on paid plans), contact details and interviews.
+- `PAYMENT_MODE=test` (local and staging) completes a marked test payment: no money moves and no card details are asked for. Production defaults to `none`: employers ask, and an Operations or Super Admin sets the plan under **Organisations → the employer → Set plan**, giving a reason (for example the bank transfer reference). `test` is refused in production.
+- Plans do not renew by themselves. When a plan ends the employer is on Free; nothing is deleted, and extra jobs and applicants stay hidden until they pay again.
+- Taking real money needs a payment provider account (for example Razorpay or Cashfree) and its keys, the seller's GSTIN and address for tax invoices, and a refund policy. None of these exist yet.
+
 ## When something goes wrong
 
 | Problem | What to do |
