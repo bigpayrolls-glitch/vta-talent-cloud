@@ -397,7 +397,7 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/employer/dashboard', { config: { permission: 'job.manage' } }, async (req) => {
     const org = await employerOrg(db, req);
-    const jobs = await db.selectFrom('jobs').select(['id', 'title', 'status', 'closing_date', 'openings']).where('organisation_id', '=', org.id).where('status', '!=', 'closed').orderBy('created_at', 'desc').limit(50).execute();
+    const jobs = await db.selectFrom('jobs').select(['id', 'title', 'status', 'closing_date', 'openings', 'created_at']).where('organisation_id', '=', org.id).where('status', '!=', 'closed').orderBy('created_at', 'desc').limit(50).execute();
     const counts = await pipelineCounts(jobs.map((j) => j.id));
     const interviews = jobs.length
       ? await db
@@ -435,6 +435,7 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
           status: j.status,
           closingDate: j.closing_date,
           openings: j.openings,
+          createdAt: iso(j.created_at),
           applicants: Object.values(c).reduce((s, n) => s + (n ?? 0), 0),
           shortlisted: c.shortlisted ?? 0,
           interviews: Number(interviews.find((i) => i.job_id === j.id)?.n ?? 0),

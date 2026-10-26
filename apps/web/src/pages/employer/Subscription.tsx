@@ -50,8 +50,16 @@ export function PlanBadge({ plan }: { plan: Plan }) {
 }
 
 function PriceLine({ plan, cycle }: { plan: Plan; cycle: BillingCycle }) {
-  const price = PLAN_INFO[plan].price;
-  if (!price) return <p className="text-[28px] font-extrabold tracking-tight">Custom</p>;
+  const { price, fromPrice } = PLAN_INFO[plan];
+  if (!price)
+    return fromPrice ? (
+      <p>
+        <span className="text-[30px] font-extrabold tracking-tight">{formatRupees(fromPrice)}+</span>
+        <span className="text-muted"> / month</span>
+      </p>
+    ) : (
+      <p className="text-[28px] font-extrabold tracking-tight">Custom</p>
+    );
   return (
     <p>
       <span className="text-[30px] font-extrabold tracking-tight">{formatRupees(price[cycle])}</span>
@@ -90,29 +98,29 @@ export function CurrentPlanCard() {
           Manage plan
         </Link>
       </div>
-      <dl className="mt-4 grid grid-cols-3 gap-3 border-t border-line pt-4 text-sm">
-        <div className="flex items-start gap-2.5">
+      <ul className="mt-4 grid grid-cols-3 gap-3 border-t border-line pt-4 text-sm">
+        <li className="flex items-start gap-2.5">
           <Briefcase className="mt-0.5 size-5 text-ink/60" aria-hidden />
           <div>
-            <dd className="text-lg font-bold">{usageText(s.usage.activeJobs, s.usage.activeJobsLimit)}</dd>
-            <dt className="text-muted">Active jobs</dt>
+            <p className="text-lg font-bold">{usageText(s.usage.activeJobs, s.usage.activeJobsLimit)}</p>
+            <p className="text-muted">Active jobs</p>
           </div>
-        </div>
-        <div className="flex items-start gap-2.5">
+        </li>
+        <li className="flex items-start gap-2.5">
           <Users className="mt-0.5 size-5 text-ink/60" aria-hidden />
           <div>
-            <dd className="text-lg font-bold">{usageText(s.usage.applicants, s.usage.applicantsLimit)}</dd>
-            <dt className="text-muted">{s.usage.applicantsPer === 'job' ? 'Most applicants on a job' : 'Applicants this month'}</dt>
+            <p className="text-lg font-bold">{usageText(s.usage.applicants, s.usage.applicantsLimit)}</p>
+            <p className="text-muted">{s.usage.applicantsPer === 'job' ? 'Most applicants on a job' : 'Applicants this month'}</p>
           </div>
-        </div>
-        <div className="flex items-start gap-2.5">
+        </li>
+        <li className="flex items-start gap-2.5">
           <CalendarDays className="mt-0.5 size-5 text-ink/60" aria-hidden />
           <div>
-            <dd className="text-lg font-bold">{s.plan === 'free' ? '–' : `${daysLeft(s.periodEnd!)} days`}</dd>
-            <dt className="text-muted">{s.plan === 'free' ? 'No end date' : 'Left on plan'}</dt>
+            <p className="text-lg font-bold">{s.plan === 'free' ? '–' : `${daysLeft(s.periodEnd!)} days`}</p>
+            <p className="text-muted">{s.plan === 'free' ? 'No end date' : 'Left on plan'}</p>
           </div>
-        </div>
-      </dl>
+        </li>
+      </ul>
     </section>
   );
 }
@@ -174,9 +182,16 @@ export function SubscriptionPage() {
               </div>
               {canBuy && s.plan !== 'enterprise' && (
                 <div className="flex w-full flex-col gap-2 sm:w-auto">
-                  <Link to="/employer/subscription/plans" className="btn-primary h-11 px-6">
-                    {s.plan === 'free' ? 'Upgrade plan' : 'Change plan'}
-                  </Link>
+                  {s.plan !== 'growth' && (
+                    <Link to="/employer/subscription/plans" className="btn-primary h-11 bg-[#C8101A] px-6">
+                      Upgrade plan
+                    </Link>
+                  )}
+                  {s.plan !== 'free' && (
+                    <Link to="/employer/subscription/plans" className="btn-secondary h-11 border-[#D7141C] px-6 text-[#C8101A]">
+                      Change plan
+                    </Link>
+                  )}
                   {s.plan !== 'free' && s.cycle && (
                     <Link to={`/employer/subscription/checkout?plan=${s.plan}&cycle=${s.cycle}`} className="btn-secondary h-11 px-6">
                       Renew {PLAN_INFO[s.plan].name}
@@ -300,7 +315,7 @@ export function PlansPage() {
                     {cycle === 'yearly' && p !== 'free' && <p className="text-sm text-[#C8101A]">Save {yearlySaving(p as PaidPlan)}% on 12 months</p>}
                   </>
                 ) : (
-                  <p className="text-[28px] font-extrabold tracking-tight">Custom</p>
+                  <PriceLine plan={p} cycle="monthly" />
                 )}
               </div>
               <ul className="mt-4 flex-1 space-y-2.5 text-sm">

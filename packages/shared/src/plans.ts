@@ -19,7 +19,8 @@ export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 export interface PlanInfo {
   name: string;
   tagline: string;
-  /** Monthly and yearly price in paise; null for Enterprise (agreed with AutoTalent Grid). */
+  /** Monthly and yearly price in paise; null for Enterprise (agreed with AutoTalent Grid, from `fromPrice`). */
+  fromPrice?: number;
   price: Record<BillingCycle, number> | null;
   /** Jobs that are waiting for review, live or paused at the same time. null = no limit. */
   activeJobs: number | null;
@@ -67,6 +68,7 @@ export const PLAN_INFO: Record<Plan, PlanInfo> = {
     name: 'Enterprise',
     tagline: 'For large networks',
     price: null,
+    fromPrice: 999_900,
     activeJobs: null,
     applicants: null,
     contactDetails: true,
