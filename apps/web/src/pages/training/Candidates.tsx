@@ -20,6 +20,7 @@ import { api, ApiError, qs, uploadFile } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useForm } from '../../lib/useForm';
 import { useListParams } from '../../lib/useListParams';
+import { ChangePhoneButton } from '../admin/ChangePhone';
 import { ReasonModal } from './Trainers';
 
 interface CandidateRow {
@@ -368,7 +369,10 @@ export function CandidateDetailPage() {
           <h2 className="font-semibold">Profile</h2>
           <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-6 gap-y-2.5 text-sm">
             <dt className="text-muted">Mobile</dt>
-            <dd>{formatPhone(c.phone)}</dd>
+            <dd>
+              {formatPhone(c.phone)}
+              <ChangePhoneButton userId={c.id} name={c.name} phone={c.phone} className="ml-2 font-medium text-brand hover:underline" />
+            </dd>
             <dt className="text-muted">Email</dt>
             <dd>{c.email ?? '—'}</dd>
             <dt className="text-muted">Date of birth</dt>

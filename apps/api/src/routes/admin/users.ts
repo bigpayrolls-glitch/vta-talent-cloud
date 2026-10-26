@@ -1,4 +1,4 @@
-import { emailSchema, listQuerySchema, nameSchema, phoneSchema, reasonSchema, ROLES, uuidSchema, type Page } from '@vta/shared';
+import { changePhoneSchema, emailSchema, listQuerySchema, nameSchema, phoneSchema, reasonSchema, ROLES, uuidSchema, type Page } from '@vta/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
 import { z } from 'zod';
@@ -9,6 +9,7 @@ import type { DB } from '../../db/index.js';
 import type { User } from '../../db/types.js';
 import { newId, randomToken, sha256 } from '../../lib/crypto.js';
 import { conflict, forbidden, invalid, notFound } from '../../lib/errors.js';
+import { notify } from '../../lib/notify.js';
 import { iso, parse } from '../../lib/validate.js';
 import { assertPermission, isSuperAdmin, type Actor } from '../../policy/index.js';
 import { grantRole, roleInputSchema } from './roles.js';
@@ -234,7 +235,33 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
     });
   }
 
-  // Count sanity for the dashboard and tests
+  /**
+   * Phase 11: change the mobile number a learner or trainer signs in with (they lost the old one).
+   * VTA records how it checked who they are. Every session ends at once and the person must sign in
+   * with a code sent to the new number; old codes for the old number stop working.
+   */
+  app.post('/users/:id/phone', { config: { permission: 'user.suspend' } }, async (req) => {
+    const { id } = parse(idParam, req.params);
+    const b = parse(changePhoneSchema, req.body);
+    const user = await loadUser(db, id);
+    await assertCanManage(db, req.actor!, user);
+    if (!user.phone) throw invalid('This person signs in with email, not a mobile number.');
+    if (user.phone === b.phone) throw invalid('That is already their number.', { phone: 'Same as now' });
+    if (await db.selectFrom('users').select('id').where('phone', '=', b.phone).where('id', '!=', id).executeTakeFirst()) {
+      throw conflict('Another account already uses this number', { phone: 'Already in use' });
+    }
+    const masked = (p: string) => `${p.slice(0, 5)}*****${p.slice(-2)}`;
+    await db.transaction().execute(async (trx) => {
+      await trx.updateTable('users').set({ phone: b.phone, phone_verified_at: null, updated_at: new Date() }).where('id', '=', id).execute();
+      await trx.deleteFrom('otp_challenges').where('phone', 'in', [user.phone!, b.phone]).execute();
+      await audit(trx, auditCtx(req), { action: 'user.phone_changed', entityType: 'user', entityId: id, before: { phone: masked(user.phone!) }, after: { phone: masked(b.phone), reason: b.reason } });
+      await notify(trx, [id], 'phone_changed', { phone: masked(b.phone) }, null);
+    });
+    await revokeUserSessions(db, id);
+    return { id, phone: b.phone };
+  });
+
+
   app.get('/users-summary', { config: { permission: 'user.read' } }, async () => {
     const rows = await db
       .selectFrom('users')

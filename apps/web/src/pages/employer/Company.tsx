@@ -292,22 +292,55 @@ interface Member {
   isMe: boolean;
 }
 
+interface TeamConfig {
+  api: '/employer/team' | '/partner/team';
+  description: string;
+  invite: string;
+  memberRole: string;
+  label: (role: string) => string;
+  loses: string;
+}
+
+const EMPLOYER_TEAM: TeamConfig = {
+  api: '/employer/team',
+  description: 'Recruiters can post jobs, search candidates and manage applications. Only admins change the company profile and team.',
+  invite: 'Invite recruiter',
+  memberRole: 'employer_recruiter',
+  label: (r) => (r === 'employer_admin' ? 'Employer admin' : 'Recruiter'),
+  loses: 'your jobs and applicants',
+};
+
+/** PA-07: viewers see programmes, reports and documents, and change nothing. */
+const PARTNER_TEAM: TeamConfig = {
+  api: '/partner/team',
+  description: 'Viewers can see your programmes, beneficiaries, reports and documents, but cannot change anything. Only admins change the organisation profile and team.',
+  invite: 'Invite viewer',
+  memberRole: 'partner_viewer',
+  label: (r) => (r === 'partner_admin' ? 'Partner admin' : 'Viewer'),
+  loses: 'your programmes and reports',
+};
+
 /** EM-02: the employer admin manages recruiters. */
-export function TeamPage() {
+export const TeamPage = () => <Team config={EMPLOYER_TEAM} />;
+/** PA-07: the partner admin manages viewers. */
+export const PartnerTeamPage = () => <Team config={PARTNER_TEAM} />;
+
+function Team({ config }: { config: TeamConfig }) {
   const qc = useQueryClient();
   const toast = useToast();
-  const q = useQuery({ queryKey: ['employer', 'team'], queryFn: () => api.get<{ items: Member[] }>('/employer/team') });
+  const key = ['team', config.api];
+  const q = useQuery({ queryKey: key, queryFn: () => api.get<{ items: Member[] }>(config.api) });
   const [inviting, setInviting] = useState(false);
   const [removing, setRemoving] = useState<Member | null>(null);
   return (
     <>
       <PageHeader
         title="Team"
-        description="Recruiters can post jobs, search candidates and manage applications. Only admins change the company profile and team."
+        description={config.description}
         actions={
           <button className="btn-primary" onClick={() => setInviting(true)}>
             <UserPlus className="size-4" aria-hidden />
-            Invite recruiter
+            {config.invite}
           </button>
         }
       />
@@ -325,11 +358,11 @@ export function TeamPage() {
                   {m.isMe && <span className="font-normal text-muted"> (you)</span>}
                 </span>
                 <span className="block text-sm text-muted">
-                  {m.role === 'employer_admin' ? 'Employer admin' : 'Recruiter'}, {m.email}
+                  {config.label(m.role)}, {m.email}
                 </span>
               </span>
               <StatusBadge status={m.status} />
-              {m.role === 'employer_recruiter' && (
+              {m.role === config.memberRole && (
                 <button className="btn-quiet btn-sm" onClick={() => setRemoving(m)}>
                   Remove
                 </button>
@@ -338,7 +371,7 @@ export function TeamPage() {
           ))}
         </ul>
       )}
-      {inviting && <InviteRecruiterModal onClose={() => setInviting(false)} onDone={() => qc.invalidateQueries({ queryKey: ['employer', 'team'] })} />}
+      {inviting && <InviteMemberModal config={config} onClose={() => setInviting(false)} onDone={() => qc.invalidateQueries({ queryKey: key })} />}
       <Modal
         open={!!removing}
         onClose={() => setRemoving(null)}
@@ -351,8 +384,8 @@ export function TeamPage() {
             <button
               className="btn-primary"
               onClick={async () => {
-                await api.post(`/employer/team/${removing!.assignmentId}/remove`);
-                await qc.invalidateQueries({ queryKey: ['employer', 'team'] });
+                await api.post(`${config.api}/${removing!.assignmentId}/remove`);
+                await qc.invalidateQueries({ queryKey: key });
                 toast('success', `${removing!.name} no longer has access`);
                 setRemoving(null);
               }}
@@ -362,13 +395,15 @@ export function TeamPage() {
           </>
         }
       >
-        <p>{removing?.name} will lose access to your jobs and applicants straight away.</p>
+        <p>
+          {removing?.name} will lose access to {config.loses} straight away.
+        </p>
       </Modal>
     </>
   );
 }
 
-function InviteRecruiterModal({ onClose, onDone }: { onClose: () => void; onDone: () => Promise<unknown> }) {
+function InviteMemberModal({ config, onClose, onDone }: { config: TeamConfig; onClose: () => void; onDone: () => Promise<unknown> }) {
   const toast = useToast();
   const f = useForm(inviteRecruiterSchema);
   const [v, setV] = useState({ name: '', email: '' });
@@ -377,7 +412,7 @@ function InviteRecruiterModal({ onClose, onDone }: { onClose: () => void; onDone
     <Modal
       open
       onClose={onClose}
-      title="Invite recruiter"
+      title={config.invite}
       footer={
         link ? (
           <button className="btn-primary" onClick={onClose}>
@@ -393,7 +428,7 @@ function InviteRecruiterModal({ onClose, onDone }: { onClose: () => void; onDone
               disabled={f.submitting}
               onClick={() =>
                 void f.submit(v, async (data) => {
-                  const res = await api.post<{ devInviteUrl?: string }>('/employer/team', data);
+                  const res = await api.post<{ devInviteUrl?: string }>(config.api, data);
                   await onDone();
                   toast('success', `Invitation sent to ${data.email}`);
                   if (res.devInviteUrl) setLink(res.devInviteUrl);

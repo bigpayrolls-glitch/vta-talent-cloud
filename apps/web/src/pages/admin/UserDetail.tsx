@@ -12,6 +12,7 @@ import type { AuditRow } from './Audit';
 import { describeAudit } from './Audit';
 import { emptyRole, roleBody, RolePicker } from './RolePicker';
 import { useUserAction, type UserRow } from './Users';
+import { ChangePhoneButton } from './ChangePhone';
 
 interface UserDetailDto extends UserRow {
   inviteExpiresAt: string | null;
@@ -79,6 +80,7 @@ export function UserDetailPage() {
           </div>
           <p className="mt-1 text-muted">
             {[u.email, formatPhone(u.phone)].filter(Boolean).join(', ')}
+            <ChangePhoneButton userId={u.id} name={u.name} phone={u.phone} className="ml-2 text-sm font-medium text-brand hover:underline" />
           </p>
           <p className="mt-1 text-sm text-muted">
             Added {formatDate(u.createdAt)}. {u.lastLoginAt ? `Last signed in ${formatDate(u.lastLoginAt, true)}.` : 'Has not signed in yet.'}

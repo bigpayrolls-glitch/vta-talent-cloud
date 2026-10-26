@@ -20,10 +20,10 @@ Functional requirements (61 IDs: SH 10, AD 12, EM 10, EE 12, TR 9, PA 8):
 
 | Status | Count | IDs |
 | --- | --- | --- |
-| Built | 51 | SH-02 to 10; AD-02 to 11; EM-01 to 10; EE-01 to 03, 05 to 10; TR-01 to 04, 06, 08, 09; PA-01 to 06 |
+| Built | 52 | SH-02 to 10; AD-02 to 11; EM-01 to 10; EE-01 to 03, 05 to 10; TR-01 to 04, 06, 08, 09; PA-01 to 07 |
 | Built, untested | 0 | none |
 | Partial | 6 | AD-01, EE-04, EE-11, EE-12, TR-05, TR-07 |
-| Not built | 3 | AD-12, PA-07, PA-08 |
+| Not built | 2 | AD-12, PA-08 |
 | External dependency | 1 | SH-01 |
 
 Non-functional requirements (§15, 10 areas): Built 3, Partial 6, External dependency 1.
@@ -36,7 +36,7 @@ Changed after the review: SH-07 (Phase 9), SH-09 (programme and beneficiary pagi
 
 Numbers in brackets are the requirements document's §20 list. README uses its own D-numbers (D1, D2, D4, D5, D8, D10), which do not match §20; both are given where known.
 
-1. **SMS/OTP vendor and account recovery** (§20.4; README D10). Phone sign-in only prints codes to the console. Production start is refused until a provider is set. There is no way yet for staff to change a learner's phone number.
+1. **SMS/OTP vendor and account recovery** (§20.4; README D10). Phone sign-in only prints codes to the console. Production start is refused until a provider is set. Staff can change a learner's or trainer's sign-in number after checking who they are (Phase 11).
 2. **Email provider** (README D10). Needed for invitations, organisation sign-up confirmation and password reset (all built; the emails go nowhere yet).
 3. **Hosting, file storage, virus scanning, monitoring and backups** (§20.8; README D10). Files sit on the API server's disk (or in the database on the staging copy) and are labelled "not scanned". A backup script and a tested restore drill exist (docs/operations.md); the host's own backups still need choosing.
 4. **Pilot service target, RPO and RTO** (§15 Availability and Backups).
@@ -139,7 +139,7 @@ Numbers in brackets are the requirements document's §20 list. README uses its o
 | PA-04 | Beneficiary list | Must | Built | `api/routes/programmes/programmes.ts` | `programmes.test.ts` › "names, mobile numbers and dates of birth are hidden by default", "VTA can approve names only with a recorded basis…" | A database constraint enforces the basis. The list is not paged (see SH-09). |
 | PA-05 | Programme documents | Should | Built | `api/routes/programmes/programmes.ts` | `programmes.test.ts` › "the partner admin uploads; the viewer can open but not upload; another partner cannot" | |
 | PA-06 | Outcome reporting | Must | Built | `api/routes/programmes/programmes.ts` (`report.csv`) | `programmes.test.ts` › "the programme report is aggregate only, downloads as CSV and is logged" | |
-| PA-07 | Partner users | Should | Not built | none | none | Partner admins can list their members but cannot invite viewers. Only VTA can, through Users & Roles. README does not mention this. |
+| PA-07 | Partner users | Should | Built | `api/routes/programmes/partner.ts` (`/partner/team`), `web/employer/Company.tsx` (`PartnerTeamPage`) | `phase11.test.ts` › "the partner admin sees the team and invites a viewer who can read but not change anything", "the partner admin removes a viewer (access ends at once)…"; `e2e/tests/phase11.spec.ts` › "a partner admin invites a viewer and removes them…" | Invitations and removals are audited. Added in Phase 11. |
 | PA-08 | Programme queries | Could | Not built | none | none | Not mentioned in README. |
 
 ## Business rules (§13)
@@ -224,4 +224,4 @@ Phase 10 (pilot readiness) added the accessibility checks, web security headers,
 - No API could verify a document: fixed in Phase 10 (AD-05/EE-03).
 - README's decision numbers (D1, D2, D4, D5, D8, D10) differ from requirements §20: README now explains the mapping.
 - The root `package.json` description said "Phase 3": fixed.
-- Not built and not mentioned before: PA-07 (partner admins inviting their own viewers) and AD-12 (settings screens for lookup lists). Both are "Should"; README now lists them.
+- Not built and not mentioned before: PA-07 (partner admins inviting their own viewers, built in Phase 11) and AD-12 (settings screens for lookup lists, still not built). README lists them.
