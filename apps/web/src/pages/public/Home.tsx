@@ -52,19 +52,40 @@ export function PublicHomePage() {
     <PublicShell fit>
       <div className="flex flex-col lg:h-full">
         <section className="relative overflow-hidden bg-gradient-to-r from-brand-tint via-[#fdf1f1] to-white lg:flex-1">
-          <img src="/home-hero.webp" alt="" className="pointer-events-none absolute inset-y-0 right-0 hidden h-full w-[60%] object-cover object-top select-none lg:block" draggable={false} />
+          <div className="pointer-events-none absolute inset-0" aria-hidden>
+            <div className="atg-grid absolute inset-0" />
+            <div className="atg-orb top-[-25%] left-[-10%] size-[380px] bg-[#ff9ea2]" />
+            <div className="atg-orb bottom-[-35%] left-[28%] size-[360px] bg-[#ffd0d2] [animation-delay:-6s]" />
+          </div>
+          <div className="pointer-events-none absolute inset-y-0 right-0 hidden w-[60%] overflow-hidden lg:block" aria-hidden>
+            <img src="/home-hero.webp" alt="" className="h-full w-full object-cover object-top select-none" draggable={false} />
+            <div className="atg-scan absolute top-0 right-0 left-[30%] h-1/4 [mask-image:linear-gradient(to_right,transparent,#000_30%)]" />
+            <div className="atg-glass absolute top-[14%] right-[6%] flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink">
+              <ClipboardCheck className="size-4 text-[#D7141C]" aria-hidden />
+              Skills assessed by trainers
+            </div>
+            <div className="atg-glass absolute bottom-[10%] left-[6%] flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink [animation-delay:-2.5s]">
+              <QrCode className="size-4 text-[#D7141C]" aria-hidden />
+              Certificate checkable by QR
+            </div>
+            <div className="atg-glass absolute right-[4%] bottom-[30%] flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink [animation-delay:-4s]">
+              <ShieldCheck className="size-4 text-[#D7141C]" aria-hidden />
+              Verified employers
+            </div>
+          </div>
           <div className="relative z-10 mx-auto flex h-full max-w-[1440px] flex-col justify-center px-5 py-10 sm:px-8 lg:px-12 lg:py-[clamp(14px,3vh,32px)]">
-            <p className="text-[13px] font-bold tracking-wide text-[#D7141C] uppercase lg:[@media(max-height:820px)]:hidden">Automotive skills. Real opportunities.</p>
-            <h1 className="mt-3 text-[clamp(34px,3.6vh+1.05vw,60px)] leading-[1.05] font-black tracking-[-0.025em] text-ink">
-              Learn. <span className="text-[#D7141C]">Get Assessed.</span>
+            <p className="atg-rise inline-flex w-fit items-center gap-2 rounded-full border border-[#D7141C]/20 bg-white/70 px-3 py-1 text-[12px] font-bold tracking-wide text-[#D7141C] uppercase backdrop-blur lg:[@media(max-height:820px)]:hidden">
+              <span className="size-1.5 animate-pulse rounded-full bg-[#D7141C]" aria-hidden />Automotive skills. Real opportunities.</p>
+            <h1 className="atg-rise mt-3 [animation-delay:80ms] text-[clamp(34px,3.6vh+1.05vw,60px)] leading-[1.05] font-black tracking-[-0.025em] text-ink">
+              Learn. <span className="atg-shine">Get Assessed.</span>
               <br />
               Move to a Job.
             </h1>
-            <p className="mt-3 max-w-[640px] text-[clamp(16px,1.6vh+0.5vw,22px)] leading-snug text-ink/70">
+            <p className="atg-rise mt-3 max-w-[640px] [animation-delay:160ms] text-[clamp(16px,1.6vh+0.5vw,22px)] leading-snug text-ink/70">
               A simple platform for learners, training partners and automotive employers.
             </p>
-            <div className="mt-[clamp(14px,2.6vh,24px)] flex flex-col gap-3 sm:flex-row">
-              <Link to="/register" className="btn-primary h-12 bg-[#C8101A] px-7 text-base hover:bg-brand-hover">
+            <div className="atg-rise mt-[clamp(14px,2.6vh,24px)] flex flex-col gap-3 [animation-delay:240ms] sm:flex-row">
+              <Link to="/register" className="btn-primary h-12 bg-gradient-to-r from-[#C8101A] to-[#E3262E] px-7 text-base shadow-[0_8px_24px_-8px_rgba(215,20,28,0.6)] hover:from-[#B00E17] hover:to-[#D7141C]">
                 Create a learner account
                 <ArrowRight className="size-5" aria-hidden />
               </Link>
@@ -77,8 +98,8 @@ export function PublicHomePage() {
         </section>
 
         <section aria-label="Who it is for" className="mx-auto grid w-full max-w-[1440px] shrink-0 grid-cols-1 gap-3 px-5 pt-[clamp(10px,1.8vh,16px)] sm:grid-cols-2 sm:px-8 lg:grid-cols-4 lg:px-12">
-          {ROLES.map((r) => (
-            <Link key={r.title} to={r.to} aria-label={r.cta} className={`group flex h-[clamp(100px,15vh,158px)] items-stretch overflow-hidden rounded-2xl ${r.tint} ring-1 ring-black/5 transition hover:shadow-md`}>
+          {ROLES.map((r, i) => (
+            <Link key={r.title} to={r.to} aria-label={r.cta} style={{ animationDelay: `${300 + i * 70}ms` }} className={`atg-rise atg-card group flex h-[clamp(100px,15vh,158px)] items-stretch overflow-hidden rounded-2xl ${r.tint} ring-1 ring-black/5`}>
               <span className="flex min-w-0 flex-1 gap-3 p-4">
                 <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-white text-[#D7141C] shadow-sm">
                   <r.icon className="size-6" strokeWidth={1.75} aria-hidden />
@@ -103,7 +124,7 @@ export function PublicHomePage() {
           <ol className="mt-[clamp(6px,1.4vh,12px)] grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((s, i) => (
               <li key={s.title} className="flex items-center gap-4">
-                <span className="grid size-[clamp(46px,7.5vh,80px)] shrink-0 place-items-center rounded-full bg-brand-tint text-[#D7141C]">
+                <span className="grid size-[clamp(46px,7.5vh,80px)] shrink-0 place-items-center rounded-full bg-gradient-to-br from-white to-brand-tint text-[#D7141C] shadow-[inset_0_0_0_1px_rgba(215,20,28,0.12),0_6px_18px_-8px_rgba(215,20,28,0.45)]">
                   <s.icon className="size-[45%]" strokeWidth={1.75} aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -112,7 +133,7 @@ export function PublicHomePage() {
                   </span>
                   <span className="block text-[15px] text-ink/70">{s.body}</span>
                 </span>
-                {i < STEPS.length - 1 && <ArrowRight className="hidden size-6 shrink-0 text-[#D7141C] lg:block" aria-hidden />}
+                {i < STEPS.length - 1 && <ArrowRight className="atg-flow hidden size-6 shrink-0 text-[#D7141C] lg:block" style={{ animationDelay: `${i * 0.3}s` }} aria-hidden />}
               </li>
             ))}
           </ol>
