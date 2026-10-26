@@ -184,7 +184,7 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
         {showNav && <button type="button" className="rounded-lg p-2 hover:bg-surface lg:hidden" onClick={() => setDrawer(true)} aria-label="Open menu">
           <Menu className="size-5" />
         </button>}
-        <Link to={PORTAL_PATH[portal]} className="shrink-0 lg:w-[216px]" aria-label={`VTA Talent Cloud, ${PORTAL_LABEL[portal]} home`}>
+        <Link to={PORTAL_PATH[portal]} className="shrink-0 lg:w-[216px]" aria-label={`AutoTalent Grid, ${PORTAL_LABEL[portal]} home`}>
           <Wordmark compact tight={!!headerExtra} />
         </Link>
         <span className="hidden text-sm font-medium text-muted md:block">{PORTAL_LABEL[portal]}</span>

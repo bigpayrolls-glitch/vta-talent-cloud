@@ -10,9 +10,9 @@ import { useForm } from '../../lib/useForm';
 import { useCompany, type Company } from './EmployerLayout';
 
 const STATUS_TEXT: Record<Company['verificationStatus'], string> = {
-  pending: 'Waiting for VTA',
-  verified: 'Verified by VTA',
-  more_info_needed: 'VTA needs more information',
+  pending: 'Waiting for AutoTalent Grid',
+  verified: 'Verified by AutoTalent Grid',
+  more_info_needed: 'AutoTalent Grid needs more information',
   rejected: 'Not verified',
 };
 
@@ -35,7 +35,7 @@ export function CompanyPage() {
     try {
       await api.post('/employer/company/submit');
       await qc.invalidateQueries({ queryKey: ['employer'] });
-      toast('success', 'Sent to VTA for checking');
+      toast('success', 'Sent to AutoTalent Grid for checking');
     } catch (e) {
       setSubmitError(e instanceof ApiError ? [e.message, ...Object.values(e.fields)].join(' ') : 'Could not send');
     }
@@ -47,24 +47,24 @@ export function CompanyPage() {
 
   return (
     <>
-      <PageHeader title="Company" description="VTA checks your company before you can publish jobs or search candidates." />
+      <PageHeader title="Company" description="AutoTalent Grid checks your company before you can publish jobs or search candidates." />
       <section className="card mb-6 flex flex-wrap items-center gap-4 px-5 py-4">
         <div className="min-w-0 flex-1">
           <p className="text-sm text-muted">Verification</p>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             {c.verificationStatus === 'pending' && !c.submittedAt ? (
-              <StatusBadge status="not_sent" label="Not sent to VTA yet" />
+              <StatusBadge status="not_sent" label="Not sent to AutoTalent Grid yet" />
             ) : (
               <StatusBadge status={c.verificationStatus} label={STATUS_TEXT[c.verificationStatus]} />
             )}
             {c.submittedAt && c.verificationStatus === 'pending' && <span className="text-sm text-muted">Sent {formatDate(c.submittedAt)}</span>}
           </div>
-          {c.verificationReason && <p className="mt-2 text-sm">VTA&apos;s note: {c.verificationReason}</p>}
+          {c.verificationReason && <p className="mt-2 text-sm">AutoTalent Grid&apos;s note: {c.verificationReason}</p>}
         </div>
         {isAdmin && (c.verificationStatus === 'pending' || c.verificationStatus === 'more_info_needed') && (
           <button className="btn-primary" onClick={() => void submit()}>
             <Send className="size-4" aria-hidden />
-            {c.submittedAt ? 'Send again' : 'Send to VTA'}
+            {c.submittedAt ? 'Send again' : 'Send to AutoTalent Grid'}
           </button>
         )}
         {submitError && (
@@ -163,7 +163,7 @@ function CompanyForm({ c }: { c: Company }) {
       {c.identityLocked && (
         <p className="flex items-start gap-2 rounded-lg bg-surface px-3 py-2 text-sm">
           <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
-          The registered name and GSTIN were verified by VTA. Contact VTA to change them.
+          The registered name and GSTIN were verified by AutoTalent Grid. Contact AutoTalent Grid to change them.
         </p>
       )}
       <div className="grid gap-4 sm:grid-cols-2">

@@ -59,7 +59,7 @@ export function EmployerDashboard() {
                 <h2 className="text-xl font-bold">Your jobs</h2>
                 {!d.jobs.length ? (
                   <div className="card mt-3">
-                    <EmptyState title="No jobs yet" body="Post a job. VTA checks each job before learners see it." />
+                    <EmptyState title="No jobs yet" body="Post a job. AutoTalent Grid checks each job before learners see it." />
                   </div>
                 ) : (
                   <div className="card mt-3 overflow-x-auto">
@@ -99,7 +99,7 @@ export function EmployerDashboard() {
                 )}
               </section>
               <p className="mt-6 text-sm text-muted">
-                As of {formatDate(d.asOf, true)}. &ldquo;Joined&rdquo; counts joinings you recorded; VTA may follow up to confirm them.
+                As of {formatDate(d.asOf, true)}. &ldquo;Joined&rdquo; counts joinings you recorded; AutoTalent Grid may follow up to confirm them.
               </p>
             </>
           );

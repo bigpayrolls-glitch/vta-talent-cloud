@@ -258,7 +258,7 @@ describe('R-05 credentials and QR verification', () => {
     expect(Object.keys(body).sort()).toEqual(['courseTitle', 'disclaimer', 'holderName', 'issueDate', 'issuerName', 'status', 'statusChangedAt', 'type']);
     expect(body).toMatchObject({ holderName: 'Ravi Kumar', courseTitle: '2W Service Technician', status: 'active', type: 'Course completion record' });
     expect(body.disclaimer).toMatch(/not a government, NSDC or ASDC qualification/);
-    expect(JSON.stringify(body)).not.toMatch(/\+91|VTA26|@/);
+    expect(JSON.stringify(body)).not.toMatch(/\+91|ATG26|@/);
   });
 
   it('unknown or malformed codes reveal nothing', async () => {

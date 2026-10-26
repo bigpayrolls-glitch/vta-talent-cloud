@@ -13,7 +13,7 @@ const idParam = z.object({ id: uuidSchema });
 async function assertOwnerIsPartner(db: DB, organisationId: string | undefined) {
   if (!organisationId) return;
   const org = await db.selectFrom('organisations').select(['type']).where('id', '=', organisationId).executeTakeFirst();
-  if (!org || org.type !== 'partner') throw invalid('A centre can only belong to VTA or a training partner', { organisationId: 'Choose a training partner' });
+  if (!org || org.type !== 'partner') throw invalid('A centre can only belong to AutoTalent Grid or a training partner', { organisationId: 'Choose a training partner' });
 }
 
 /** F-11 / AD-03: centres are created and edited by VTA admins. Reading is in shared.ts (scoped). */

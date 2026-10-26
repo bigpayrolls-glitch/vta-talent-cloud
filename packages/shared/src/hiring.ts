@@ -47,7 +47,7 @@ export const JOB_STATUSES = ['draft', 'pending_review', 'published', 'paused', '
 export type JobStatus = (typeof JOB_STATUSES)[number];
 export const JOB_STATUS_LABEL: Record<JobStatus, string> = {
   draft: 'Draft',
-  pending_review: 'Waiting for VTA review',
+  pending_review: 'Waiting for AutoTalent Grid review',
   published: 'Published',
   paused: 'Paused',
   closed: 'Closed',

@@ -1,8 +1,12 @@
-# VTA Talent Cloud
+# AutoTalent Grid
 
 A role-based automotive skills and workforce platform. One backend and one database serve four portals: **Learner**, **Employer**, **Training Partner** (including trainers) and **Admin**, plus a public front page.
 
 **Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data), Phase 3 (training operations), Phase 4 (offline attendance and the installable app), Phase 5 (Learner portal), Phase 6 (Employer portal and hiring), Phase 7 (partner programmes and reports), Phase 8 (public site and organisation sign-up), Phase 9 (notifications and account self-service), Phase 10 (pilot readiness) and Phase 11 (account administration).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+
+## Brand: AutoTalent Grid (26 Oct 2026)
+
+The product is now **AutoTalent Grid** ("Train. Connect. Employ."), replacing "VTA Talent Cloud" and "VTA" everywhere people see it: screens, notifications, notices, certificates' default issuer (`CREDENTIAL_ISSUER_NAME`), the installed app's name and icons. The "Road A" symbol was traced from the brand artwork into `apps/web/public/brand-mark.svg` (used by the `LogoMark` and `Wordmark` components and by `e2e/scripts/make-icons.mjs`); replace it with the designer's original vector when available. New candidate codes start with **ATG** (for example ATG2600042); codes already issued keep their VTA prefix. Internal names (database, packages, demo email addresses, environment variables) are unchanged.
 
 ## Phase 11: account administration
 
@@ -232,7 +236,7 @@ infra             Docker Compose for local services
 - The public front page links to no external VTA website, because its address is not confirmed; add it once VTA confirms.
 - Notifications are in-app only; SMS, WhatsApp and email follow the provider decision (D10). They are not deleted yet (no retention rule).
 - Closing an account deactivates it and keeps the records; erasure and retention periods need VTA's decision (requirements §13, §15).
-- The issuer printed on certificates comes from `CREDENTIAL_ISSUER_NAME` (default "VTA Talent Cloud") until VTA confirms the legal entity (decision D8).
+- The issuer printed on certificates comes from `CREDENTIAL_ISSUER_NAME` (default "AutoTalent Grid") until VTA confirms the legal entity (decision D8).
 - Offline covers attendance only (as the requirements scope it). Assessments, rosters' contact details and admin screens need a connection.
 - The offline store is not encrypted beyond what the phone itself provides; it is kept small instead (names, IDs, attendance). A shared phone should use separate sign-ins: signing in as someone else deletes it.
 - Syncing in the background after the app is closed (Background Sync) is Chrome-only, so it is not used; the app syncs when opened or brought to the front.

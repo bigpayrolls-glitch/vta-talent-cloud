@@ -26,14 +26,14 @@ export function WalletPage() {
       <PageHeader title="My certificates" description="Share the QR code or check link with an employer so they can confirm a certificate is real." />
       <p className="mb-5 flex items-start gap-2 rounded-lg bg-info-tint px-3 py-2 text-sm text-info">
         <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
-        These are VTA course completion records. They are not government, NSDC or ASDC qualifications.
+        These are AutoTalent Grid course completion records. They are not government, NSDC or ASDC qualifications.
       </p>
       {q.isLoading ? (
         <Spinner />
       ) : q.isError ? (
         <ErrorNote message={(q.error as Error).message} />
       ) : !q.data!.items.length ? (
-        <EmptyState title="No certificates yet" body="When you complete a course and pass its assessment, VTA issues a certificate and it appears here." />
+        <EmptyState title="No certificates yet" body="When you complete a course and pass its assessment, AutoTalent Grid issues a certificate and it appears here." />
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
           {q.data!.items.map((c) => (

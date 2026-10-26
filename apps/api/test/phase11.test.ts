@@ -18,7 +18,7 @@ afterAll(() => ctx.close());
 const idByPhone = async (phone: string) => (await ctx.db.selectFrom('users').select('id').where('phone', '=', phone).executeTakeFirstOrThrow()).id;
 
 describe('changing the mobile number someone signs in with', () => {
-  it('VTA changes it with a reason; the old number stops working, the new one signs in, sessions end', async () => {
+  it('AutoTalent Grid changes it with a reason; the old number stops working, the new one signs in, sessions end', async () => {
     const id = await idByPhone(PHONE.learner);
     const before = await loginPhone(ctx, PHONE.learner);
     expect((await c.ops!.post(`/admin/users/${id}/phone`, { phone: '9845098450' })).body.error.fields.reason).toBeDefined();
@@ -43,7 +43,7 @@ describe('changing the mobile number someone signs in with', () => {
     expect(JSON.stringify(a)).not.toContain('9845098450'); // numbers are masked in the audit trail
   });
 
-  it('refuses a number another account uses, the same number, email-only accounts and non-VTA staff', async () => {
+  it('refuses a number another account uses, the same number, email-only accounts and non-AutoTalent Grid staff', async () => {
     const id = await idByPhone(PHONE.trainerA);
     const taken = await c.ops!.post(`/admin/users/${id}/phone`, { phone: PHONE.trainerB, reason: 'Checked ID card' });
     expect(taken.status).toBe(409);

@@ -33,7 +33,7 @@ test.describe.serial('Learner portal', () => {
 
     await expect(page).toHaveURL(/\/learn$/);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hello, Suresh!');
-    await expect(page.getByText(/^VTA\d{7}$/)).toBeVisible();
+    await expect(page.getByText(/^ATG\d{7}$/)).toBeVisible();
     await expect(page.getByText('Pending', { exact: true })).toBeVisible();
     await expect(page.getByText(/Profile \d+% complete/)).toBeVisible();
 
@@ -94,13 +94,13 @@ test.describe.serial('Learner portal', () => {
     await dialog.getByLabel('Type').selectOption('experience_letter');
     await dialog.getByLabel('Employers I share my profile with').check();
     await dialog.getByRole('button', { name: 'Upload' }).click();
-    await expect(page.getByText('Document uploaded. VTA will check it.')).toBeVisible();
+    await expect(page.getByText('Document uploaded. AutoTalent Grid will check it.')).toBeVisible();
 
     const row = page.locator('li').filter({ hasText: 'experience-letter' });
     await expect(row.getByText('Employers I share my profile with')).toBeVisible();
     await expect(row.getByText('Not checked yet')).toBeVisible();
     await row.getByRole('button', { name: 'Make private' }).click();
-    await expect(row.getByText('Only me and VTA')).toBeVisible();
+    await expect(row.getByText('Only me and AutoTalent Grid')).toBeVisible();
     await row.getByRole('button', { name: /Remove/ }).click();
     await page.getByRole('dialog', { name: 'Remove document?' }).getByRole('button', { name: 'Remove' }).click();
     await expect(page.getByText('Document removed')).toBeVisible();
@@ -121,9 +121,9 @@ test.describe.serial('Learner portal', () => {
     await expect(page.getByText(/Privacy notice: accepted/)).toBeVisible();
   });
 
-  test('the privacy notice is public and marked as a draft for VTA review', async ({ page }) => {
+  test('the privacy notice is public and marked as a draft for AutoTalent Grid review', async ({ page }) => {
     await page.goto('/privacy');
     await expect(page.getByRole('heading', { name: 'Privacy notice' })).toBeVisible();
-    await expect(page.getByText(/Draft for VTA review/)).toBeVisible();
+    await expect(page.getByText(/Draft for AutoTalent Grid review/)).toBeVisible();
   });
 });

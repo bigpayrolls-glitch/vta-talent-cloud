@@ -120,7 +120,7 @@ export function AssessmentsTab({ batchId }: { batchId: string }) {
           })}
         </ul>
       )}
-      {!canRecord && !reviewer && <p className="border-t border-line px-5 py-3 text-[13px] text-muted">The batch trainer records assessments and VTA reviews them.</p>}
+      {!canRecord && !reviewer && <p className="border-t border-line px-5 py-3 text-[13px] text-muted">The batch trainer records assessments and AutoTalent Grid reviews them.</p>}
       {open && <AssessmentModal row={open} batchId={batchId} onClose={() => setOpen(null)} />}
     </section>
   );
@@ -322,7 +322,7 @@ function AssessmentModal({ row, batchId, onClose }: { row: Row; batchId: string;
           ) : (
             comment && <p className="text-sm"><span className="font-medium">Trainer’s comment:</span> {comment}</p>
           )}
-          {editing && <p className="text-[13px] text-muted">After you submit, the result is locked until VTA approves it or returns it to you.</p>}
+          {editing && <p className="text-[13px] text-muted">After you submit, the result is locked until AutoTalent Grid approves it or returns it to you.</p>}
         </div>
       </Modal>
       {decision && (

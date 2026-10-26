@@ -57,14 +57,14 @@ export function RolePicker({ value, onChange, errors = {}, prefix = '' }: { valu
         </Field>
       )}
       {rule?.centre && (!pickOrg || value.organisationId) && (
-        <Field label="Centre" htmlFor="centreId" error={err('centreId')} hint={rule.organisationFromCentre ? 'The trainer joins whoever runs this centre: VTA or a training partner.' : undefined}>
+        <Field label="Centre" htmlFor="centreId" error={err('centreId')} hint={rule.organisationFromCentre ? 'The trainer joins whoever runs this centre: AutoTalent Grid or a training partner.' : undefined}>
           <select id="centreId" className="field-input" value={value.centreId} onChange={(e) => onChange({ ...value, centreId: e.target.value })}>
             <option value="">{centres.isLoading ? 'Loading…' : centres.data?.items.length === 0 ? 'No active centres' : 'Choose a centre'}</option>
             {centres.data?.items.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
                 {c.city ? `, ${c.city}` : ''}
-                {rule.organisationFromCentre ? ` (${c.organisationName ?? 'VTA'})` : ''}
+                {rule.organisationFromCentre ? ` (${c.organisationName ?? 'AutoTalent Grid'})` : ''}
               </option>
             ))}
           </select>

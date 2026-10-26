@@ -26,9 +26,9 @@ export default defineConfig({
       includeAssets: ['favicon.svg', 'icons/apple-touch-icon.png'],
       manifest: {
         id: '/',
-        name: 'VTA Talent Cloud',
-        short_name: 'VTA',
-        description: 'Training, attendance, assessments and certificates for automotive technicians.',
+        name: 'AutoTalent Grid',
+        short_name: 'AutoTalent',
+        description: 'Train. Connect. Employ. Training, certificates and jobs for automotive technicians.',
         start_url: '/login', // installed app opens to sign-in (signed-in people go on to their portal), not the public home
         scope: '/',
         display: 'standalone',

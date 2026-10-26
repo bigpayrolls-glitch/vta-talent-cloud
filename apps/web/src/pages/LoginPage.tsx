@@ -11,7 +11,7 @@ const WHO = [
   { icon: GraduationCap, title: 'Learners', body: 'Track courses, certificates and job applications' },
   { icon: Building2, title: 'Employers', body: 'Post jobs and hire trained technicians' },
   { icon: Users, title: 'Training partners and trainers', body: 'Run batches, attendance and assessments' },
-  { icon: Settings, title: 'VTA team', body: 'Manage the platform' },
+  { icon: Settings, title: 'AutoTalent Grid team', body: 'Manage the platform' },
 ];
 
 export function LoginPage() {
@@ -34,11 +34,11 @@ export function LoginPage() {
         <Wordmark />
         <div className="mt-auto max-w-md">
           <p className="text-[40px] font-extrabold leading-[1.08] tracking-tight text-ink">
-            Learn. Perform.
+            Train. Connect.
             <br />
-            Earn.
+            Employ.
           </p>
-          <p className="mt-3 text-lg text-ink/75">Automotive skills for a better tomorrow.</p>
+          <p className="mt-3 text-lg text-ink/75">Skills and jobs for automotive technicians.</p>
           <ul className="mt-10 space-y-4">
             {WHO.map((w) => (
               <li key={w.title} className="flex items-start gap-3.5">
@@ -84,7 +84,7 @@ export function LoginPage() {
           </div>
 
           <p className="mt-8 text-sm text-muted">
-            Learner or technician, new to VTA?{' '}
+            Learner or technician, new to AutoTalent Grid?{' '}
             <Link to="/register" className="font-semibold text-brand underline">
               Create an account
             </Link>
@@ -95,7 +95,7 @@ export function LoginPage() {
             <Link to="/join/employer" className="font-semibold text-brand underline">
               Register your organisation
             </Link>
-            . Trainers are added by their partner or VTA.
+            . Trainers are added by their partner or AutoTalent Grid.
           </p>
         </div>
       </main>

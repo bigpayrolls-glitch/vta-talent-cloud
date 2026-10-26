@@ -140,18 +140,18 @@ export function PartnerOrganisationPage() {
   };
   return (
     <>
-      <PageHeader title="Organisation" description="Your organisation's profile and registration documents, checked by VTA." />
+      <PageHeader title="Organisation" description="Your organisation's profile and registration documents, checked by AutoTalent Grid." />
       <section className="card mb-6 flex flex-wrap items-center gap-4 px-5 py-4">
         <div className="min-w-0 flex-1">
           <p className="text-sm text-muted">Verification</p>
           <div className="mt-1">
             {o.verificationStatus === 'pending' && !o.submittedAt ? (
-              <StatusBadge status="not_sent" label="Not sent to VTA yet" />
+              <StatusBadge status="not_sent" label="Not sent to AutoTalent Grid yet" />
             ) : (
-              <StatusBadge status={o.verificationStatus} label={o.verificationStatus === 'verified' ? 'Verified by VTA' : undefined} />
+              <StatusBadge status={o.verificationStatus} label={o.verificationStatus === 'verified' ? 'Verified by AutoTalent Grid' : undefined} />
             )}
           </div>
-          {o.verificationReason && <p className="mt-2 text-sm">VTA&apos;s note: {o.verificationReason}</p>}
+          {o.verificationReason && <p className="mt-2 text-sm">AutoTalent Grid&apos;s note: {o.verificationReason}</p>}
         </div>
         {isAdmin && (o.verificationStatus === 'pending' || o.verificationStatus === 'more_info_needed') && (
           <button
@@ -161,14 +161,14 @@ export function PartnerOrganisationPage() {
               try {
                 await api.post('/partner/organisation/submit');
                 await qc.invalidateQueries({ queryKey: ['partner'] });
-                toast('success', 'Sent to VTA for checking');
+                toast('success', 'Sent to AutoTalent Grid for checking');
               } catch (e) {
                 setSubmitError(e instanceof ApiError ? [e.message, ...Object.values(e.fields)].join(' ') : 'Could not send');
               }
             }}
           >
             <Send className="size-4" aria-hidden />
-            Send to VTA
+            Send to AutoTalent Grid
           </button>
         )}
         {submitError && (
@@ -264,7 +264,7 @@ function PartnerForm({ o }: { o: PartnerOrg }) {
       {o.identityLocked && (
         <p className="flex items-start gap-2 rounded-lg bg-surface px-3 py-2 text-sm">
           <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
-          The registered name and number were verified by VTA. Contact VTA to change them.
+          The registered name and number were verified by AutoTalent Grid. Contact AutoTalent Grid to change them.
         </p>
       )}
       <div className="grid gap-4 sm:grid-cols-2">

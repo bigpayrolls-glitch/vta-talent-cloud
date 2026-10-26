@@ -10,10 +10,10 @@ import { homePathFor, useAuth } from '../../lib/auth';
  * Signed-in people go straight to their portal.
  */
 const JOURNEY = [
-  { icon: GraduationCap, title: 'Train', body: 'Join a batch at a VTA or partner centre.' },
-  { icon: ClipboardCheck, title: 'Get assessed', body: 'Your trainer assesses each skill; VTA reviews the result.' },
+  { icon: GraduationCap, title: 'Train', body: 'Join a batch at an AutoTalent Grid or partner centre.' },
+  { icon: ClipboardCheck, title: 'Get assessed', body: 'Your trainer assesses each skill; AutoTalent Grid reviews the result.' },
   { icon: BadgeCheck, title: 'Earn a record', body: 'A completion record anyone can check with its QR code.' },
-  { icon: Briefcase, title: 'Find work', body: 'Apply to jobs from employers VTA has verified.' },
+  { icon: Briefcase, title: 'Find work', body: 'Apply to jobs from employers AutoTalent Grid has verified.' },
 ];
 
 const AUDIENCES = [
@@ -28,10 +28,10 @@ const AUDIENCES = [
   {
     icon: Building2,
     title: 'Employers',
-    points: ['Post jobs, reviewed by VTA before they go live', 'Find trained technicians who have opted in', 'Shortlist, interview and record who you hired'],
+    points: ['Post jobs, reviewed by AutoTalent Grid before they go live', 'Find trained technicians who have opted in', 'Shortlist, interview and record who you hired'],
     cta: 'Register your company',
     to: '/join/employer',
-    note: 'VTA verifies your company first.',
+    note: 'AutoTalent Grid verifies your company first.',
   },
   {
     icon: HandHeart,
@@ -53,14 +53,14 @@ export function PublicHomePage() {
       <section className="border-b border-line bg-gradient-to-b from-brand-tint/70 to-white">
         <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:py-20">
           <div>
-            <p className="text-sm font-semibold tracking-wide text-brand uppercase">Automotive skills for a better tomorrow</p>
+            <p className="text-sm font-semibold tracking-wide text-brand uppercase">Skills and jobs for automotive technicians</p>
             <h1 className="mt-3 text-[44px] leading-[1.02] font-extrabold tracking-tight sm:text-[56px]">
-              Learn. Perform.
+              Train. Connect.
               <br />
-              Earn.
+              Employ.
             </h1>
             <p className="mt-5 max-w-lg text-lg text-ink/75">
-              VTA Talent Cloud brings training, verified skills and hiring for automotive technicians together, for learners, employers and the partners who train them.
+              AutoTalent Grid brings training, verified skills and hiring for automotive technicians together, for learners, employers and the partners who train them.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link to="/register" className="btn-primary h-12 px-6 text-base">
@@ -117,7 +117,7 @@ export function PublicHomePage() {
             </article>
           ))}
         </div>
-        <p className="mt-6 text-sm text-muted">Trainers are added by their training partner or by VTA, and sign in with their mobile number.</p>
+        <p className="mt-6 text-sm text-muted">Trainers are added by their training partner or by AutoTalent Grid, and sign in with their mobile number.</p>
       </section>
 
       <section className="border-y border-line bg-surface/60">
@@ -127,9 +127,9 @@ export function PublicHomePage() {
               <ShieldCheck className="size-6" aria-hidden />
             </span>
             <div>
-              <h2 className="text-xl font-bold">Checked by VTA</h2>
+              <h2 className="text-xl font-bold">Checked by AutoTalent Grid</h2>
               <p className="mt-2 text-muted">
-                VTA verifies learner profiles, employers and training partners before they take part in hiring or programmes, and reviews every job before it is published. Employers see a learner&apos;s profile only if the learner allows it.
+                AutoTalent Grid verifies learner profiles, employers and training partners before they take part in hiring or programmes, and reviews every job before it is published. Employers see a learner&apos;s profile only if the learner allows it.
               </p>
             </div>
           </div>
@@ -201,7 +201,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-dvh flex-col bg-white">
       <header className="sticky top-0 z-20 border-b border-line bg-white/95 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-          <Link to="/" aria-label="VTA Talent Cloud home">
+          <Link to="/" aria-label="AutoTalent Grid home">
             <Wordmark compact />
           </Link>
           <nav aria-label="Main" className="flex items-center gap-1 sm:gap-2">
@@ -218,9 +218,8 @@ export function PublicShell({ children }: { children: ReactNode }) {
       <footer className="bg-ink text-white/80">
         <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-start sm:justify-between sm:px-6">
           <div>
-            <span className="text-2xl font-black tracking-tight text-white italic">VTA</span>
-            <span className="ml-2 text-sm font-semibold tracking-wide text-white">TALENT CLOUD</span>
-            <p className="mt-2 max-w-xs text-sm text-white/60">Learn. Perform. Earn.</p>
+            <Wordmark compact inverse />
+            <p className="mt-2 max-w-xs text-sm text-white/60">Train. Connect. Employ.</p>
           </div>
           <nav aria-label="Footer" className="grid grid-cols-2 gap-x-10 gap-y-2 text-sm">
             <Link to="/register" className="hover:text-white">Create a learner account</Link>

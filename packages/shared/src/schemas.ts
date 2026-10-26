@@ -75,7 +75,7 @@ export const createOrganisationSchema = z
 
 export const centreSchema = z.object({
   name: z.string().trim().min(2).max(160),
-  organisationId: uuidSchema.optional(), // empty = VTA-run centre
+  organisationId: uuidSchema.optional(), // empty = AutoTalent Grid-run centre
   address: z.string().trim().max(500).optional(),
   city: z.string().trim().max(80).optional(),
   contactPhone: phoneSchema.optional(),

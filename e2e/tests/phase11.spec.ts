@@ -4,7 +4,7 @@ import { EMAIL, signInEmail, signInPhone, withDb } from './helpers.js';
 
 /** Phase 11: VTA changes a sign-in mobile number; partner admins manage viewers (PA-07). */
 
-test('VTA changes a learner’s mobile number; they sign in with the new one (then it is changed back)', async ({ page, browser }) => {
+test('AutoTalent Grid changes a learner’s mobile number; they sign in with the new one (then it is changed back)', async ({ page, browser }) => {
   const anitha = await withDb((db) => db.selectFrom('users').select('id').where('phone', '=', '+919900000212').executeTakeFirstOrThrow());
   await signInEmail(page, EMAIL.opsAdmin);
   await page.goto(`/admin/candidates/${anitha.id}`);

@@ -59,7 +59,7 @@ export const partnerRoutes: FastifyPluginAsync = async (app) => {
     const b = parse(partnerProfileSchema, req.body);
     const o = await org(req);
     if (o.verification_status === 'verified' && (b.legalName !== o.legal_name || (b.registrationNumber ?? null) !== (reg(o).registrationNumber ?? null))) {
-      throw invalid('The registered name and number were verified by VTA. Contact VTA to change them.', { legalName: 'Verified by VTA' });
+      throw invalid('The registered name and number were verified by AutoTalent Grid. Contact AutoTalent Grid to change them.', { legalName: 'Verified by AutoTalent Grid' });
     }
     await db.transaction().execute(async (trx) => {
       await trx
@@ -87,13 +87,13 @@ export const partnerRoutes: FastifyPluginAsync = async (app) => {
   app.post('/partner/organisation/submit', { config: { permission: 'partner.profile' } }, async (req) => {
     const o = await org(req);
     if (o.verification_status === 'verified') throw invalid('Your organisation is already verified.');
-    if (o.verification_status === 'rejected') throw invalid('VTA could not verify this organisation. Contact VTA to discuss it.');
+    if (o.verification_status === 'rejected') throw invalid('AutoTalent Grid could not verify this organisation. Contact AutoTalent Grid to discuss it.');
     const { n } = await db.selectFrom('documents').select(sql<string>`count(*)`.as('n')).where('organisation_id', '=', o.id).where('deleted_at', 'is', null).executeTakeFirstOrThrow();
     const missing: Record<string, string> = {};
     if (!o.city) missing.city = 'Add the city';
     if (!o.contact_email || !o.contact_phone) missing.contact = 'Add contact details';
     if (Number(n) === 0) missing.documents = 'Upload at least one registration document';
-    if (Object.keys(missing).length) throw invalid('Complete the organisation profile before sending it to VTA.', missing);
+    if (Object.keys(missing).length) throw invalid('Complete the organisation profile before sending it to AutoTalent Grid.', missing);
     const now = new Date();
     await db.transaction().execute(async (trx) => {
       await trx.updateTable('organisations').set({ submitted_at: now, verification_status: 'pending', verification_reason: null, updated_at: now }).where('id', '=', o.id).execute();
@@ -187,7 +187,7 @@ export const partnerRoutes: FastifyPluginAsync = async (app) => {
     const d = await describe(f);
     await audit(db, auditCtx(req), { action: 'report.exported', entityType: 'report', entityId: null, after: { report: 'cohort', filters: f, personalData: false } });
     const csv = toCsv([
-      ['VTA Talent Cloud cohort report'],
+      ['AutoTalent Grid cohort report'],
       ['As of', asOf],
       ['Batch start from', d.from ?? 'any'],
       ['Batch start to', d.to ?? 'any'],
@@ -256,7 +256,7 @@ export const partnerRoutes: FastifyPluginAsync = async (app) => {
     const ra = await db.selectFrom('role_assignments').selectAll().where('id', '=', id).where('organisation_id', '=', organisationId).where('revoked_at', 'is', null).executeTakeFirst();
     if (!ra || (ra.role !== 'partner_viewer' && ra.role !== 'partner_admin')) throw notFound('Team member');
     if (ra.user_id === req.actor!.userId) throw forbidden('You cannot remove yourself.');
-    if (ra.role === 'partner_admin') throw forbidden('Only VTA can remove a partner admin.');
+    if (ra.role === 'partner_admin') throw forbidden('Only AutoTalent Grid can remove a partner admin.');
     await db.transaction().execute(async (trx) => {
       await trx.updateTable('role_assignments').set({ revoked_at: new Date(), revoked_by: req.actor!.userId }).where('id', '=', id).execute();
       await audit(trx, auditCtx(req), { action: 'partner.viewer_removed', entityType: 'organisation', entityId: organisationId, before: { userId: ra.user_id, role: ra.role } });

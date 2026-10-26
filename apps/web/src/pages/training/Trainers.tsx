@@ -42,7 +42,7 @@ interface CentreOption {
 }
 
 const centreLabel = (c: { name: string; city: string | null; organisationName: string | null }) =>
-  `${c.name}${c.city ? `, ${c.city}` : ''} (${c.organisationName ?? 'VTA'})`;
+  `${c.name}${c.city ? `, ${c.city}` : ''} (${c.organisationName ?? 'AutoTalent Grid'})`;
 
 function useCentres() {
   return useQuery({ queryKey: ['centre-options'], queryFn: () => api.get<Page<CentreOption>>(`/centres${qs({ status: 'active', pageSize: 100 })}`) });
@@ -238,7 +238,7 @@ export function TrainerDetailPage() {
             {t.centres.map((c) => (
               <li key={c.assignmentId} className="px-5 py-3.5">
                 <p className="font-medium">{c.name}</p>
-                <p className="text-sm text-muted">{[c.city, c.organisationName ?? 'Run by VTA'].filter(Boolean).join(', ')}</p>
+                <p className="text-sm text-muted">{[c.city, c.organisationName ?? 'Run by AutoTalent Grid'].filter(Boolean).join(', ')}</p>
               </li>
             ))}
           </ul>

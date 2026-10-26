@@ -54,13 +54,13 @@ function ConsentGate() {
     <section className="mx-auto max-w-xl">
       <h1 className="text-[26px] font-bold tracking-tight">Welcome, {firstName(me?.name ?? '')}</h1>
       <p className="mt-2 text-muted">
-        Your training centre created your VTA Talent Cloud account. Before you continue, please read how your information is used and agree to the terms.
+        Your training centre created your AutoTalent Grid account. Before you continue, please read how your information is used and agree to the terms.
       </p>
       <div className="card mt-6 divide-y divide-line">
         {(
           [
             ['privacy', 'Privacy notice', 'What we keep about you, who sees it and your choices.', privacy, setPrivacy, 'I have read the privacy notice'],
-            ['terms', 'Terms of use', 'Rules for using your account and what VTA certificates mean.', terms, setTerms, 'I agree to the terms of use'],
+            ['terms', 'Terms of use', 'Rules for using your account and what AutoTalent Grid certificates mean.', terms, setTerms, 'I agree to the terms of use'],
           ] as const
         ).map(([key, title, body, checked, setChecked, label]) => (
           <div key={key} className="px-5 py-4">
@@ -93,7 +93,7 @@ function ConsentGate() {
       <button type="button" className="btn-primary mt-5 h-11 w-full sm:w-auto" disabled={busy} onClick={() => void accept()}>
         {busy ? 'Saving…' : 'Agree and continue'}
       </button>
-      <p className="mt-3 text-[13px] text-muted">Draft wording for VTA review (version {NOTICE_VERSION}).</p>
+      <p className="mt-3 text-[13px] text-muted">Draft wording for AutoTalent Grid review (version {NOTICE_VERSION}).</p>
     </section>
   );
 }

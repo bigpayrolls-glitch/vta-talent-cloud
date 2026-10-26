@@ -39,7 +39,7 @@ export function AccessDenied({ portal }: { portal: Portal }) {
       </span>
       <h1 className="mt-5 text-2xl font-bold">Access denied</h1>
       <p className="mt-2 text-muted">
-        Your account doesn’t have access to the {PORTAL_LABEL[portal]}. If you think it should, ask a VTA administrator to check your role.
+        Your account doesn’t have access to the {PORTAL_LABEL[portal]}. If you think it should, ask an AutoTalent Grid administrator to check your role.
       </p>
       {me && (
         <Link to={homePathFor(me)} className="btn-primary mt-6">
@@ -77,7 +77,7 @@ export function NoAccess() {
   return (
     <Centered>
       <h1 className="text-2xl font-bold">Your account has no role yet</h1>
-      <p className="mt-2 text-muted">You’re signed in, but no portal has been assigned to you. A VTA administrator needs to give your account a role.</p>
+      <p className="mt-2 text-muted">You’re signed in, but no portal has been assigned to you. An AutoTalent Grid administrator needs to give your account a role.</p>
       <button className="btn-secondary mt-6" onClick={signOut}>
         Sign out
       </button>
@@ -136,7 +136,7 @@ export function AcceptInvitation() {
       {self ? (
         <p className="mt-2 text-muted">
           Set a password for <span className="font-semibold text-ink">{invite.data!.email}</span> to finish registering{' '}
-          <span className="font-semibold text-ink">{invite.data!.organisationName}</span>. Next you add your details and a registration document so VTA can verify you.
+          <span className="font-semibold text-ink">{invite.data!.organisationName}</span>. Next you add your details and a registration document so AutoTalent Grid can verify you.
         </p>
       ) : (
         <p className="mt-2 text-muted">

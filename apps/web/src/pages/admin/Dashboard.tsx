@@ -100,7 +100,7 @@ function PlatformView({ d }: { d: PlatformDashboard }) {
       <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
         <Tile icon={Briefcase} label="Open jobs" value={d.hiring.openJobs} note="Published, not past closing date" to="/admin/jobs?status=published" small />
         <Tile icon={ClipboardList} label="Applications" value={d.hiring.applications} note="All time" small />
-        <Tile icon={Handshake} label="Joinings recorded" value={d.hiring.joinedRecorded} note={`${d.hiring.joinedVerified} confirmed by VTA`} to="/admin/outcomes?verification=" small />
+        <Tile icon={Handshake} label="Joinings recorded" value={d.hiring.joinedRecorded} note={`${d.hiring.joinedVerified} confirmed by AutoTalent Grid`} to="/admin/outcomes?verification=" small />
       </div>
 
       <section className="mt-8">

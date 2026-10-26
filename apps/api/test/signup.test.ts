@@ -45,7 +45,7 @@ describe('organisation self-registration', () => {
     expect(events.map((e) => e.action)).toContain('organisation.self_registered');
   });
 
-  it('VTA sees it flagged as self-registered and awaiting email confirmation; the person cannot sign in yet', async () => {
+  it('AutoTalent Grid sees it flagged as self-registered and awaiting email confirmation; the person cannot sign in yet', async () => {
     const admin = await loginEmail(ctx, EMAIL.opsAdmin);
     const list = await admin.get('/admin/organisations?q=Kaveri');
     expect(list.body.items[0]).toMatchObject({ legalName: 'Kaveri Auto Works', registrationSource: 'self', awaitingEmail: true, submittedAt: null });
@@ -74,7 +74,7 @@ describe('organisation self-registration', () => {
     expect((await admin.get('/admin/organisations?q=Kaveri')).body.items[0].awaitingEmail).toBe(false);
   });
 
-  it('invitation links from VTA are still described as invitations', async () => {
+  it('invitation links from AutoTalent Grid are still described as invitations', async () => {
     const admin = await loginEmail(ctx, EMAIL.superAdmin);
     await admin.post('/admin/users', { name: 'Invited Person', email: 'invited-p8@demo.vta.local' });
     const info = await ctx.app.inject({ method: 'GET', url: `/api/v1/auth/invitations/${tokenFor('invited-p8@demo.vta.local')}` });
@@ -112,7 +112,7 @@ describe('organisation self-registration', () => {
     expect((await c.get('/programmes')).body.items).toEqual([]);
   });
 
-  it('a name matching an existing organisation is flagged for VTA, not refused', async () => {
+  it('a name matching an existing organisation is flagged for AutoTalent Grid, not refused', async () => {
     const res = await register({ ...base, legalName: '  sunrise two-wheeler   SERVICE (demo) ', email: 'copy@sunrise.example' });
     expect(res.statusCode).toBe(202);
     const org = await ctx.db.selectFrom('organisations').selectAll().where('contact_email', '=', 'copy@sunrise.example').executeTakeFirstOrThrow();
@@ -147,7 +147,7 @@ describe('organisation self-registration', () => {
     expect(codes[5]).toBe(429);
   });
 
-  it('a self-registered employer cannot publish jobs or search candidates until VTA verifies it', async () => {
+  it('a self-registered employer cannot publish jobs or search candidates until AutoTalent Grid verifies it', async () => {
     const token = tokenFor('copy@sunrise.example')!;
     const c = await clientFromCookie(ctx.app, cookieFrom(await accept(token)));
     expect((await c.get('/employer/candidates')).status).toBeGreaterThanOrEqual(400);

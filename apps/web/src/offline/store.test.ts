@@ -27,7 +27,7 @@ const snapshot: OfflineSnapshot = {
       centreName: 'Peenya',
       startDate: '2026-10-12',
       endDate: '2027-01-12',
-      people: [{ candidateId: 'p1', name: 'Venkatesh', code: 'VTA26-1', locked: false }],
+      people: [{ candidateId: 'p1', name: 'Venkatesh', code: 'ATG26-1', locked: false }],
       marks: [],
     },
   ],

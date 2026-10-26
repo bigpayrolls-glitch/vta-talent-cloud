@@ -210,7 +210,7 @@ export const programmeRoutes: FastifyPluginAsync = async (app) => {
       if (has('employment')) {
         const mine = apps.filter((a) => a.candidate_id === r.candidate_id && a.applied_at >= r.enrolled_at);
         out.employment = mine.some((a) => a.status === 'joined' && a.outcome_verification === 'verified')
-          ? 'Joined (VTA-verified)'
+          ? 'Joined (AutoTalent Grid-verified)'
           : mine.some((a) => a.status === 'joined')
             ? 'Joined (employer-reported)'
             : mine.length
@@ -275,7 +275,7 @@ export const programmeRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/programmes/:id/documents', { config: { permission: 'programme.documents.upload' }, bodyLimit: UPLOAD_MAX_BYTES }, async (req, reply) => {
     const p = await visible(req, parse(idParam, req.params).id);
-    if (!(await dto(req, p)).canUpload) throw forbidden('Only VTA staff and the programme partner’s admins can add documents.');
+    if (!(await dto(req, p)).canUpload) throw forbidden('Only AutoTalent Grid staff and the programme partner’s admins can add documents.');
     const meta = parse(z.object({ title: z.string().trim().min(2, 'Give the document a title').max(120), fileName: z.string().trim().min(1).max(200), category: z.enum(PROGRAMME_DOCUMENT_CATEGORIES) }), req.query);
     const body = req.body;
     if (!Buffer.isBuffer(body) || body.length === 0) throw invalid('Choose a file to upload', { file: 'No file received' });

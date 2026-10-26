@@ -35,7 +35,7 @@ export function SyncStatusPage() {
 
   return (
     <>
-      <PageHeader title="Sync status" description="Attendance you take is saved on this phone first, then sent to VTA Talent Cloud." />
+      <PageHeader title="Sync status" description="Attendance you take is saved on this phone first, then sent to AutoTalent Grid." />
 
       <section className="card grid gap-4 px-5 py-5 sm:grid-cols-[1fr_auto] sm:items-center">
         <dl className="grid gap-3 sm:grid-cols-3">

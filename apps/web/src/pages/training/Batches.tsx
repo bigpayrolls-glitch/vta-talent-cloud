@@ -201,7 +201,7 @@ function CreateBatchModal({ onClose }: { onClose: () => void }) {
         <Field label="Centre" htmlFor="bf-centre" error={f.errors.centreId}>
           <select id="bf-centre" className="field-input" value={v.centreId} onChange={upd('centreId')}>
             <option value="">Choose a centre</option>
-            {centres.data?.items.map((c) => <option key={c.id} value={c.id}>{c.name}{c.city ? `, ${c.city}` : ''} ({c.organisationName ?? 'VTA'})</option>)}
+            {centres.data?.items.map((c) => <option key={c.id} value={c.id}>{c.name}{c.city ? `, ${c.city}` : ''} ({c.organisationName ?? 'AutoTalent Grid'})</option>)}
           </select>
         </Field>
         <Field label="Trainer" htmlFor="bf-trainer" error={f.errors.trainerId} hint={v.centreId ? 'Verified trainers at this centre.' : 'Choose a centre first.'}>
@@ -407,7 +407,7 @@ export function BatchDetailPage({ base }: { base: string }) {
             ))}
           </ul>
         )}
-        {roster.data && !roster.data.showContact && <p className="border-t border-line px-5 py-3 text-[13px] text-muted">Contact details are shown to the batch trainer and VTA staff only.</p>}
+        {roster.data && !roster.data.showContact && <p className="border-t border-line px-5 py-3 text-[13px] text-muted">Contact details are shown to the batch trainer and AutoTalent Grid staff only.</p>}
         {roster.data && roster.data.sessionsHeld > 0 && (
           <p className="border-t border-line px-5 py-3 text-[13px] text-muted">
             Attendance over {roster.data.sessionsHeld} {roster.data.sessionsHeld === 1 ? 'session' : 'sessions'} so far. {roster.data.thresholdPct}% is needed to complete the course; excused sessions are not counted.

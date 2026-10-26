@@ -13,14 +13,14 @@ const COPY = {
     icon: Building2,
     title: 'Register your company',
     lead: 'For dealerships, workshops, fleets and other employers hiring automotive technicians.',
-    after: ['Confirm your email and set a password.', 'Add your company details and a registration document (for example GST certificate).', 'VTA checks them. Once verified, you can post jobs and search candidates.'],
+    after: ['Confirm your email and set a password.', 'Add your company details and a registration document (for example GST certificate).', 'AutoTalent Grid checks them. Once verified, you can post jobs and search candidates.'],
     other: { to: '/join/partner', label: 'Registering a training partner or sponsor instead?' },
   },
   partner: {
     icon: HandHeart,
     title: 'Register a training partner',
-    lead: 'For OEMs, CSR sponsors, NGOs, colleges and training providers working with VTA.',
-    after: ['Confirm your email and set a password.', 'Add your organisation details and a registration document.', 'VTA checks them and links you to the programmes you take part in.'],
+    lead: 'For OEMs, CSR sponsors, NGOs, colleges and training providers working with AutoTalent Grid.',
+    after: ['Confirm your email and set a password.', 'Add your organisation details and a registration document.', 'AutoTalent Grid checks them and links you to the programmes you take part in.'],
     other: { to: '/join/employer', label: 'Hiring technicians instead?' },
   },
 } as const;
@@ -159,7 +159,7 @@ export function JoinPage({ type }: { type: 'employer' | 'partner' }) {
             <Field label="Work email" htmlFor="email" error={f.errors.email} hint="You sign in with this. We send the confirmation link here.">
               <input id="email" type="email" inputMode="email" autoComplete="email" className="field-input" value={v.email} onChange={set('email')} aria-invalid={!!f.errors.email} />
             </Field>
-            <Field label="Mobile number" htmlFor="phone" error={f.errors.phone} hint="So VTA can reach you about the verification.">
+            <Field label="Mobile number" htmlFor="phone" error={f.errors.phone} hint="So AutoTalent Grid can reach you about the verification.">
               <div className="flex">
                 <span className="grid place-items-center rounded-l-lg border border-r-0 border-line bg-surface px-3 text-[15px] text-muted">+91</span>
                 <input id="phone" type="tel" inputMode="numeric" autoComplete="tel-national" className="field-input rounded-l-none" value={v.phone} onChange={set('phone')} aria-invalid={!!f.errors.phone} />

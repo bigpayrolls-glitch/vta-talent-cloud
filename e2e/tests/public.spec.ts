@@ -6,7 +6,7 @@ import { apiLogSize, expectNoHorizontalScroll, ids, latestSignupLink } from './h
 test('the public home page offers each kind of user a way in, and fits a phone', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 800 });
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Learn. Perform.');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Train. Connect.');
   await expect(page.getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', '/register');
   await expect(page.getByRole('link', { name: 'Register your company' }).first()).toHaveAttribute('href', '/join/employer');
   await expect(page.getByRole('link', { name: 'Register your organisation' })).toHaveAttribute('href', '/join/partner');

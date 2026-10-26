@@ -22,7 +22,7 @@ describe('AD-05 document verification', () => {
   let docA = '';
   let docB = '';
 
-  it('VTA verifies a learner document; the learner can then no longer delete it', async () => {
+  it('AutoTalent Grid verifies a learner document; the learner can then no longer delete it', async () => {
     learnerId = (await ctx.db.selectFrom('users').select('id').where('phone', '=', PHONE.learner).executeTakeFirstOrThrow()).id;
     docA = (await c.learner!.upload('/me/documents?kind=certificate&title=ITI%20certificate&fileName=iti.pdf', PDF)).body.id;
     docB = (await c.learner!.upload('/me/documents?kind=other&title=Blurry%20photo&fileName=b.pdf', PDF)).body.id;
@@ -42,14 +42,14 @@ describe('AD-05 document verification', () => {
     const mine = (await c.learner!.get('/me/documents')).body.items.find((d: { id: string }) => d.id === docB);
     expect(mine).toMatchObject({ verificationStatus: 'rejected', reviewReason: 'The photo is too blurry to read', canDelete: true });
     const n = (await c.learner!.get('/notifications')).body.items[0];
-    expect(n).toMatchObject({ title: 'VTA could not accept "Blurry photo"', link: '/learn/documents' });
+    expect(n).toMatchObject({ title: 'AutoTalent Grid could not accept "Blurry photo"', link: '/learn/documents' });
     const detail = (await c.ops!.get(`/admin/candidates/${learnerId}`)).body.documents.find((d: { id: string }) => d.id === docB);
     expect(detail.reviewReason).toBe('The photo is too blurry to read');
     const logged = await ctx.db.selectFrom('audit_events').select('action').where('entity_id', '=', learnerId).where('action', 'in', ['document.verified', 'document.rejected']).execute();
     expect(logged.map((l) => l.action).sort()).toEqual(['document.rejected', 'document.verified']);
   });
 
-  it('only VTA operations can review; a document must belong to that candidate', async () => {
+  it('only AutoTalent Grid operations can review; a document must belong to that candidate', async () => {
     expect((await c.centre!.post(`/admin/candidates/${learnerId}/documents/${docB}/review`, { decision: 'verified' })).status).toBe(403);
     const other = (await ctx.db.selectFrom('candidate_profiles').select('user_id').where('user_id', '!=', learnerId).executeTakeFirstOrThrow()).user_id;
     expect((await c.ops!.post(`/admin/candidates/${other}/documents/${docB}/review`, { decision: 'verified' })).status).toBe(404);
@@ -122,7 +122,7 @@ describe('tests the traceability review found missing', () => {
     expect(JSON.stringify(mine)).not.toContain('slow on electricals');
   });
 
-  it('EM-08: VTA can flag a recorded joining with a note', async () => {
+  it('EM-08: AutoTalent Grid can flag a recorded joining with a note', async () => {
     const rec = await loginEmail(ctx, EMAIL.recruiterA);
     const app = ctx.ids.applicationAnitha!;
     expect((await rec.post(`/employer/applications/${app}/move`, { to: 'offer' })).status).toBe(200);

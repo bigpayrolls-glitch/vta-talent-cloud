@@ -31,7 +31,7 @@ export function JobsPage() {
     <>
       <PageHeader
         title="Jobs"
-        description="Jobs from employers checked by VTA."
+        description="Jobs from employers checked by AutoTalent Grid."
         actions={
           <Link to="/learn/applications" className="btn-secondary">
             My applications
@@ -185,7 +185,7 @@ export function JobDetailPage() {
           {j.vtaCertificatePreferred && (
             <p className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-brand">
               <Award className="size-4" aria-hidden />
-              VTA certificate preferred
+              AutoTalent Grid certificate preferred
             </p>
           )}
           <p className="mt-4 whitespace-pre-line border-t border-line pt-4 text-[15px] leading-relaxed">{j.description}</p>
@@ -204,7 +204,7 @@ export function JobDetailPage() {
               Apply
             </button>
           )}
-          <p className="mt-3 text-[13px] text-muted">VTA checks employers but does not promise a job. The employer decides who to hire.</p>
+          <p className="mt-3 text-[13px] text-muted">AutoTalent Grid checks employers but does not promise a job. The employer decides who to hire.</p>
         </aside>
       </div>
       {applying && <ApplyModal job={j} onClose={() => setApplying(false)} />}
@@ -264,14 +264,14 @@ function ApplyModal({ job, onClose }: { job: JobDetail; onClose: () => void }) {
           {s.fields.map((x) => (
             <li key={x}>{x}</li>
           ))}
-          {s.certificates.length > 0 && <li>Your VTA certificates: {s.certificates.map((c) => c.course).join(', ')}</li>}
+          {s.certificates.length > 0 && <li>Your AutoTalent Grid certificates: {s.certificates.map((c) => c.course).join(', ')}</li>}
           {s.documents.length > 0 && <li>Documents you marked for employers: {s.documents.map((d) => d.title).join(', ')}</li>}
         </ul>
         <p className="rounded-lg bg-surface px-3 py-2">
           {s.contact.name}, {formatPhone(s.contact.phone)}
           {s.contact.email ? `, ${s.contact.email}` : ''}
         </p>
-        {s.verificationStatus !== 'verified' && <p className="text-warning">Your profile is not verified by VTA yet. The employer will see that.</p>}
+        {s.verificationStatus !== 'verified' && <p className="text-warning">Your profile is not verified by AutoTalent Grid yet. The employer will see that.</p>}
         <div>
           <label htmlFor="ap-note" className="field-label">
             Message to the employer (optional)
@@ -420,7 +420,7 @@ export function ApplicationDetailPage() {
               {a.shared.fields.map((x) => (
                 <li key={x}>{x}</li>
               ))}
-              {a.shared.certificates.length > 0 && <li>VTA certificates</li>}
+              {a.shared.certificates.length > 0 && <li>AutoTalent Grid certificates</li>}
               {a.shared.documents.length > 0 && <li>{a.shared.documents.length} documents</li>}
             </ul>
           </section>

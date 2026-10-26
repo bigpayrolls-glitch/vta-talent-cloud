@@ -37,7 +37,7 @@ export function ProfilePage() {
       />
       {p.verificationStatus === 'needs_correction' && p.verificationReason && (
         <p role="status" className="mb-4 rounded-lg bg-warning-tint px-4 py-3 text-sm text-warning">
-          <span className="font-semibold">VTA asked for a correction:</span> {p.verificationReason}
+          <span className="font-semibold">AutoTalent Grid asked for a correction:</span> {p.verificationReason}
         </p>
       )}
       {editing ? <ProfileForm profile={p} onDone={() => setEditing(false)} /> : <ProfileView p={p} />}
@@ -129,7 +129,7 @@ function ProfileForm({ profile: p, onDone }: { profile: LearnerProfile; onDone: 
         const res = await api.patch<LearnerProfile>('/me/profile', data);
         draft.clear();
         qc.setQueryData(['me', 'profile'], res);
-        toast('success', res.verificationStatus === 'pending' && p.verificationStatus === 'needs_correction' ? 'Saved and sent back to VTA for checking' : 'Profile saved');
+        toast('success', res.verificationStatus === 'pending' && p.verificationStatus === 'needs_correction' ? 'Saved and sent back to AutoTalent Grid for checking' : 'Profile saved');
         onDone();
       },
     );
@@ -148,7 +148,7 @@ function ProfileForm({ profile: p, onDone }: { profile: LearnerProfile; onDone: 
       {p.identityLocked ? (
         <p className="flex items-start gap-2 rounded-lg bg-surface px-3 py-2 text-sm">
           <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
-          Your name and date of birth were checked by VTA. To correct them, ask your training centre.
+          Your name and date of birth were checked by AutoTalent Grid. To correct them, ask your training centre.
         </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">

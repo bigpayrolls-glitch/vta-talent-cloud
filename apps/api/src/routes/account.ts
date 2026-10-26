@@ -70,7 +70,7 @@ export const accountRoutes: FastifyPluginAsync = async (app) => {
     await audit(db, auditCtx(req), { action: 'learner.data_exported', entityType: 'user', entityId: userId });
 
     const out = {
-      about: 'Everything VTA Talent Cloud keeps about you, as of the time below. Your uploaded files themselves can be opened from Documents in the app.',
+      about: 'Everything AutoTalent Grid keeps about you, as of the time below. Your uploaded files themselves can be opened from Documents in the app.',
       exportedAt: new Date().toISOString(),
       noticeVersion: NOTICE_VERSION,
       account: { name: user.name, mobile: user.phone, email: user.email, dateOfBirth: user.date_of_birth, createdAt: iso(user.created_at) },
@@ -117,7 +117,7 @@ export const accountRoutes: FastifyPluginAsync = async (app) => {
   app.post('/me/closure-request', { config: { permission: 'learner.self', rateLimit: { max: 5, timeWindow: '1 minute' } } }, async (req, reply) => {
     const b = parse(closureRequestSchema, req.body);
     const userId = req.actor!.userId;
-    if (await openRequest(userId)) throw conflict('You have already asked to close your account. VTA will be in touch.');
+    if (await openRequest(userId)) throw conflict('You have already asked to close your account. AutoTalent Grid will be in touch.');
     const id = newId();
     await db.transaction().execute(async (trx) => {
       await trx.insertInto('account_requests').values({ id, user_id: userId, kind: 'closure', reason: b.reason ?? null }).execute();
