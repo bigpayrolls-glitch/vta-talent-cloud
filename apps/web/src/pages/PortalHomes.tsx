@@ -1,9 +1,9 @@
-import { PORTAL_LABEL, ROLE_LABEL } from '@vta/shared';
+import { ROLE_LABEL } from '@vta/shared';
 import {
   ArrowRight,
   BarChart3,
+  Building2,
   CalendarCheck,
-  Home,
   LayoutDashboard,
   RefreshCw,
   Users,
@@ -17,24 +17,14 @@ import { useOffline } from '../offline/useOffline';
 import { InstallCard } from './trainer/InstallCard';
 import { SyncIndicator } from './trainer/SyncIndicator';
 
-/**
- * Homes for the three non-admin portals. The Training Partner portal has batches and rosters
- * from Phase 2; the rest of each portal arrives in the phases listed on screen.
- */
-interface PortalPlan {
-  greeting: string;
-  nav: NavItem[];
-  coming: { label: string; phase: string; icon: typeof Home }[];
-}
-
-const PLANS: Record<'partner', PortalPlan> = {
+/** Training Partner portal home: partners see programmes and batches; trainers also see Today. */
+const PLANS = {
   partner: {
     greeting: 'Manage your training programmes.',
     nav: [
       { to: '/partner', label: 'Dashboard', icon: LayoutDashboard, bottom: true, end: true },
       { to: '/partner/batches', label: 'Batches', icon: Users, bottom: true },
-    ],
-    coming: [{ label: 'Programmes, beneficiaries and reports', phase: 'Phase 7', icon: BarChart3 }],
+    ] as NavItem[],
   },
 };
 
@@ -45,7 +35,14 @@ export function PartnerLayout() {
   useEffect(() => {
     if (isTrainer) startAutoSync();
   }, [isTrainer]);
-  const nav: NavItem[] = isTrainer ? [...PLANS.partner.nav, { to: '/partner/sync', label: 'Sync', icon: RefreshCw, bottom: true }] : PLANS.partner.nav;
+  const isPartner = !!me?.roles.some((r) => r.role === 'partner_admin' || r.role === 'partner_viewer');
+  const nav: NavItem[] = [
+    PLANS.partner.nav[0]!,
+    ...(isPartner ? [{ to: '/partner/programmes', label: 'Programmes', icon: BarChart3, bottom: true }] : []),
+    PLANS.partner.nav[1]!,
+    ...(isTrainer ? [{ to: '/partner/sync', label: 'Sync', icon: RefreshCw, bottom: true }] : []),
+    ...(isPartner ? [{ to: '/partner/organisation', label: 'Organisation', icon: Building2 }] : []),
+  ];
   return (
     <PortalLayout portal="partner" nav={nav} headerExtra={isTrainer ? <SyncIndicator /> : undefined}>
       <Outlet />
@@ -83,6 +80,19 @@ export function PortalHomeContent({ portal }: { portal: 'partner' }) {
         </>
       )}
 
+      {myRoles.some((r) => r.role !== 'trainer') && (
+        <Link to="/partner/programmes" className="card mt-6 flex items-center gap-4 px-5 py-4 hover:border-brand">
+          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand">
+            <BarChart3 className="size-5" aria-hidden />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">Programmes</span>
+            <span className="block text-sm text-muted">Progress against targets, beneficiaries, documents and reports</span>
+          </span>
+          <ArrowRight className="size-5 text-brand" aria-hidden />
+        </Link>
+      )}
+
       {portal === 'partner' && (
         <Link to="/partner/batches" className="card mt-6 flex items-center gap-4 px-5 py-4 hover:border-brand">
           <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand">
@@ -96,23 +106,6 @@ export function PortalHomeContent({ portal }: { portal: 'partner' }) {
         </Link>
       )}
 
-      <section className="mt-8">
-        <h2 className="text-xl font-bold">Coming to the {PORTAL_LABEL[portal]}</h2>
-        <p className="mt-1 text-muted">Your sign-in works today. These tools are being built next.</p>
-        <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-          {plan.coming.map((c) => (
-            <li key={c.label} className="card flex items-center gap-4 px-5 py-4">
-              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-surface text-ink">
-                <c.icon className="size-5" aria-hidden />
-              </span>
-              <span className="min-w-0">
-                <span className="block font-semibold">{c.label}</span>
-                <span className="block text-sm text-muted">{c.phase}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
     </>
   );
 }

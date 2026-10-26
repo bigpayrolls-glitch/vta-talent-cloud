@@ -20,13 +20,15 @@ export const hiringAdminRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/admin/organisations/:id/company', { config: { permission: 'organisation.verify' } }, async (req) => {
     const { id } = parse(idParam, req.params);
-    const org = await db.selectFrom('organisations').selectAll().where('id', '=', id).where('type', '=', 'employer').executeTakeFirst();
-    if (!org) throw notFound('Employer');
+    const org = await db.selectFrom('organisations').selectAll().where('id', '=', id).where('type', '!=', 'vta').executeTakeFirst();
+    if (!org) throw notFound('Organisation');
     const docs = await db.selectFrom('documents').select(['id', 'title', 'mime_type', 'size_bytes', 'created_at']).where('organisation_id', '=', id).where('deleted_at', 'is', null).orderBy('created_at', 'desc').execute();
     const dup = org.duplicate_of ? await db.selectFrom('organisations').select(['id', 'legal_name', 'verification_status']).where('id', '=', org.duplicate_of).executeTakeFirst() : null;
     return {
       ...companyDto(org),
       verificationReason: org.verification_reason,
+      programmeInterests: org.programme_interests,
+      registrationNumber: ((typeof org.registration_ids === 'string' ? JSON.parse(org.registration_ids) : org.registration_ids) as Record<string, string>).registrationNumber ?? null,
       possibleDuplicate: dup ? { id: dup.id, legalName: dup.legal_name, verificationStatus: dup.verification_status } : null,
       documents: docs.map((d) => ({ id: d.id, title: d.title, mimeType: d.mime_type, sizeBytes: d.size_bytes, createdAt: iso(d.created_at) })),
     };

@@ -59,6 +59,7 @@ export async function seed(db: DB): Promise<SeedResult> {
   await org('partnerA', 'partner', 'Skill Bridge Foundation (demo)', 'verified', 'ngo');
   await org('partnerB', 'partner', 'Velocity Training Academy (demo)', 'verified', 'training_provider');
   await org('employerPending', 'employer', 'Green Volt EV Garage (demo)', 'pending');
+  await org('sponsorA', 'partner', 'Bright Lubricants CSR Foundation (demo)', 'verified', 'csr_sponsor');
 
   const centre = async (key: string, name: string, city: string, organisationKey?: string) => {
     ids[key] = newId();
@@ -394,6 +395,32 @@ export async function seed(db: DB): Promise<SeedResult> {
   for (const purpose of ['privacy_notice', 'terms'] as const) {
     await db.insertInto('consent_events').values({ id: newId(), user_id: ids.cand2!, purpose, granted: true, notice_version: NOTICE_VERSION, source: 'self', recorded_by: ids.cand2! }).execute();
   }
+
+  // ---- Phase 7: a sponsored programme run by Skill Bridge (invented) ----
+  ids.programmeA = newId();
+  await db
+    .insertInto('programmes')
+    .values({
+      id: ids.programmeA,
+      name: 'Two-Wheeler Livelihoods Bengaluru 2026',
+      description: 'Training unemployed young people as two-wheeler service technicians in Bengaluru, with placement support.',
+      sponsor_organisation_id: ids.sponsorA!,
+      target_count: 40,
+      start_date: '2026-07-01',
+      end_date: '2027-03-31',
+      status: 'active',
+      reporting_requirements: 'Quarterly outcome report to the sponsor: enrolled, completed, certified and verified joinings.',
+      beneficiary_fields: ['candidateCode', 'city', 'batch', 'enrolmentStatus', 'attendance', 'assessment', 'certificate', 'employment'],
+      sharing_basis: null,
+      budget_reference: 'Sponsor agreement SBF/2026/07 (demo)',
+      budget_amount: 1200000,
+      budget_source: 'Signed sponsor agreement (demo figure)',
+      budget_as_of: '2026-07-01',
+      created_by: ids.opsAdmin!,
+    })
+    .execute();
+  await db.insertInto('programme_partners').values({ programme_id: ids.programmeA, organisation_id: ids.partnerA! }).execute();
+  await db.insertInto('programme_batches').values([ids.batchA!, ids.batchDone!].map((b) => ({ programme_id: ids.programmeA!, batch_id: b }))).execute();
 
   return { credentials, ids };
 }

@@ -84,6 +84,17 @@ test.describe('on a phone', () => {
     }
   });
 
+  test('partner programme screens fit a phone', async ({ page }) => {
+    await signInEmail(page, EMAIL.partnerAdminA);
+    await page.goto('/partner/programmes');
+    await page.getByRole('link', { name: /Two-Wheeler Livelihoods/ }).click();
+    await page.waitForLoadState('networkidle');
+    await expectNoHorizontalScroll(page);
+    await page.goto('/partner/organisation');
+    await page.waitForLoadState('networkidle');
+    await expectNoHorizontalScroll(page);
+  });
+
   test('the public certificate check page fits a phone', async ({ page }) => {
     await page.goto('/verify/aaaabbbbccccddddeeeeffffgggghhhh');
     await expect(page.getByText('No certificate found')).toBeVisible();

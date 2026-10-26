@@ -82,6 +82,7 @@ export const EMAIL = {
   employerAdminPending: 'employer-pending@demo.vta.local',
   partnerAdminA: 'partner-a@demo.vta.local',
   partnerViewerA: 'viewer-a@demo.vta.local',
+  partnerAdminB: 'partner-b@demo.vta.local',
   multi: 'multi@demo.vta.local',
 };
 

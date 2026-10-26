@@ -2,7 +2,19 @@
 
 A role-based automotive skills and workforce platform. One backend and one database serve four portals: **Learner**, **Employer**, **Training Partner** (including trainers) and **Admin**. A public website follows in Phase 8.
 
-**Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data), Phase 3 (training operations), Phase 4 (offline attendance and the installable app), Phase 5 (Learner portal) and Phase 6 (Employer portal and hiring).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+**Built so far: Phase 1 (foundation and Admin Portal), Phase 2 (training master data), Phase 3 (training operations), Phase 4 (offline attendance and the installable app), Phase 5 (Learner portal), Phase 6 (Employer portal and hiring) and Phase 7 (partner programmes and reports).** Every feature here is new (status *Proposed MVP*). Nothing has been checked against an existing VTA system.
+
+## What works in Phase 7
+
+| Area | What you can do |
+| --- | --- |
+| Partner organisation (PA-01) | The partner admin keeps the organisation profile (type, city, registration number, programme interests, contact) and registration documents, and sends them to VTA; VTA sees them in the organisation dialog. Viewers can read only. |
+| Programmes (AD-10) | VTA creates a programme: name, dates, status, target number of people, assigned training partners, optional sponsor, the batches whose enrolments form the cohort, reporting requirements, the beneficiary fields partners may see, and an optional budget reference stored only with its source and date (never presented as finance data). |
+| Access (PA-02) | Partners see only programmes assigned to their organisation; anything else is "not found", including documents and downloads. |
+| Dashboard (PA-03, §17) | Target, enrolled, active, completed, assessed, passed, certified, job offers, joined (employer-reported) and joined (VTA-verified). Each figure shows its definition and type (actual, target, employer-reported, VTA-verified); every rate shows its denominator. Offers are kept apart from joinings. |
+| Beneficiaries (PA-04) | Only the fields VTA approved for the programme. Name, mobile number and date of birth are off by default and can be approved only with a recorded basis (enforced by the API and the database). |
+| Documents (PA-05) | Work orders, attendance summaries, reports and evidence: uploaded by VTA or the partner's admins, opened with 5-minute links, every link logged. |
+| Reports (PA-06, AD-11) | Programme outcome CSV with no personal data; beneficiary CSV with only the approved columns. VTA's cohort report filters by batch start dates, course, centre, partner and programme. Every download is logged; spreadsheet formulas in exported cells are neutralised. |
 
 ## What works in Phase 6
 
@@ -120,14 +132,14 @@ The demo data also has three courses (2W, 4W and EV), nine candidates (one flagg
 ## Tests
 
 ```bash
-pnpm test        # 230 tests: API (real PostgreSQL), shared rules, the phone's offline store
-pnpm e2e         # 41 browser tests (Playwright): desktop and phone sizes, including offline
+pnpm test        # 245 tests: API (real PostgreSQL), shared rules, the phone's offline store
+pnpm e2e         # 46 browser tests (Playwright): desktop and phone sizes, including offline
 pnpm lint
 pnpm typecheck
 pnpm build
 ```
 
-API tests use the database in `TEST_DATABASE_URL` (`vta_test`) and reset it for each file. Browser tests reset `vta_e2e`, start their own API (port 3100) and web app (port 5174), and drive Chromium through real journeys: sign-in by email and phone, course to batch to enrolment, CSV import, document upload and download, what a partner and a trainer can see, attendance to assessment to review to certificate to QR check, phone-size layout, self-registration and the Learner portal, the hiring journey from vacancy to VTA-confirmed joining, and an offline session (the browser is cut off, attendance is taken, the app is reopened offline, then it syncs and a conflict is resolved). Browser tests run the built app with its service worker, as in production.
+API tests use the database in `TEST_DATABASE_URL` (`vta_test`) and reset it for each file. Browser tests reset `vta_e2e`, start their own API (port 3100) and web app (port 5174), and drive Chromium through real journeys: sign-in by email and phone, course to batch to enrolment, CSV import, document upload and download, what a partner and a trainer can see, attendance to assessment to review to certificate to QR check, phone-size layout, self-registration and the Learner portal, the hiring journey from vacancy to VTA-confirmed joining, partner programmes and reports, and an offline session (the browser is cut off, attendance is taken, the app is reopened offline, then it syncs and a conflict is resolved). Browser tests run the built app with its service worker, as in production.
 
 The demo data uses fixed 2026 dates, so both test suites pin the API's "today" to 26 October 2026 with `VTA_TODAY`. Browser tests also set `VTA_RELAX_RATE_LIMITS=1`, which lifts the per-IP sign-in limits for requests from the same machine only (per-number code limits and lockout still apply). Both settings are ignored in production. First time on a new machine: `pnpm --filter @vta/e2e exec playwright install chromium`.
 
@@ -200,6 +212,7 @@ infra             Docker Compose for local services
 - **D8 certificates:** "Course completion record", issued by `CREDENTIAL_ISSUER_NAME`; the check page shows name, course, issue date, issuer and status only.
 - **Review:** only Super Admins and Operations Admins review results and issue certificates.
 - **Unassessed criteria** count as zero marks; every required criterion must be assessed before submitting.
+- **Programmes:** a cohort is the enrolments in the batches linked to the programme. "Active" = attended in the last 14 days. Placement rate = VTA-verified joinings after enrolment ÷ people who completed. Partners see no names unless VTA records a basis.
 - **Hiring:** only VTA-verified, opted-in learners appear in search; contact details are shared only through an application. VTA reviews every job before it is published.
 - **Consent:** employer search is off until the learner turns it on; staff cannot accept the notice on a learner's behalf.
 - **Offline conflicts:** the mark taken last (by capture time) wins automatically; if the saved mark is newer than the phone's, the trainer chooses. Offline roster kept for 14 days without a refresh.

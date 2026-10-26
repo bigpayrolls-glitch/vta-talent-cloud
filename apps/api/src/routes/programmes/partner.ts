@@ -1,0 +1,202 @@
+import { partnerProfileSchema, reportFilterSchema, UPLOAD_MAX_BYTES, UPLOAD_TYPES, uuidSchema } from '@vta/shared';
+import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
+import { createHash } from 'node:crypto';
+import { sql } from 'kysely';
+import { z } from 'zod';
+import { auditCtx } from '../../app.js';
+import { audit } from '../../audit/service.js';
+import type { Organisation } from '../../db/types.js';
+import { newId } from '../../lib/crypto.js';
+import { toCsv } from '../../lib/csv.js';
+import { forbidden, invalid, notFound } from '../../lib/errors.js';
+import { LINK_TTL_SECONDS, safeFileName, signLink, sniffMime } from '../../lib/storage.js';
+import { iso, parse } from '../../lib/validate.js';
+import { cohortMetrics, metricRate } from './metrics.js';
+
+const reg = (o: Organisation) => (typeof o.registration_ids === 'string' ? JSON.parse(o.registration_ids) : o.registration_ids) as Record<string, string>;
+
+function partnerDto(o: Organisation) {
+  return {
+    id: o.id,
+    legalName: o.legal_name,
+    partnerSubtype: o.partner_subtype,
+    city: o.city,
+    address: o.address,
+    website: o.website,
+    registrationNumber: reg(o).registrationNumber ?? null,
+    programmeInterests: o.programme_interests,
+    contactName: o.contact_name,
+    contactEmail: o.contact_email,
+    contactPhone: o.contact_phone,
+    verificationStatus: o.verification_status,
+    verificationReason: ['more_info_needed', 'rejected'].includes(o.verification_status) ? o.verification_reason : null,
+    submittedAt: iso(o.submitted_at),
+    identityLocked: o.verification_status === 'verified',
+  };
+}
+
+/** PA-01: the partner's own organisation profile and verification documents. AD-11: VTA cohort reports. */
+export const partnerRoutes: FastifyPluginAsync = async (app) => {
+  const db = app.db;
+
+  const orgId = (req: FastifyRequest) => {
+    const a = req.actor!.assignments.find((x) => (x.role === 'partner_admin' || x.role === 'partner_viewer') && x.organisationId);
+    if (!a) throw forbidden('This account is not linked to a training partner.');
+    return a.organisationId!;
+  };
+  const org = async (req: FastifyRequest) => {
+    const o = await db.selectFrom('organisations').selectAll().where('id', '=', orgId(req)).executeTakeFirst();
+    if (!o) throw notFound('Organisation');
+    return o;
+  };
+
+  app.get('/partner/organisation', { config: { permission: 'partner.profile.read' } }, async (req) => partnerDto(await org(req)));
+
+  app.put('/partner/organisation', { config: { permission: 'partner.profile' } }, async (req) => {
+    const b = parse(partnerProfileSchema, req.body);
+    const o = await org(req);
+    if (o.verification_status === 'verified' && (b.legalName !== o.legal_name || (b.registrationNumber ?? null) !== (reg(o).registrationNumber ?? null))) {
+      throw invalid('The registered name and number were verified by VTA. Contact VTA to change them.', { legalName: 'Verified by VTA' });
+    }
+    await db.transaction().execute(async (trx) => {
+      await trx
+        .updateTable('organisations')
+        .set({
+          legal_name: b.legalName,
+          partner_subtype: b.partnerSubtype,
+          city: b.city,
+          address: b.address ?? null,
+          website: b.website ?? null,
+          programme_interests: b.programmeInterests ?? null,
+          registration_ids: JSON.stringify({ ...reg(o), ...(b.registrationNumber ? { registrationNumber: b.registrationNumber } : {}) }),
+          contact_name: b.contactName,
+          contact_email: b.contactEmail,
+          contact_phone: b.contactPhone,
+          updated_at: new Date(),
+        })
+        .where('id', '=', o.id)
+        .execute();
+      await audit(trx, auditCtx(req), { action: 'organisation.profile_updated', entityType: 'organisation', entityId: o.id, before: { legal_name: o.legal_name, city: o.city }, after: { legal_name: b.legalName, city: b.city } });
+    });
+    return partnerDto(await org(req));
+  });
+
+  app.post('/partner/organisation/submit', { config: { permission: 'partner.profile' } }, async (req) => {
+    const o = await org(req);
+    if (o.verification_status === 'verified') throw invalid('Your organisation is already verified.');
+    if (o.verification_status === 'rejected') throw invalid('VTA could not verify this organisation. Contact VTA to discuss it.');
+    const { n } = await db.selectFrom('documents').select(sql<string>`count(*)`.as('n')).where('organisation_id', '=', o.id).where('deleted_at', 'is', null).executeTakeFirstOrThrow();
+    const missing: Record<string, string> = {};
+    if (!o.city) missing.city = 'Add the city';
+    if (!o.contact_email || !o.contact_phone) missing.contact = 'Add contact details';
+    if (Number(n) === 0) missing.documents = 'Upload at least one registration document';
+    if (Object.keys(missing).length) throw invalid('Complete the organisation profile before sending it to VTA.', missing);
+    const now = new Date();
+    await db.transaction().execute(async (trx) => {
+      await trx.updateTable('organisations').set({ submitted_at: now, verification_status: 'pending', verification_reason: null, updated_at: now }).where('id', '=', o.id).execute();
+      await audit(trx, auditCtx(req), { action: 'organisation.submitted', entityType: 'organisation', entityId: o.id, before: { verification_status: o.verification_status }, after: { verification_status: 'pending' } });
+    });
+    return partnerDto(await org(req));
+  });
+
+  app.get('/partner/organisation/documents', { config: { permission: 'partner.profile.read' } }, async (req) => {
+    const rows = await db.selectFrom('documents').select(['id', 'title', 'size_bytes', 'created_at']).where('organisation_id', '=', orgId(req)).where('deleted_at', 'is', null).orderBy('created_at', 'desc').execute();
+    return { items: rows.map((d) => ({ id: d.id, title: d.title, sizeBytes: d.size_bytes, createdAt: iso(d.created_at) })) };
+  });
+
+  app.post('/partner/organisation/documents', { config: { permission: 'partner.profile' }, bodyLimit: UPLOAD_MAX_BYTES }, async (req, reply) => {
+    const id0 = orgId(req);
+    const meta = parse(z.object({ title: z.string().trim().min(2, 'Give the document a title').max(120), fileName: z.string().trim().min(1).max(200) }), req.query);
+    const body = req.body;
+    if (!Buffer.isBuffer(body) || body.length === 0) throw invalid('Choose a file to upload', { file: 'No file received' });
+    const mime = sniffMime(body);
+    if (!mime) throw invalid(`Upload a ${Object.values(UPLOAD_TYPES).join(', ')} file`, { file: 'File type not allowed' });
+    const id = newId();
+    const storageKey = `documents/${new Date().getUTCFullYear()}/${id}`;
+    await app.storage.put(storageKey, body);
+    try {
+      await db.transaction().execute(async (trx) => {
+        await trx
+          .insertInto('documents')
+          .values({ id, owner_user_id: req.actor!.userId, organisation_id: id0, kind: 'other', title: meta.title, storage_key: storageKey, original_name: safeFileName(meta.fileName), mime_type: mime, size_bytes: body.length, sha256: createHash('sha256').update(body).digest('hex'), uploaded_by: req.actor!.userId })
+          .execute();
+        await audit(trx, auditCtx(req), { action: 'organisation.document_uploaded', entityType: 'organisation', entityId: id0, after: { documentId: id, title: meta.title } });
+      });
+    } catch (e) {
+      await app.storage.delete(storageKey);
+      throw e;
+    }
+    reply.code(201);
+    return { id };
+  });
+
+  app.get('/partner/organisation/documents/:id/link', { config: { permission: 'partner.profile.read' } }, async (req) => {
+    const { id } = parse(z.object({ id: uuidSchema }), req.params);
+    const d = await db.selectFrom('documents').select(['id', 'title']).where('id', '=', id).where('organisation_id', '=', orgId(req)).where('deleted_at', 'is', null).executeTakeFirst();
+    if (!d) throw notFound('Document');
+    const { exp, sig } = signLink(app.config.fileSigningSecret, d.id);
+    await audit(db, auditCtx(req), { action: 'document.link_created', entityType: 'organisation', entityId: orgId(req), after: { documentId: d.id } });
+    return { url: `/api/v1/files/${d.id}/content?exp=${exp}&sig=${sig}`, expiresInSeconds: LINK_TTL_SECONDS };
+  });
+
+  // ---------------------------------------------------------------- AD-11 cohort report (VTA staff)
+
+  /** Batches in the cohort: start date in range, and matching course, centre, partner (centre owner) and programme. */
+  const cohortBatches = async (f: z.output<typeof reportFilterSchema>) => {
+    let q = db.selectFrom('batches as b').innerJoin('centres as c', 'c.id', 'b.centre_id').select('b.id').where('b.status', '!=', 'cancelled');
+    if (f.from) q = q.where('b.start_date', '>=', f.from);
+    if (f.to) q = q.where('b.start_date', '<=', f.to);
+    if (f.courseId) q = q.where('b.course_id', '=', f.courseId);
+    if (f.centreId) q = q.where('b.centre_id', '=', f.centreId);
+    if (f.partnerId) q = q.where('c.organisation_id', '=', f.partnerId);
+    if (f.programmeId) q = q.where('b.id', 'in', db.selectFrom('programme_batches').select('batch_id').where('programme_id', '=', f.programmeId));
+    return (await q.execute()).map((b) => b.id);
+  };
+  const describe = async (f: z.output<typeof reportFilterSchema>) => {
+    const name = async (table: 'courses' | 'centres' | 'organisations' | 'programmes', id?: string) => {
+      if (!id) return null;
+      const col = table === 'courses' ? 'title' : table === 'organisations' ? 'legal_name' : 'name';
+      const r = await db.selectFrom(table).select(sql<string>`${sql.ref(col)}`.as('n')).where('id', '=', id).executeTakeFirst();
+      return r?.n ?? 'Unknown';
+    };
+    return {
+      from: f.from ?? null,
+      to: f.to ?? null,
+      course: await name('courses', f.courseId),
+      centre: await name('centres', f.centreId),
+      partner: await name('organisations', f.partnerId),
+      programme: await name('programmes', f.programmeId),
+    };
+  };
+
+  app.get('/admin/reports/cohort', { config: { permission: 'report.read' } }, async (req) => {
+    const f = parse(reportFilterSchema, req.query);
+    const batchIds = await cohortBatches(f);
+    const { metrics, asOf } = await cohortMetrics(db, batchIds);
+    return { asOf, filters: await describe(f), cohort: `Enrolments in ${batchIds.length} ${batchIds.length === 1 ? 'batch' : 'batches'} (not cancelled) starting in the chosen dates and matching the filters.`, batches: batchIds.length, metrics };
+  });
+
+  app.get('/admin/reports/cohort.csv', { config: { permission: 'report.read' } }, async (req, reply) => {
+    const f = parse(reportFilterSchema, req.query);
+    const batchIds = await cohortBatches(f);
+    const { metrics, asOf } = await cohortMetrics(db, batchIds);
+    const d = await describe(f);
+    await audit(db, auditCtx(req), { action: 'report.exported', entityType: 'report', entityId: null, after: { report: 'cohort', filters: f, personalData: false } });
+    const csv = toCsv([
+      ['VTA Talent Cloud cohort report'],
+      ['As of', asOf],
+      ['Batch start from', d.from ?? 'any'],
+      ['Batch start to', d.to ?? 'any'],
+      ['Course', d.course ?? 'all'],
+      ['Centre', d.centre ?? 'all'],
+      ['Partner', d.partner ?? 'all'],
+      ['Programme', d.programme ?? 'all'],
+      ['Batches in cohort', batchIds.length],
+      ['Note', 'Aggregate figures only. No personal data.'],
+      [],
+      ['Measure', 'Value', 'Out of', 'Rate %', 'Type', 'Definition'],
+      ...metrics.map((m) => [m.label, m.value, m.denominator ? `${m.denominator.value} (${m.denominator.label})` : '', metricRate(m) ?? '', m.basis.replace('_', ' '), m.definition]),
+    ]);
+    return reply.header('content-type', 'text/csv; charset=utf-8').header('content-disposition', 'attachment; filename="cohort-report.csv"').header('cache-control', 'private, no-store').send(csv);
+  });
+};

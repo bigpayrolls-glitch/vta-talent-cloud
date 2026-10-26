@@ -6,3 +6,4 @@ export * from './training.js';
 export * from './offline.js';
 export * from './learner.js';
 export * from './hiring.js';
+export * from './programmes.js';

@@ -57,6 +57,11 @@ const router = createBrowserRouter([
       { path: 'jobs', lazy: () => import('./pages/admin/Hiring').then((m) => ({ Component: m.JobModerationPage })) },
       { path: 'jobs/:id', lazy: () => import('./pages/admin/Hiring').then((m) => ({ Component: m.JobModerationDetailPage })) },
       { path: 'outcomes', lazy: () => import('./pages/admin/Hiring').then((m) => ({ Component: m.HiringOutcomesPage })) },
+      { path: 'programmes', lazy: () => import('./pages/programmes/Programmes').then((m) => ({ Component: () => <m.ProgrammesPage base="/admin/programmes" /> })) },
+      { path: 'programmes/new', lazy: () => import('./pages/programmes/ProgrammeForm').then((m) => ({ Component: m.ProgrammeFormPage })) },
+      { path: 'programmes/:id', lazy: () => import('./pages/programmes/Programmes').then((m) => ({ Component: () => <m.ProgrammeDetailPage base="/admin/programmes" /> })) },
+      { path: 'programmes/:id/edit', lazy: () => import('./pages/programmes/ProgrammeForm').then((m) => ({ Component: m.ProgrammeFormPage })) },
+      { path: 'reports', lazy: () => import('./pages/programmes/Reports').then((m) => ({ Component: m.ReportsPage })) },
     ],
   },
   {
@@ -128,6 +133,10 @@ const router = createBrowserRouter([
       { index: true, element: <PortalHomeContent portal="partner" /> },
       { path: 'batches', lazy: () => import('./pages/training/Batches').then((m) => ({ Component: () => <m.BatchesPage base="/partner/batches" /> })) },
       { path: 'batches/:id', lazy: () => import('./pages/training/Batches').then((m) => ({ Component: () => <m.BatchDetailPage base="/partner/batches" /> })) },
+      // Phase 7: programmes and the partner's organisation.
+      { path: 'programmes', lazy: () => import('./pages/programmes/Programmes').then((m) => ({ Component: () => <m.ProgrammesPage base="/partner/programmes" /> })) },
+      { path: 'programmes/:id', lazy: () => import('./pages/programmes/Programmes').then((m) => ({ Component: () => <m.ProgrammeDetailPage base="/partner/programmes" /> })) },
+      { path: 'organisation', lazy: () => import('./pages/programmes/Reports').then((m) => ({ Component: m.PartnerOrganisationPage })) },
       // Phase 4: trainer screens that work offline.
       { path: 'attendance/:id', lazy: () => import('./pages/trainer/TakeAttendance').then((m) => ({ Component: m.TakeAttendancePage })) },
       { path: 'sync', lazy: () => import('./pages/trainer/SyncStatus').then((m) => ({ Component: m.SyncStatusPage })) },
