@@ -10,7 +10,7 @@ test('the public home page offers each kind of user a way in, and fits a phone',
   await expect(page.getByRole('link', { name: 'Create a learner account' })).toHaveAttribute('href', '/register');
   await expect(page.getByRole('link', { name: 'Employers: register your company' })).toHaveAttribute('href', '/join/employer');
   await expect(page.getByRole('link', { name: 'Training partners: register your organisation' })).toHaveAttribute('href', '/join/partner');
-  await expect(page.getByRole('link', { name: 'Trainers: sign in' })).toHaveAttribute('href', '/login');
+  await expect(page.getByRole('link', { name: 'Trainers: sign up' })).toHaveAttribute('href', '/join/trainer');
   await expectNoHorizontalScroll(page);
 });
 

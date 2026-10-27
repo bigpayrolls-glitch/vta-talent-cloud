@@ -14,7 +14,7 @@ const userId = async (email: string) => (await ctx.db.selectFrom('users').select
 
 beforeAll(async () => {
   ctx = await setup();
-  for (const k of ['employerAdminA', 'recruiterA', 'employerAdminB', 'secondAdmin', 'superAdmin'] as const) c[k] = await loginEmail(ctx, EMAIL[k]);
+  for (const k of ['employerAdminA', 'employerAdminB', 'secondAdmin', 'superAdmin'] as const) c[k] = await loginEmail(ctx, EMAIL[k]);
   c.ravi = await loginPhone(ctx, RAVI);
   c.learner = await loginPhone(ctx, PHONE.learner);
   for (const purpose of ['privacy_notice', 'terms'] as const) await c.ravi.post('/me/consents', { purpose, granted: true, noticeVersion: NOTICE_VERSION });
@@ -25,8 +25,8 @@ describe('SH-07 notifications', () => {
   let jobId = '';
   let appId = '';
 
-  it('a job sent for review reaches AutoTalent Grid reviewers; publishing it reaches the employer team, never the person who acted', async () => {
-    const job = await c.recruiterA!.post('/employer/jobs', {
+  it('a job sent for review reaches AutoTalent Grid reviewers; publishing it reaches the employer, never the person who acted', async () => {
+    const job = await c.employerAdminA!.post('/employer/jobs', {
       title: 'Brake specialist',
       skillArea: '2W',
       skills: ['Brakes'],
@@ -38,13 +38,13 @@ describe('SH-07 notifications', () => {
       vtaCertificatePreferred: false,
     });
     jobId = job.body.id;
-    await c.recruiterA!.post(`/employer/jobs/${jobId}/submit`);
+    await c.employerAdminA!.post(`/employer/jobs/${jobId}/submit`);
     expect(await titles(c.secondAdmin!)).toContain('Job waiting for review: Brake specialist');
     expect(await titles(c.superAdmin!)).toContain('Job waiting for review: Brake specialist');
-    expect(await titles(c.recruiterA!)).not.toContain('Job waiting for review: Brake specialist');
+    expect(await titles(c.employerAdminA!)).not.toContain('Job waiting for review: Brake specialist');
 
     await c.secondAdmin!.post(`/admin/jobs/${jobId}/moderate`, { action: 'publish' });
-    for (const k of ['recruiterA', 'employerAdminA'] as const) expect(await titles(c[k]!)).toContain('Brake specialist is live');
+    expect(await titles(c.employerAdminA!)).toContain('Brake specialist is live');
     expect(await titles(c.employerAdminB!)).not.toContain('Brake specialist is live');
     expect(await count(await userId(EMAIL.secondAdmin), 'job_published')).toBe(0);
   });
@@ -55,7 +55,7 @@ describe('SH-07 notifications', () => {
     const employerList = (await c.employerAdminA!.get('/notifications')).body;
     expect(employerList.items[0]).toMatchObject({ title: 'New application for Brake specialist', link: `/employer/applications/${appId}`, readAt: null });
 
-    await c.recruiterA!.post(`/employer/applications/${appId}/move`, { to: 'shortlisted' });
+    await c.employerAdminA!.post(`/employer/applications/${appId}/move`, { to: 'shortlisted' });
     const mine = (await c.ravi!.get('/notifications')).body;
     expect(mine.items[0]).toMatchObject({ template: 'application_update', title: 'You’re shortlisted for Brake specialist'.replace('’', "'"), link: `/learn/applications/${appId}` });
     expect(mine.items[0].body).toContain('Sunrise Two-Wheeler Service (demo)');
@@ -64,7 +64,7 @@ describe('SH-07 notifications', () => {
   it('scheduling an interview sends one interview notification, not one per automatic step', async () => {
     const ravi = (await ctx.db.selectFrom('users').select('id').where('phone', '=', RAVI).executeTakeFirstOrThrow()).id;
     const before = await count(ravi, 'application_update');
-    const r = await c.recruiterA!.post(`/employer/applications/${appId}/interviews`, { scheduledAt: '2026-11-05T10:30:00+05:30', mode: 'in_person', location: 'Peenya' });
+    const r = await c.employerAdminA!.post(`/employer/applications/${appId}/interviews`, { scheduledAt: '2026-11-05T10:30:00+05:30', mode: 'in_person', location: 'Peenya' });
     expect(r.status).toBe(201);
     expect(await count(ravi, 'application_update')).toBe(before);
     const n = (await c.ravi!.get('/notifications')).body.items[0];
@@ -76,7 +76,7 @@ describe('SH-07 notifications', () => {
   });
 
   it('a rejection is worded kindly and gives no internal reason', async () => {
-    await c.recruiterA!.post(`/employer/applications/${appId}/move`, { to: 'rejected', reason: 'Not enough brake experience' });
+    await c.employerAdminA!.post(`/employer/applications/${appId}/move`, { to: 'rejected', reason: 'Not enough brake experience' });
     const n = (await c.ravi!.get('/notifications')).body.items[0];
     expect(n.title).toBe('Update on Brake specialist');
     expect(n.body).toContain('decided not to go ahead');
@@ -165,12 +165,12 @@ describe('password reset and change', () => {
   });
 
   it('changing the password checks the current one and signs out other devices only', async () => {
-    const here = await loginEmail(ctx, EMAIL.centreAdmin);
-    const other = await loginEmail(ctx, EMAIL.centreAdmin);
+    const here = await loginEmail(ctx, EMAIL.partnerAdminA);
+    const other = await loginEmail(ctx, EMAIL.partnerAdminA);
     const wrong = await here.post('/auth/password/change', { currentPassword: 'nope', newPassword: 'Changed-pass-123' });
     expect(wrong.status).toBe(400);
     expect(wrong.body.error.fields.currentPassword).toBeDefined();
-    const ok = await here.post('/auth/password/change', { currentPassword: ctx.passwordOf(EMAIL.centreAdmin), newPassword: 'Changed-pass-123' });
+    const ok = await here.post('/auth/password/change', { currentPassword: ctx.passwordOf(EMAIL.partnerAdminA), newPassword: 'Changed-pass-123' });
     expect(ok.status).toBe(200);
     expect((await here.get('/auth/me')).status).toBe(200);
     expect((await other.get('/auth/me')).status).toBe(401);
@@ -207,11 +207,11 @@ describe('learner data download and account closure', () => {
     expect((await c.learner!.get('/me/closure-request')).body.request).toBeNull();
   });
 
-  it('only a Super Admin completes it: deactivated, signed out, open applications withdrawn; records kept', async () => {
+  it('only an Admin completes it: deactivated, signed out, open applications withdrawn; records kept', async () => {
     await c.ravi!.post('/me/closure-request', {});
     const list = (await c.secondAdmin!.get('/admin/account-requests')).body.items;
     const req = list.find((x: { name: string }) => x.name)!;
-    expect((await c.secondAdmin!.post(`/admin/account-requests/${req.id}/complete`, {})).status).toBe(403);
+    expect((await c.employerAdminA!.post(`/admin/account-requests/${req.id}/complete`, {})).status).toBe(403);
     expect((await c.superAdmin!.post(`/admin/account-requests/${req.id}/decline`, {})).body.error.fields.reason).toBeDefined();
 
     // Give Ravi an open application first.

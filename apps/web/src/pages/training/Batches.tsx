@@ -254,7 +254,7 @@ export function BatchDetailPage({ base }: { base: string }) {
   if (batch.isError) return <ErrorNote message={(batch.error as Error).message} />;
   const b = batch.data!;
   const open = b.status === 'planned' || b.status === 'active';
-  const manage = b.canManage && base.startsWith('/admin');
+  const manage = b.canManage;
   const candidateLinks = can('candidate.read') && base.startsWith('/admin');
   const refresh = async () => {
     await qc.invalidateQueries({ queryKey: ['batch'] });
@@ -412,7 +412,7 @@ export function BatchDetailPage({ base }: { base: string }) {
             ))}
           </ul>
         )}
-        {roster.data && !roster.data.showContact && <p className="border-t border-line px-5 py-3 text-[13px] text-muted">Contact details are shown to the batch trainer and AutoTalent Grid staff only.</p>}
+        {roster.data && !roster.data.showContact && <p className="border-t border-line px-5 py-3 text-[13px] text-muted">Contact details are shown to the batch trainer, the training partner running the centre and AutoTalent Grid admins.</p>}
         {roster.data && roster.data.sessionsHeld > 0 && (
           <p className="border-t border-line px-5 py-3 text-[13px] text-muted">
             Attendance over {roster.data.sessionsHeld} {roster.data.sessionsHeld === 1 ? 'session' : 'sessions'} so far. {roster.data.thresholdPct}% is needed to complete the course; excused sessions are not counted.

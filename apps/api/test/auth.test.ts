@@ -44,7 +44,7 @@ describe('Phase 1 test 1: each role signs in and reaches only its own portal', (
     expect((await sa.post('/admin/role-assignments', { userId: ctx.ids.opsAdmin, role: 'learner' })).status).toBe(201);
     const c = await loginEmail(ctx, EMAIL.secondAdmin);
     expect((await c.get('/auth/me')).body.portals).toEqual(['admin', 'learn']);
-    const grant = await ctx.db.selectFrom('role_assignments').select('id').where('user_id', '=', ctx.ids.opsAdmin).where('role', '=', 'learner').where('revoked_at', 'is', null).executeTakeFirstOrThrow();
+    const grant = await ctx.db.selectFrom('role_assignments').select('id').where('user_id', '=', ctx.ids.opsAdmin!).where('role', '=', 'learner').where('revoked_at', 'is', null).executeTakeFirstOrThrow();
     expect((await sa.post(`/admin/role-assignments/${grant.id}/revoke`)).status).toBe(200);
   });
 

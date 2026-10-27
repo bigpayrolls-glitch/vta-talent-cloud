@@ -53,12 +53,12 @@ describe('Phase 1 test 4: every API route declares a permission', () => {
 describe('Phase 1 test 6: audit log', () => {
   it('sensitive actions write actor, action, target, request ID and before/after', async () => {
     const ops = await loginEmail(ctx, EMAIL.secondAdmin);
-    await ops.post(`/admin/users/${ctx.ids.recruiterA}/suspend`, { reason: 'Audit test' });
+    await ops.post(`/admin/users/${ctx.ids.employerAdminPending}/suspend`, { reason: 'Audit test' });
     const row = await ctx.db
       .selectFrom('audit_events')
       .selectAll()
       .where('action', '=', 'user.suspended')
-      .where('entity_id', '=', ctx.ids.recruiterA!)
+      .where('entity_id', '=', ctx.ids.employerAdminPending!)
       .executeTakeFirstOrThrow();
     expect(row.actor_id).toBe(ctx.ids.opsAdmin);
     expect(row.request_id).toBeTruthy();
@@ -83,8 +83,8 @@ describe('Phase 1 test 6: audit log', () => {
     const byActor = await sa.get(`/admin/audit-events?actorId=${ctx.ids.opsAdmin}&action=user.`);
     expect(byActor.body.items.length).toBeGreaterThan(0);
     expect(byActor.body.items.every((e: { actorId: string }) => e.actorId === ctx.ids.opsAdmin)).toBe(true);
-    const byEntity = await sa.get(`/admin/audit-events?entityType=user&entityId=${ctx.ids.recruiterA}`);
-    expect(byEntity.body.items[0].entityLabel).toBe('Divya Recruiter A');
+    const byEntity = await sa.get(`/admin/audit-events?entityType=user&entityId=${ctx.ids.employerAdminPending}`);
+    expect(byEntity.body.items[0].entityLabel).toBe('Meera Employer Pending');
   });
 });
 
@@ -96,13 +96,6 @@ describe('platform basics', () => {
     expect(d.employers.total).toBe(3);
     expect(d.partners.verified).toBe(3); // two training partners and one CSR sponsor (Phase 7)
     expect(d.awaitingAction.organisationsPendingVerification).toBe(1);
-  });
-
-  it('centre admins see a dashboard scoped to their centre only', async () => {
-    const c = await loginEmail(ctx, EMAIL.centreAdmin);
-    const d = (await c.get('/admin/dashboard')).body;
-    expect(d).toMatchObject({ scope: 'centre', centres: { active: 1 } });
-    expect(d.employers).toBeUndefined();
   });
 
   it('errors have a consistent shape with a request ID', async () => {
