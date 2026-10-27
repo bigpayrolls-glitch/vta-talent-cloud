@@ -15,7 +15,7 @@ export const dashboardRoutes: FastifyPluginAsync = async (app) => {
     const asOf = new Date().toISOString();
 
     if (!isPlatformAdmin(actor)) {
-      // Centre Admin: only their own centres for now.
+      // Defensive: only Admins hold dashboard.read today; anyone else would see their own centres only.
       const scope = await centreScope(db, actor);
       const ids = scope === 'all' ? [] : scope;
       const rows = ids.length

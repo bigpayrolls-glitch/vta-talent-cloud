@@ -37,7 +37,7 @@ export const PERMISSIONS = {
   'trainer.verify': ['super_admin'],
   'candidate.read': ['super_admin', 'partner_admin'],
   'candidate.manage': ['super_admin'],
-  /** Batch reads are scoped: admins all, centre admins their centres, partners their centres, trainers their own batches. */
+  /** Batch reads are scoped: admins all, training partners their centres, trainers their own batches. */
   'batch.read': ['super_admin', 'partner_admin', 'trainer'],
   /** Creating batches and enrolling candidates. Training partners only at their own centres. */
   'batch.manage': ['super_admin', 'partner_admin'],
@@ -60,7 +60,7 @@ export const PERMISSIONS = {
   // Phase 6: employers and hiring. Every employer route is limited to the actor's own organisation.
   /** Company profile, verification documents and team (EM-01, EM-02). */
   'employer.company': ['employer_admin'],
-  /** Read the company profile (both employer roles). */
+  /** Read the company profile. */
   'employer.company.read': ['employer_admin'],
   'job.manage': ['employer_admin'],
   'application.manage': ['employer_admin'],
@@ -70,7 +70,7 @@ export const PERMISSIONS = {
   'job.moderate': ['super_admin'],
   'hiring.verify': ['super_admin'],
   'hiring.read': ['super_admin'],
-  /** Phase 12: the employer's plan. Both employer roles see it; only the employer admin buys or changes it. */
+  /** Phase 12: the employer's plan. */
   'employer.subscription.read': ['employer_admin'],
   'employer.subscription': ['employer_admin'],
   /** AutoTalent Grid sets a plan by hand (Enterprise, or paid outside the platform). */

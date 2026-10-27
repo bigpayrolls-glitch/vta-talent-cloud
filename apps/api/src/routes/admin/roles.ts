@@ -142,7 +142,7 @@ export const roleRoutes: FastifyPluginAsync = async (app) => {
         .where('u.status', '=', 'active')
         .where('r.id', '!=', id)
         .execute();
-      if (others.length === 0) throw forbidden('This is the last active Super Admin. Grant the role to someone else first.');
+      if (others.length === 0) throw forbidden('This is the last active Admin. Make someone else an Admin first.');
     }
     await db.transaction().execute(async (trx) => {
       await trx.updateTable('role_assignments').set({ revoked_at: new Date(), revoked_by: req.actor!.userId }).where('id', '=', id).execute();

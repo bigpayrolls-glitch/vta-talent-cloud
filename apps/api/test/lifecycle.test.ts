@@ -136,7 +136,7 @@ describe('F-09 role assignment', () => {
     // ...but not the last one.
     const res = await sa.post(`/admin/role-assignments/${(await adminRole(ctx.ids.superAdmin!)).id}/revoke`, {});
     expect(res.status).toBe(403);
-    expect(res.body.error.message).toMatch(/last active Super Admin/);
+    expect(res.body.error.message).toMatch(/last active Admin/);
     // Put the second Admin back for the tests that follow.
     expect((await sa.post('/admin/role-assignments', { userId: ctx.ids.opsAdmin, role: 'super_admin' })).status).toBe(201);
   });

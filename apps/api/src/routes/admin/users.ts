@@ -61,7 +61,7 @@ async function assertCanManage(db: DB, actor: Actor, target: User): Promise<void
     .where('role', '=', 'super_admin')
     .where('revoked_at', 'is', null)
     .executeTakeFirst();
-  if (targetIsSuper && !isSuperAdmin(actor)) throw forbidden('Only a Super Admin can change a Super Admin account.');
+  if (targetIsSuper && !isSuperAdmin(actor)) throw forbidden('Only an Admin can change an Admin account.');
 }
 
 export async function createInvitation(db: DB, userId: string, invitedBy: string): Promise<string> {
