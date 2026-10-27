@@ -64,10 +64,6 @@ export function PublicHomePage() {
               <ClipboardCheck className="size-4 text-[#D7141C]" aria-hidden />
               Skills assessed by trainers
             </div>
-            <div className="atg-glass absolute bottom-[10%] left-[6%] flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink [animation-delay:-2.5s]">
-              <QrCode className="size-4 text-[#D7141C]" aria-hidden />
-              Certificate checkable by QR
-            </div>
             <div className="atg-glass absolute right-[4%] bottom-[30%] flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold text-ink [animation-delay:-4s]">
               <ShieldCheck className="size-4 text-[#D7141C]" aria-hidden />
               Verified employers
