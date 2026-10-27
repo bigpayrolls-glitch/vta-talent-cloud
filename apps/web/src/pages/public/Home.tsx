@@ -49,7 +49,7 @@ export function PublicHomePage() {
   if (me) return <Navigate to={homePathFor(me)} replace />;
 
   return (
-    <PublicShell fit>
+    <PublicShell fit nav>
       <div className="flex flex-col lg:h-full">
         <section className="relative overflow-hidden bg-gradient-to-r from-brand-tint via-[#fdf1f1] to-white lg:flex-1">
           <div className="pointer-events-none absolute inset-0" aria-hidden>
@@ -158,7 +158,8 @@ export function PublicHomePage() {
 }
 
 /** Header and footer for the public pages. `fit`: on a laptop or desktop the page fills exactly one screen. */
-export function PublicShell({ children, fit = false }: { children: ReactNode; fit?: boolean }) {
+/** `nav`: the section links in the header, shown on the home page only (other pages keep the header uncluttered). */
+export function PublicShell({ children, fit = false, nav = false }: { children: ReactNode; fit?: boolean; nav?: boolean }) {
   const [checkOpen, setCheckOpen] = useState(false);
   const { me } = useAuth();
   return (
@@ -173,20 +174,22 @@ export function PublicShell({ children, fit = false }: { children: ReactNode; fi
               <Wordmark tagline />
             </span>
           </Link>
+          {nav && (
           <nav aria-label="Main" className="hidden items-center gap-7 text-[15px] font-medium text-ink lg:flex">
             <Link to="/register" className="hover:text-[#C8101A]">For Learners</Link>
             <Link to="/courses" className="hover:text-[#C8101A]">Explore Training</Link>
             <Link to="/join/employer" className="hover:text-[#C8101A]">For Employers</Link>
             <Link to="/join/partner" className="hover:text-[#C8101A]">For Training Partners</Link>
           </nav>
+          )}
           <div className="flex items-center gap-2 sm:gap-3">
-            <button type="button" onClick={() => setCheckOpen(true)} className="btn hidden h-11 border border-[#D7141C] bg-white px-4 text-sm text-ink hover:bg-brand-tint sm:inline-flex">
+            <button type="button" onClick={() => setCheckOpen(true)} aria-label="Check a certificate" className="btn h-11 border border-[#D7141C] bg-white px-3 text-sm text-ink hover:bg-brand-tint sm:px-4">
               <ScanLine className="size-5 text-[#D7141C]" aria-hidden />
-              Check a certificate
+              <span className="hidden sm:inline">Check a certificate</span>
             </button>
-            <Link to={me ? homePathFor(me) : '/login'} className="btn-primary h-11 bg-[#C8101A] px-5 hover:bg-brand-hover">
+            <Link to={me ? homePathFor(me) : '/login'} className="btn-primary h-11 bg-[#C8101A] px-4 hover:bg-brand-hover sm:px-5">
               {me ? 'My portal' : 'Sign in'}
-              <ArrowRight className="size-4" aria-hidden />
+              <ArrowRight className="hidden size-4 sm:block" aria-hidden />
             </Link>
           </div>
         </div>
@@ -196,11 +199,6 @@ export function PublicShell({ children, fit = false }: { children: ReactNode; fi
         <div className="mx-auto flex max-w-[1440px] flex-col gap-4 px-5 py-[clamp(8px,1.6vh,16px)] sm:px-8 lg:flex-row lg:items-center lg:justify-between lg:px-12">
           <Wordmark tagline />
           <nav aria-label="Footer" className="flex flex-wrap gap-x-5 gap-y-2 text-sm text-ink/75">
-            <Link to="/register" className="hover:text-ink">For Learners</Link>
-            <Link to="/courses" className="hover:text-ink">Explore Training</Link>
-            <Link to="/join/employer" className="hover:text-ink">For Employers</Link>
-            <Link to="/join/partner" className="hover:text-ink">For Training Partners</Link>
-            <button type="button" onClick={() => setCheckOpen(true)} className="hover:text-ink">Check a certificate</button>
             <Link to="/privacy" className="hover:text-ink">Privacy notice</Link>
             <Link to="/terms" className="hover:text-ink">Terms of use</Link>
           </nav>
