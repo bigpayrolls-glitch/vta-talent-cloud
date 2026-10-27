@@ -15,6 +15,11 @@ const apiDir = path.join(root, 'apps/api');
 const run = (cmd, env = {}) => execSync(cmd, { cwd: root, stdio: 'inherit', env: { ...process.env, ...env } });
 
 const required = ['DATABASE_URL', 'APP_ORIGIN', 'FILE_SIGNING_SECRET'];
+// The live site (APP_ENV=production) needs real SMS and email; the function refuses to start without them.
+if (process.env.APP_ENV === 'production') {
+  required.push('VERIFYNOW_CUSTOMER_ID', 'SMTP_HOST', 'SMTP_USER', 'SMTP_PASSWORD');
+  if (!process.env.VERIFYNOW_KEY && !process.env.VERIFYNOW_AUTH_TOKEN) required.push('VERIFYNOW_KEY');
+}
 const missing = required.filter((k) => !process.env[k]);
 if (missing.length) {
   console.error(`\nMissing environment variables: ${missing.join(', ')}. See docs/deploy-vercel.md.\n`);

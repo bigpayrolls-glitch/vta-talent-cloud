@@ -59,7 +59,16 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     const expired = invalid('This code has expired. Request a new one.', { code: 'Code expired' });
     if (!challenge || challenge.attempts >= OTP_MAX_ATTEMPTS) throw expired;
 
-    if (!safeEqual(challenge.code_hash, otpHash(challenge.id, code))) {
+    // A provider that makes its own codes (VerifyNow) checks them; otherwise the code is compared with its hash.
+    const sms = app.providers.sms;
+    let result: 'ok' | 'wrong' | 'expired' | 'limit';
+    if (challenge.provider_ref && sms.checkOtp) result = await sms.checkOtp(challenge.provider_ref, code);
+    else result = safeEqual(challenge.code_hash, otpHash(challenge.id, code)) ? 'ok' : 'wrong';
+    if (result === 'expired' || result === 'limit') {
+      await db.updateTable('otp_challenges').set({ consumed_at: new Date() }).where('id', '=', challenge.id).execute();
+      throw expired;
+    }
+    if (result === 'wrong') {
       const attempts = challenge.attempts + 1;
       await db
         .updateTable('otp_challenges')
@@ -160,19 +169,20 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     // Registration (EE-01) sends a code to any number: the answer is the same whether or not it is registered,
     // so numbers cannot be checked here. Sign-in sends a code only to registered numbers.
     const send = purpose === 'register' || !!user;
+    const sent = send ? await app.providers.sms.sendOtp(phone, code) : undefined;
     await db
       .insertInto('otp_challenges')
       .values({
         id,
         phone,
         // Unregistered numbers still get a challenge row (keeps the resend limit honest) but no SMS.
-        code_hash: send ? otpHash(id, code) : 'unregistered',
+        code_hash: !send ? 'unregistered' : sent ? 'provider' : otpHash(id, code),
+        provider_ref: sent ? sent.ref : null,
         purpose,
         expires_at: new Date(Date.now() + OTP_TTL_SECONDS * 1000),
         ip: req.ip,
       })
       .execute();
-    if (send) await app.providers.sms.sendOtp(phone, code);
     return {
       ok: true,
       message: purpose === 'register' ? 'A code has been sent to this number.' : 'If this number is registered, a code has been sent.',

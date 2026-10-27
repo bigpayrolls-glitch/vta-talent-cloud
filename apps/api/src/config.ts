@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 
+const blank = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   /**
@@ -13,8 +15,24 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url().default('postgres://vta:vta_dev@localhost:5432/vta'),
   TEST_DATABASE_URL: z.string().url().default('postgres://vta:vta_dev@localhost:5432/vta_test'),
   APP_ORIGIN: z.string().url().default('http://localhost:5173'),
-  SMS_PROVIDER: z.enum(['console']).default('console'),
-  EMAIL_PROVIDER: z.enum(['console']).default('console'),
+  /**
+   * 'verifynow': Message Central VerifyNow sends and checks the sign-in codes (same account as PF Mitra).
+   * 'smtp': emails go out through a mailbox's SMTP server (for example Zoho Mail).
+   * Left unset, each is chosen from whether its settings are present; 'console' only prints (local and staging).
+   */
+  SMS_PROVIDER: z.enum(['console', 'verifynow']).optional(),
+  EMAIL_PROVIDER: z.enum(['console', 'smtp']).optional(),
+  VERIFYNOW_CUSTOMER_ID: z.preprocess(blank, z.string().trim().min(3).optional()),
+  /** The Message Central account password; a fresh auth token is made from it. */
+  VERIFYNOW_KEY: z.preprocess(blank, z.string().optional()),
+  /** Or a ready auth token from the Message Central console (used as is until it is rejected). */
+  VERIFYNOW_AUTH_TOKEN: z.preprocess(blank, z.string().trim().optional()),
+  SMTP_HOST: z.preprocess(blank, z.string().trim().optional()),
+  SMTP_PORT: z.coerce.number().int().default(465),
+  SMTP_USER: z.preprocess(blank, z.string().trim().optional()),
+  SMTP_PASSWORD: z.preprocess(blank, z.string().optional()),
+  /** Sender shown on emails, for example "AutoTalent Grid <noreply@autotalentgrid.com>". Defaults to SMTP_USER. */
+  EMAIL_FROM: z.preprocess(blank, z.string().trim().optional()),
   COOKIE_SECURE: z
     .enum(['true', 'false'])
     .default('false')
@@ -40,7 +58,11 @@ const envSchema = z.object({
   ),
 });
 
-export type Config = Omit<z.infer<typeof envSchema>, 'FILE_SIGNING_SECRET'> & {
+type Env = z.infer<typeof envSchema>;
+
+export type Config = Omit<Env, 'FILE_SIGNING_SECRET' | 'SMS_PROVIDER' | 'EMAIL_PROVIDER'> & {
+  SMS_PROVIDER: 'console' | 'verifynow';
+  EMAIL_PROVIDER: 'console' | 'smtp';
   databaseUrl: string;
   fileSigningSecret: string;
   /** Staging only: return sign-in codes to the screen (there is no SMS provider yet). */
@@ -49,12 +71,24 @@ export type Config = Omit<z.infer<typeof envSchema>, 'FILE_SIGNING_SECRET'> & {
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
-  const parsed = envSchema.parse(env);
+  const raw = envSchema.parse(env);
+  const hasVerifyNow = !!raw.VERIFYNOW_CUSTOMER_ID && !!(raw.VERIFYNOW_KEY || raw.VERIFYNOW_AUTH_TOKEN);
+  const hasSmtp = !!raw.SMTP_HOST && !!raw.SMTP_USER && !!raw.SMTP_PASSWORD;
+  const parsed = {
+    ...raw,
+    SMS_PROVIDER: raw.SMS_PROVIDER ?? (hasVerifyNow ? 'verifynow' : 'console'),
+    EMAIL_PROVIDER: raw.EMAIL_PROVIDER ?? (hasSmtp ? 'smtp' : 'console'),
+  } as const;
+  if (parsed.SMS_PROVIDER === 'verifynow' && !hasVerifyNow) {
+    throw new Error('SMS_PROVIDER=verifynow needs VERIFYNOW_CUSTOMER_ID and VERIFYNOW_KEY (or VERIFYNOW_AUTH_TOKEN).');
+  }
+  if (parsed.EMAIL_PROVIDER === 'smtp' && !hasSmtp) throw new Error('EMAIL_PROVIDER=smtp needs SMTP_HOST, SMTP_USER and SMTP_PASSWORD.');
   if (parsed.NODE_ENV === 'production') {
     // Console providers print codes and links to the log. Never allowed in production (plan §3.6);
     // a staging copy with demo data may use them.
     if (parsed.APP_ENV !== 'staging' && (parsed.SMS_PROVIDER === 'console' || parsed.EMAIL_PROVIDER === 'console')) {
-      throw new Error('Console SMS/email providers are not allowed when NODE_ENV=production. Configure a real provider.');
+      const missing = [parsed.SMS_PROVIDER === 'console' && 'SMS (VERIFYNOW_CUSTOMER_ID, VERIFYNOW_KEY)', parsed.EMAIL_PROVIDER === 'console' && 'email (SMTP_HOST, SMTP_USER, SMTP_PASSWORD)'].filter(Boolean);
+      throw new Error(`Console SMS/email providers are not allowed when NODE_ENV=production. Configure a real provider: ${missing.join('; ')}.`);
     }
     if (!parsed.COOKIE_SECURE) throw new Error('COOKIE_SECURE must be true in production.');
     if (!parsed.FILE_SIGNING_SECRET) throw new Error('FILE_SIGNING_SECRET is required in production.');

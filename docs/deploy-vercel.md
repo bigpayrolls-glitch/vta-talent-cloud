@@ -50,3 +50,31 @@ If `APP_ORIGIN` does not match the address in the browser, sign-in is refused (t
 ## Resetting the demo data
 
 Delete and recreate the Neon database (or its branch) and redeploy. The seed only runs when there are no users.
+
+# The live site (www.autotalentgrid.com)
+
+The live site is a **separate Vercel project** (`autotalent-grid`) built from the same repository, with its own
+database (Supabase, Mumbai) and real SMS and email. The staging project above stays as the demo and test copy.
+
+| Name | Value |
+|---|---|
+| `APP_ENV` | `production` (no demo data, no on-screen codes, no test payments) |
+| `APP_ORIGIN` | `https://www.autotalentgrid.com` |
+| `COOKIE_SECURE` | `true` |
+| `STORAGE_DRIVER` | `database` |
+| `FILE_SIGNING_SECRET` | a random value of at least 32 characters |
+| `DATABASE_URL` | Supabase **Transaction pooler** URI (port 6543), password filled in |
+| `DATABASE_URL_UNPOOLED` | Supabase **Session pooler** URI (port 5432), used for migrations |
+| `DATABASE_CA` | optional: Supabase's root certificate (PEM, from Database settings → SSL) to verify the server fully. Without it the connection is still encrypted |
+| `VERIFYNOW_CUSTOMER_ID` | Message Central customer ID (same account as PF Mitra) |
+| `VERIFYNOW_KEY` | Message Central account password (or `VERIFYNOW_AUTH_TOKEN`: a token from their console) |
+| `SMTP_HOST` | `smtp.zoho.in` for a Zoho account in India (`smtp.zoho.com` otherwise) |
+| `SMTP_PORT` | optional; `465` (SSL) by default |
+| `SMTP_USER` | the sending mailbox, for example `noreply@autotalentgrid.com` |
+| `SMTP_PASSWORD` | a Zoho **app password** for that mailbox (not the normal login password) |
+| `EMAIL_FROM` | optional; `AutoTalent Grid <noreply@autotalentgrid.com>` by default from `SMTP_USER` |
+| `FIRST_ADMIN_EMAIL`, `FIRST_ADMIN_NAME` | the first Admin. On the first deploy to an empty database this person is created and emailed an invitation link (7 days). Ignored once anyone exists |
+
+Set **Settings → Functions → Function Region** to Mumbai (`bom1`), next to the database.
+The build stops with a list of anything missing. Sign-in codes are made and checked by Message Central VerifyNow
+(6 digits, SMS); the app still applies its own limits (one code a minute, five an hour, five tries a code).

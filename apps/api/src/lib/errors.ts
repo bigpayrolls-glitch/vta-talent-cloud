@@ -9,6 +9,7 @@ const STATUS: Record<Code, number> = {
   VALIDATION_FAILED: 400,
   CONFLICT: 409,
   RATE_LIMITED: 429,
+  UNAVAILABLE: 503,
   INTERNAL: 500,
 };
 

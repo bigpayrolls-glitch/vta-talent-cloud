@@ -39,6 +39,7 @@ export interface OtpChallengesTable {
   id: string;
   phone: string;
   code_hash: string;
+  provider_ref: string | null;
   purpose: 'login' | 'register';
   expires_at: Date;
   attempts: Generated<number>;
