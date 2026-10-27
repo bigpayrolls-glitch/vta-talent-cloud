@@ -7,13 +7,16 @@ import { audit } from '../../audit/service.js';
 import { newId } from '../../lib/crypto.js';
 import { conflict, invalid, notFound } from '../../lib/errors.js';
 import { iso, parse } from '../../lib/validate.js';
-import { inScope, trainerReadScope } from '../../policy/index.js';
+import { inScope, isPlatformAdmin, partnerCentres, trainerReadScope } from '../../policy/index.js';
+import type { FastifyRequest } from 'fastify';
 import { grantRole } from '../admin/roles.js';
 
 const idParam = z.object({ id: uuidSchema });
 
 const filterSchema = listQuerySchema.extend({
   centreId: uuidSchema.optional(),
+  /** With centreId: also list independent trainers (no centre yet), who can be given a batch at that centre. */
+  includeIndependent: z.enum(['true', 'false']).optional(),
   verificationStatus: z.enum(['pending', 'verified', 'rejected', 'more_info_needed']).optional(),
 });
 
@@ -49,9 +52,16 @@ export const trainerRoutes: FastifyPluginAsync = async (app) => {
     if (f.verificationStatus) q = q.where('tp.verification_status', '=', f.verificationStatus);
     if (f.centreId) {
       const centreId = f.centreId;
+      const independent = f.includeIndependent === 'true';
       q = q.where((eb) =>
         eb.exists(
-          eb.selectFrom('role_assignments as r2').select('r2.id').whereRef('r2.user_id', '=', 'u.id').where('r2.role', '=', 'trainer').where('r2.centre_id', '=', centreId).where('r2.revoked_at', 'is', null),
+          eb
+            .selectFrom('role_assignments as r2')
+            .select('r2.id')
+            .whereRef('r2.user_id', '=', 'u.id')
+            .where('r2.role', '=', 'trainer')
+            .where('r2.revoked_at', 'is', null)
+            .where((e2) => (independent ? e2.or([e2('r2.centre_id', '=', centreId), e2('r2.centre_id', 'is', null)]) : e2('r2.centre_id', '=', centreId))),
         ),
       );
     }
@@ -70,6 +80,9 @@ export const trainerRoutes: FastifyPluginAsync = async (app) => {
         'tp.specialisations',
         'tp.verification_status',
         'tp.verification_reason',
+        'tp.city',
+        'tp.experience_years',
+        'tp.self_registered',
         sql<string>`(select count(*) from batches b where b.trainer_id = u.id and b.status in ('planned','active'))`.as('open_batches'),
       ])
       .orderBy('u.name')
@@ -87,6 +100,9 @@ export const trainerRoutes: FastifyPluginAsync = async (app) => {
         specialisations: r.specialisations,
         verificationStatus: r.verification_status,
         verificationReason: r.verification_reason,
+        city: r.city,
+        experienceYears: r.experience_years,
+        selfRegistered: r.self_registered,
         openBatches: Number(r.open_batches),
         centres: centres.filter((c) => c.user_id === r.id).map((c) => ({ assignmentId: c.assignment_id, id: c.id, name: c.name, city: c.city, organisationName: c.organisation_name })),
       })),
@@ -102,7 +118,7 @@ export const trainerRoutes: FastifyPluginAsync = async (app) => {
     const t = await db
       .selectFrom('trainer_profiles as tp')
       .innerJoin('users as u', 'u.id', 'tp.user_id')
-      .select(['u.id', 'u.name', 'u.phone', 'u.email', 'u.status as user_status', 'tp.specialisations', 'tp.verification_status', 'tp.verification_reason', 'tp.verified_at'])
+      .select(['u.id', 'u.name', 'u.phone', 'u.email', 'u.status as user_status', 'tp.specialisations', 'tp.verification_status', 'tp.verification_reason', 'tp.verified_at', 'tp.city', 'tp.experience_years', 'tp.self_registered'])
       .where('u.id', '=', id)
       .executeTakeFirst();
     if (!t) throw notFound('Trainer');
@@ -125,14 +141,27 @@ export const trainerRoutes: FastifyPluginAsync = async (app) => {
       verificationStatus: t.verification_status,
       verificationReason: t.verification_reason,
       verifiedAt: iso(t.verified_at),
+      city: t.city,
+      experienceYears: t.experience_years,
+      selfRegistered: t.self_registered,
       centres: centres.map((c) => ({ assignmentId: c.assignment_id, id: c.id, name: c.name, city: c.city, organisationName: c.organisation_name })),
       batches: batches.map((b) => ({ id: b.id, name: b.name, status: b.status, startDate: b.start_date, endDate: b.end_date, courseTitle: b.course_title })),
     };
   });
 
+  /** Training partners add and assign trainers only at centres their organisation runs. */
+  const assertOwnCentre = async (req: FastifyRequest, centreId: string) => {
+    if (isPlatformAdmin(req.actor!)) return;
+    if (!(await partnerCentres(db, req.actor!)).includes(centreId)) throw invalid('Choose one of your centres', { centreId: 'Not one of your centres' });
+  };
+  const assertTrainerInScope = async (req: FastifyRequest, id: string) => {
+    if (!inScope(await trainerReadScope(db, req.actor!), id)) throw notFound('Trainer');
+  };
+
   /** Adds a new trainer: an invited phone user + trainer profile + first centre. Activates on first OTP sign-in. */
   app.post('/admin/trainers', { config: { permission: 'trainer.manage' } }, async (req, reply) => {
     const b = parse(trainerCreateSchema, req.body);
+    await assertOwnCentre(req, b.centreId);
     const fields: Record<string, string> = {};
     if (await db.selectFrom('users').select('id').where('phone', '=', b.phone).executeTakeFirst()) fields.phone = 'Already registered';
     if (b.email && (await db.selectFrom('users').select('id').where('email', '=', b.email).executeTakeFirst())) fields.email = 'Already in use';
@@ -152,6 +181,7 @@ export const trainerRoutes: FastifyPluginAsync = async (app) => {
   app.patch('/admin/trainers/:id', { config: { permission: 'trainer.manage' } }, async (req) => {
     const { id } = parse(idParam, req.params);
     const b = parse(z.object({ specialisations: z.array(z.enum(SKILL_AREAS)).max(5) }), req.body);
+    await assertTrainerInScope(req, id);
     const tp = await db.selectFrom('trainer_profiles').selectAll().where('user_id', '=', id).executeTakeFirst();
     if (!tp) throw notFound('Trainer');
     await db.transaction().execute(async (trx) => {
@@ -165,6 +195,8 @@ export const trainerRoutes: FastifyPluginAsync = async (app) => {
   app.post('/admin/trainers/:id/centres', { config: { permission: 'trainer.manage' } }, async (req, reply) => {
     const { id } = parse(idParam, req.params);
     const { centreId } = parse(z.object({ centreId: uuidSchema }), req.body);
+    await assertOwnCentre(req, centreId);
+    await assertTrainerInScope(req, id);
     const tp = await db.selectFrom('trainer_profiles').select('user_id').where('user_id', '=', id).executeTakeFirst();
     if (!tp) throw notFound('Trainer');
     const assignmentId = await db.transaction().execute((trx) => grantRole(trx, req, { userId: id, role: 'trainer', centreId }));
@@ -178,7 +210,7 @@ export const trainerRoutes: FastifyPluginAsync = async (app) => {
     { path: 'request-info', to: 'more_info_needed', needsReason: true },
   ] as const;
   for (const d of decisions) {
-    app.post(`/admin/trainers/:id/${d.path}`, { config: { permission: 'trainer.manage' } }, async (req) => {
+    app.post(`/admin/trainers/:id/${d.path}`, { config: { permission: 'trainer.verify' } }, async (req) => {
       const { id } = parse(idParam, req.params);
       const reason = d.needsReason ? parse(reasonSchema, req.body).reason : null;
       const tp = await db.selectFrom('trainer_profiles').selectAll().where('user_id', '=', id).executeTakeFirst();

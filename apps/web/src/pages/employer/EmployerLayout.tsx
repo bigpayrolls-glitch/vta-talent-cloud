@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { Briefcase, Building2, CreditCard, LayoutDashboard, Search, Users } from 'lucide-react';
+import { Briefcase, Building2, CreditCard, LayoutDashboard, Search } from 'lucide-react';
 import { Link, Outlet, useLocation } from 'react-router';
 import { PortalLayout, type NavItem } from '../../components/PortalLayout';
 import { api } from '../../lib/api';
-import { useAuth } from '../../lib/auth';
 
 export interface Company {
   id: string;
@@ -29,7 +28,6 @@ export const useCompany = () => useQuery({ queryKey: ['employer', 'company'], qu
 
 /** Employer portal (responsive web). Until VTA verifies the company, a banner explains what is needed. */
 export function EmployerLayout() {
-  const { can } = useAuth();
   const company = useCompany();
   const location = useLocation();
   const nav: NavItem[] = [
@@ -37,7 +35,6 @@ export function EmployerLayout() {
     { to: '/employer/jobs', label: 'Jobs', icon: Briefcase, bottom: true },
     { to: '/employer/candidates', label: 'Candidates', icon: Search, bottom: true },
     { to: '/employer/company', label: 'Company', icon: Building2, bottom: true },
-    ...(can('employer.company') ? [{ to: '/employer/team', label: 'Team', icon: Users }] : []),
     { to: '/employer/subscription', label: 'Subscription', icon: CreditCard },
   ];
   const c = company.data;

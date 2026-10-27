@@ -11,7 +11,7 @@ const enrolmentId = async (batchKey: string, candKey: string) =>
 
 beforeAll(async () => {
   ctx = await setup();
-  for (const k of ['opsAdmin', 'superAdmin', 'centreAdmin', 'partnerAdminA', 'partnerViewerA'] as const) c[k] = await loginEmail(ctx, EMAIL[k]);
+  for (const k of ['secondAdmin', 'superAdmin', 'partnerAdminA', 'partnerAdminB'] as const) c[k] = await loginEmail(ctx, EMAIL[k]);
   c.trainerA = await loginPhone(ctx, PHONE.trainerA);
   c.trainerB = await loginPhone(ctx, PHONE.trainerB);
   c.trainerVta = await loginPhone(ctx, PHONE.trainerVta);
@@ -72,11 +72,11 @@ describe('R-02 attendance', () => {
   it('only the assigned trainer can record: others who can see the batch get 403, the rest 404', async () => {
     const body = { date: '2026-10-21', marks: [{ candidateId: ctx.ids.learner, status: 'absent' }] };
     expect((await c.partnerAdminA!.put(`/batches/${ctx.ids.batchA}/attendance`, body)).status).toBe(403);
-    expect((await c.opsAdmin!.put(`/batches/${ctx.ids.batchA}/attendance`, body)).status).toBe(403);
+    expect((await c.secondAdmin!.put(`/batches/${ctx.ids.batchA}/attendance`, body)).status).toBe(403);
     expect((await c.trainerVta!.put(`/batches/${ctx.ids.batchA}/attendance`, body)).status).toBe(404);
     expect((await c.trainerB!.get(`/batches/${ctx.ids.batchA}/attendance`)).status).toBe(404);
-    // Partners can read it
-    expect((await c.partnerViewerA!.get(`/batches/${ctx.ids.batchA}/attendance`)).body.canRecord).toBe(false);
+    // The training partner running the centre can read it
+    expect((await c.partnerAdminA!.get(`/batches/${ctx.ids.batchA}/attendance`)).body.canRecord).toBe(false);
   });
 });
 
@@ -164,16 +164,16 @@ describe('R-03 to R-04 assessment, submission and review', () => {
   });
 
   it('the review queue lists submitted results; only reviewers can open it', async () => {
-    const q = await c.opsAdmin!.get('/admin/assessments');
+    const q = await c.secondAdmin!.get('/admin/assessments');
     expect(q.body.items.map((x: { candidate: { name: string } }) => x.candidate.name)).toEqual(expect.arrayContaining(['Ravi Kumar', 'Anitha Gowda', 'Pooja Naik']));
     expect((await c.trainerA!.get('/admin/assessments')).status).toBe(403);
-    expect((await c.centreAdmin!.get('/admin/assessments')).status).toBe(403);
+    expect((await c.partnerAdminA!.get('/admin/assessments')).status).toBe(403);
   });
 
   it('trainers cannot review; a reviewer returns a result for correction with a reason', async () => {
     expect((await c.trainerA!.post(`/results/${resultId}/approve`)).status).toBe(403);
-    expect((await c.opsAdmin!.post(`/results/${resultId}/return`, {})).status).toBe(400);
-    expect((await c.opsAdmin!.post(`/results/${resultId}/return`, { reason: 'Brakes and suspension must be assessed' })).body.status).toBe('returned');
+    expect((await c.secondAdmin!.post(`/results/${resultId}/return`, {})).status).toBe(400);
+    expect((await c.secondAdmin!.post(`/results/${resultId}/return`, { reason: 'Brakes and suspension must be assessed' })).body.status).toBe('returned');
     const list = await c.trainerA!.get(`/batches/${ctx.ids.batchA}/assessments`);
     const row = list.body.items.find((x: { resultId: string }) => x.resultId === resultId);
     expect(row).toMatchObject({ status: 'returned', returnReason: 'Brakes and suspension must be assessed' });
@@ -190,18 +190,18 @@ describe('R-03 to R-04 assessment, submission and review', () => {
       ],
     });
     expect((await c.trainerA!.post(`/results/${resultId}/submit`)).body.status).toBe('submitted');
-    const ok = await c.opsAdmin!.post(`/results/${resultId}/approve`);
+    const ok = await c.secondAdmin!.post(`/results/${resultId}/approve`);
     expect(ok.body.status).toBe('approved');
-    const r = await c.opsAdmin!.get(`/results/${resultId}`);
-    expect(r.body).toMatchObject({ status: 'approved', totalScore: 78, outcome: 'pass', reviewedByName: 'Vikram Operations', submittedByName: 'Prakash Trainer' });
+    const r = await c.secondAdmin!.get(`/results/${resultId}`);
+    expect(r.body).toMatchObject({ status: 'approved', totalScore: 78, outcome: 'pass', reviewedByName: 'Vikram Admin', submittedByName: 'Prakash Trainer' });
     expect(r.body.releasedAt).toBeTruthy();
-    expect((await c.opsAdmin!.post(`/results/${resultId}/approve`)).status).toBe(400);
+    expect((await c.secondAdmin!.post(`/results/${resultId}/approve`)).status).toBe(400);
   });
 
   it('rejecting voids a result; the trainer then records a fresh reassessment', async () => {
     const e2 = await enrolmentId('batchA', 'cand2');
     const live = await c.trainerA!.get(`/enrolments/${e2}/assessment`);
-    expect((await c.opsAdmin!.post(`/results/${live.body.result.id}/reject`, { reason: 'Assessment not done under exam conditions' })).body.status).toBe('rejected');
+    expect((await c.secondAdmin!.post(`/results/${live.body.result.id}/reject`, { reason: 'Assessment not done under exam conditions' })).body.status).toBe('rejected');
     const after = await c.trainerA!.get(`/enrolments/${e2}/assessment`);
     expect(after.body.result).toBeNull();
     expect(after.body.canEdit).toBe(true);
@@ -210,10 +210,10 @@ describe('R-03 to R-04 assessment, submission and review', () => {
   });
 
   it('nobody can approve a result they submitted (API and database)', async () => {
-    // Make the operations admin also a verified trainer at the VTA centre, running their own batch.
+    // Make the second Admin also a verified trainer at the VTA centre, running their own batch.
     await c.superAdmin!.post('/admin/role-assignments', { userId: ctx.ids.opsAdmin, role: 'trainer', centreId: ctx.ids.centreVta });
     await c.superAdmin!.post(`/admin/trainers/${ctx.ids.opsAdmin}/verify`);
-    const both = await loginEmail(ctx, EMAIL.opsAdmin);
+    const both = await loginEmail(ctx, EMAIL.secondAdmin);
     const b = await both.post('/admin/batches', { name: 'Self review test', courseId: ctx.ids.course4w, centreId: ctx.ids.centreVta, trainerId: ctx.ids.opsAdmin, startDate: '2026-10-01', endDate: '2026-12-01', capacity: 5 });
     await both.post(`/admin/batches/${b.body.id}/enrolments`, { candidateIds: [ctx.ids.cand7] });
     await both.post(`/admin/batches/${b.body.id}/start`);
@@ -233,21 +233,21 @@ describe('R-03 to R-04 assessment, submission and review', () => {
 
 describe('R-05 credentials and QR verification', () => {
   it('issues credentials only to candidates who completed, passed and were approved', async () => {
-    const res = await c.opsAdmin!.post(`/admin/batches/${ctx.ids.batchDone}/credentials`);
+    const res = await c.secondAdmin!.post(`/admin/batches/${ctx.ids.batchDone}/credentials`);
     expect(res.status).toBe(201);
     expect(res.body.issuedTo).toEqual(['Anitha Gowda']);
     const reasons = Object.fromEntries(res.body.skipped.map((s: { name: string; reason: string }) => [s.name, s.reason]));
     expect(reasons['Ravi Kumar']).toBe('Credential already issued');
     expect(reasons['Pooja Naik']).toBe('Did not meet the attendance needed to complete');
     // Running it again issues nothing new
-    expect((await c.opsAdmin!.post(`/admin/batches/${ctx.ids.batchDone}/credentials`)).body.issued).toBe(0);
+    expect((await c.secondAdmin!.post(`/admin/batches/${ctx.ids.batchDone}/credentials`)).body.issued).toBe(0);
   });
 
   it('refuses batches that are not completed and candidates who are not eligible', async () => {
-    expect((await c.opsAdmin!.post(`/admin/batches/${ctx.ids.batchA}/credentials`)).body.error.message).toMatch(/Mark the batch completed/);
+    expect((await c.secondAdmin!.post(`/admin/batches/${ctx.ids.batchA}/credentials`)).body.error.message).toMatch(/Mark the batch completed/);
     const pooja = await enrolmentId('batchDone', 'cand6');
-    expect((await c.opsAdmin!.post(`/admin/enrolments/${pooja}/credential`)).body.error.message).toMatch(/attendance/);
-    expect((await c.centreAdmin!.post(`/admin/batches/${ctx.ids.batchDone}/credentials`)).status).toBe(403);
+    expect((await c.secondAdmin!.post(`/admin/enrolments/${pooja}/credential`)).body.error.message).toMatch(/attendance/);
+    expect((await c.partnerAdminA!.post(`/admin/batches/${ctx.ids.batchDone}/credentials`)).status).toBe(403);
     expect((await c.trainerA!.post(`/admin/batches/${ctx.ids.batchDone}/credentials`)).status).toBe(403);
   });
 
@@ -267,35 +267,40 @@ describe('R-05 credentials and QR verification', () => {
   });
 
   it('revoking shows "revoked" on the verify page; reissuing marks the old one as replaced', async () => {
-    const list = await c.opsAdmin!.get(`/admin/credentials?batchId=${ctx.ids.batchDone}`);
+    const list = await c.secondAdmin!.get(`/admin/credentials?batchId=${ctx.ids.batchDone}`);
     const anitha = list.body.items.find((x: { holderName: string }) => x.holderName === 'Anitha Gowda');
-    expect((await c.opsAdmin!.post(`/admin/credentials/${anitha.id}/revoke`, {})).status).toBe(400);
-    expect((await c.opsAdmin!.post(`/admin/credentials/${anitha.id}/revoke`, { reason: 'Issued in error' })).body.status).toBe('revoked');
+    expect((await c.secondAdmin!.post(`/admin/credentials/${anitha.id}/revoke`, {})).status).toBe(400);
+    expect((await c.secondAdmin!.post(`/admin/credentials/${anitha.id}/revoke`, { reason: 'Issued in error' })).body.status).toBe('revoked');
     const pub = await ctx.app.inject({ method: 'GET', url: `/api/v1/public/credentials/${anitha.verificationCode}` });
     expect(pub.json()).toMatchObject({ status: 'revoked' });
     expect(pub.json().statusChangedAt).toBeTruthy();
 
-    const re = await c.opsAdmin!.post(`/admin/credentials/${ctx.ids.credentialRavi}/reissue`, { reason: 'Name spelling corrected' });
+    const re = await c.secondAdmin!.post(`/admin/credentials/${ctx.ids.credentialRavi}/reissue`, { reason: 'Name spelling corrected' });
     expect(re.status).toBe(201);
-    const old = await c.opsAdmin!.get(`/admin/credentials/${ctx.ids.credentialRavi}`);
+    const old = await c.secondAdmin!.get(`/admin/credentials/${ctx.ids.credentialRavi}`);
     expect(old.body).toMatchObject({ status: 'superseded', supersededBy: re.body.id });
     expect((await ctx.app.inject({ method: 'GET', url: `/api/v1/public/credentials/${ctx.ids.credentialRaviCode}` })).json().status).toBe('superseded');
-    const fresh = await c.opsAdmin!.get(`/admin/credentials/${re.body.id}`);
+    const fresh = await c.secondAdmin!.get(`/admin/credentials/${re.body.id}`);
     expect(fresh.body.status).toBe('active');
     expect(fresh.body.verificationCode).not.toBe(ctx.ids.credentialRaviCode);
   });
 
-  it('centre admins see credentials only for their centre; partners and trainers cannot list them', async () => {
-    expect((await c.centreAdmin!.get('/admin/credentials')).body.items).toEqual([]);
-    expect((await c.centreAdmin!.get(`/admin/credentials/${ctx.ids.credentialRavi}`)).status).toBe(404);
-    expect((await c.partnerAdminA!.get('/admin/credentials')).status).toBe(403);
+  it('training partners see credentials only for their own centres; trainers cannot list them', async () => {
+    // Ravi's credential is from the Peenya centre that partner A runs.
+    const own = await c.partnerAdminA!.get('/admin/credentials');
+    expect(own.body.items.map((x: { holderName: string }) => x.holderName)).toContain('Ravi Kumar');
+    expect((await c.partnerAdminA!.get(`/admin/credentials/${ctx.ids.credentialRavi}`)).status).toBe(200);
+    expect((await c.partnerAdminB!.get('/admin/credentials')).body.items).toEqual([]);
+    expect((await c.partnerAdminB!.get(`/admin/credentials/${ctx.ids.credentialRavi}`)).status).toBe(404);
     expect((await c.trainerA!.get('/admin/credentials')).status).toBe(403);
+    // Partners can read credentials but not revoke them.
+    expect((await c.partnerAdminA!.post(`/admin/credentials/${ctx.ids.credentialRavi}/revoke`, { reason: 'Trying it' })).status).toBe(403);
   });
 });
 
 describe('completing a batch decides completion from attendance', () => {
   it('candidates at or above the threshold complete; those below do not', async () => {
-    const res = await c.opsAdmin!.post(`/admin/batches/${ctx.ids.batchA}/complete`);
+    const res = await c.secondAdmin!.post(`/admin/batches/${ctx.ids.batchA}/complete`);
     expect(res.body.status).toBe('completed');
     expect(res.body.completion).toEqual({ completed: 3, notCompleted: 1 });
     const rows = await ctx.db
@@ -313,7 +318,7 @@ describe('completing a batch decides completion from attendance', () => {
   });
 
   it('then Ravi (completed, approved, passed) can receive his credential for this batch', async () => {
-    const res = await c.opsAdmin!.post(`/admin/batches/${ctx.ids.batchA}/credentials`);
+    const res = await c.secondAdmin!.post(`/admin/batches/${ctx.ids.batchA}/credentials`);
     expect(res.body.issuedTo).toEqual(['Ravi Kumar']);
   });
 

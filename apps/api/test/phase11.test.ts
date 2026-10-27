@@ -1,16 +1,14 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { EMAIL, loginEmail, loginPhone, nextIp, PHONE, setup, type Client, type Ctx } from './helpers.js';
 
-/** Phase 11: VTA changes a sign-in mobile number; partner admins manage their viewers (PA-07). */
+/** Phase 11: VTA changes a sign-in mobile number. PA-07 (partner viewers) was retired by the five-logins decision of 27 Oct 2026. */
 let ctx: Ctx;
 const c: Record<string, Client> = {};
 
 beforeAll(async () => {
   ctx = await setup();
-  c.ops = await loginEmail(ctx, EMAIL.opsAdmin);
-  c.centre = await loginEmail(ctx, EMAIL.centreAdmin);
+  c.ops = await loginEmail(ctx, EMAIL.secondAdmin);
   c.partnerA = await loginEmail(ctx, EMAIL.partnerAdminA);
-  c.viewerA = await loginEmail(ctx, EMAIL.partnerViewerA);
   c.partnerB = await loginEmail(ctx, EMAIL.partnerAdminB);
 });
 afterAll(() => ctx.close());
@@ -49,45 +47,22 @@ describe('changing the mobile number someone signs in with', () => {
     expect(taken.status).toBe(409);
     expect(taken.body.error.fields.phone).toBe('Already in use');
     expect((await c.ops!.post(`/admin/users/${id}/phone`, { phone: PHONE.trainerA, reason: 'Checked ID card' })).status).toBe(400);
-    const emailUser = (await ctx.db.selectFrom('users').select('id').where('email', '=', EMAIL.recruiterA).executeTakeFirstOrThrow()).id;
+    const emailUser = (await ctx.db.selectFrom('users').select('id').where('email', '=', EMAIL.employerAdminA).executeTakeFirstOrThrow()).id;
     expect((await c.ops!.post(`/admin/users/${emailUser}/phone`, { phone: '9845011111', reason: 'Checked ID card' })).status).toBe(400);
-    expect((await c.centre!.post(`/admin/users/${id}/phone`, { phone: '9845011111', reason: 'Checked ID card' })).status).toBe(403);
+    // Not even the training partner this trainer works for.
+    expect((await c.partnerA!.post(`/admin/users/${id}/phone`, { phone: '9845011111', reason: 'Checked ID card' })).status).toBe(403);
   });
 });
 
-describe('PA-07 partner admins manage viewers', () => {
-  it('the partner admin sees the team and invites a viewer who can read but not change anything', async () => {
-    const team = (await c.partnerA!.get('/partner/team')).body.items;
-    expect(team.map((m: { role: string }) => m.role)).toEqual(expect.arrayContaining(['partner_admin', 'partner_viewer']));
-    const r = await c.partnerA!.post('/partner/team', { name: 'Kavya Viewer', email: 'kavya@skillbridge.example' });
-    expect(r.status).toBe(201);
-    const token = ctx.mem.sentInvites.get('kavya@skillbridge.example')!.split('/invite/')[1]!;
-    const accepted = await ctx.app.inject({ method: 'POST', url: `/api/v1/auth/invitations/${token}/accept`, payload: { password: 'Viewer-pass-123' }, remoteAddress: nextIp() });
-    expect(accepted.statusCode).toBe(200);
-    const kavya = await loginEmail(ctx, 'kavya@skillbridge.example', 'Viewer-pass-123');
-    expect((await kavya.get('/auth/me')).body.roles[0]).toMatchObject({ role: 'partner_viewer', organisationId: ctx.ids.partnerA });
-    expect((await kavya.get('/programmes')).body.total).toBeGreaterThanOrEqual(1);
-    expect((await kavya.get('/partner/team')).status).toBe(403);
-    expect((await kavya.put('/partner/organisation', {})).status).toBe(403);
-    const logged = await ctx.db.selectFrom('audit_events').select('action').where('action', '=', 'partner.viewer_invited').execute();
-    expect(logged).toHaveLength(1);
-  });
-
-  it('viewers cannot invite; an email already in use is refused; another partner cannot touch this team', async () => {
-    expect((await c.viewerA!.post('/partner/team', { name: 'Someone', email: 'x@y.example' })).status).toBe(403);
-    expect((await c.partnerA!.post('/partner/team', { name: 'Dup', email: EMAIL.recruiterA })).status).toBe(409);
-    const kavya = (await c.partnerA!.get('/partner/team')).body.items.find((m: { name: string }) => m.name === 'Kavya Viewer');
-    expect((await c.partnerB!.post(`/partner/team/${kavya.assignmentId}/remove`)).status).toBe(404);
-  });
-
-  it('the partner admin removes a viewer (access ends at once) but not themselves or another admin', async () => {
-    const team = (await c.partnerA!.get('/partner/team')).body.items;
-    const me = team.find((m: { isMe: boolean }) => m.isMe);
-    expect((await c.partnerA!.post(`/partner/team/${me.assignmentId}/remove`)).status).toBe(403);
-    const kavya = team.find((m: { name: string }) => m.name === 'Kavya Viewer');
-    const session = await loginEmail(ctx, 'kavya@skillbridge.example', 'Viewer-pass-123');
-    expect((await c.partnerA!.post(`/partner/team/${kavya.assignmentId}/remove`)).status).toBe(200);
-    expect((await session.get('/programmes')).status).toBe(403);
-    expect((await ctx.db.selectFrom('audit_events').select('action').where('action', '=', 'partner.viewer_removed').execute())).toHaveLength(1);
+describe('one login per training partner', () => {
+  it('the partner team pages are gone and a second training partner login is refused', async () => {
+    expect((await c.partnerA!.get('/partner/team')).status).toBe(404);
+    expect((await c.partnerA!.post('/partner/team', { name: 'Kavya Viewer', email: 'kavya@skillbridge.example' })).status).toBe(404);
+    expect(ctx.mem.sentInvites.has('kavya@skillbridge.example')).toBe(false);
+    const second = await c.ops!.post('/admin/role-assignments', { userId: ctx.ids.pendingUser, role: 'partner_admin', organisationId: ctx.ids.partnerA });
+    expect(second.status).toBe(400);
+    expect(second.body.error.message).toMatch(/This organisation already has its login/);
+    // Training partners cannot hand out logins themselves.
+    expect((await c.partnerB!.post('/admin/role-assignments', { userId: ctx.ids.pendingUser, role: 'partner_admin', organisationId: ctx.ids.partnerA })).status).toBe(403);
   });
 });

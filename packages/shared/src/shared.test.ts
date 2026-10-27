@@ -8,13 +8,17 @@ describe('roles and portals', () => {
     for (const r of ROLES) expect(['admin', 'employer', 'learn', 'partner']).toContain(ROLE_PORTAL[r]);
   });
 
-  it('trainers work inside the Training Partner portal (design decision, 24 Oct 2026)', () => {
+  it('there are exactly five logins: Admin, Employer, Learner, Training Partner and Trainer (27 Oct 2026)', () => {
+    expect([...ROLES].sort()).toEqual(['employer_admin', 'learner', 'partner_admin', 'super_admin', 'trainer']);
+  });
+
+  it('trainers work inside the Training Partner portal; an independent trainer may have no centre yet', () => {
     expect(ROLE_PORTAL.trainer).toBe('partner');
-    expect(ROLE_SCOPE.trainer).toEqual({ organisation: 'partner', centre: true, organisationFromCentre: true });
+    expect(ROLE_SCOPE.trainer).toEqual({ organisation: 'partner', centre: true, organisationFromCentre: true, centreOptional: true });
   });
 
   it('a multi-role user gets each portal once, in a fixed order', () => {
-    expect(portalsForRoles(['partner_viewer', 'ops_admin', 'super_admin'])).toEqual(['admin', 'partner']);
+    expect(portalsForRoles(['trainer', 'learner', 'super_admin'])).toEqual(['admin', 'learn', 'partner']);
   });
 });
 
@@ -25,7 +29,7 @@ describe('permissions', () => {
   });
 
   it('no employer, partner, trainer or learner role holds any admin permission', () => {
-    const outside = ['employer_admin', 'employer_recruiter', 'partner_admin', 'partner_viewer', 'trainer', 'learner'] as const;
+    const outside = ['employer_admin', 'partner_admin', 'trainer', 'learner'] as const;
     const adminPerms = ['dashboard.read', 'user.read', 'user.invite', 'user.approve', 'user.suspend', 'user.deactivate', 'role.assign', 'organisation.manage', 'organisation.verify', 'centre.manage', 'audit.read'] as const;
     for (const role of outside) for (const p of adminPerms) expect(hasPermission([role], p), `${role} ${p}`).toBe(false);
   });

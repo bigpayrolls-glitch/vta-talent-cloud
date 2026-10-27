@@ -26,7 +26,7 @@ const ROLES = [
   { icon: GraduationCap, title: 'Learners', body: 'Learn skills and apply for jobs.', to: '/register', img: '/role-learner.webp', tint: 'bg-[#FDECEE]', cta: 'Learners: create an account' },
   { icon: Building2, title: 'Employers', body: 'Find skilled technicians.', to: '/join/employer', img: '/role-employer.webp', tint: 'bg-[#EAF1FB]', cta: 'Employers: register your company' },
   { icon: Users, title: 'Training partners', body: 'Run training and assessments.', to: '/join/partner', img: '/role-partner.webp', tint: 'bg-[#FDF3E4]', cta: 'Training partners: register your organisation' },
-  { icon: Presentation, title: 'Trainers', body: 'Teach and assess skills.', to: '/login', img: '/role-trainer.webp', tint: 'bg-[#E8F4EE]', cta: 'Trainers: sign in' },
+  { icon: Presentation, title: 'Trainers', body: 'Teach and assess skills.', to: '/join/trainer', img: '/role-trainer.webp', tint: 'bg-[#E8F4EE]', cta: 'Trainers: sign up' },
 ];
 
 const STEPS = [

@@ -11,27 +11,28 @@ const clients: Record<string, Client> = {};
 
 beforeAll(async () => {
   ctx = await setup();
-  for (const key of ['employerAdminA', 'recruiterA', 'partnerAdminA', 'partnerViewerA', 'centreAdmin'] as const) {
+  for (const key of ['employerAdminA', 'partnerAdminA', 'partnerAdminB'] as const) {
     clients[key] = await loginEmail(ctx, EMAIL[key]);
   }
   clients.trainerA = await loginPhone(ctx, PHONE.trainerA);
+  clients.trainerFree = await loginPhone(ctx, PHONE.trainerFree);
   clients.learner = await loginPhone(ctx, PHONE.learner);
 });
 afterAll(() => ctx.close());
 
-const ALL = ['employerAdminA', 'recruiterA', 'partnerAdminA', 'partnerViewerA', 'trainerA', 'learner', 'centreAdmin'];
+const ALL = ['employerAdminA', 'partnerAdminA', 'partnerAdminB', 'trainerA', 'trainerFree', 'learner'];
 
 describe('Phase 1 test 3: no access to another organisation by ID', () => {
   const foreignReads = () => [
-    { who: ['employerAdminA', 'recruiterA'], url: `/organisations/${ctx.ids.employerB}` },
-    { who: ['employerAdminA', 'recruiterA'], url: `/organisations/${ctx.ids.partnerA}` },
-    { who: ['partnerAdminA', 'partnerViewerA', 'trainerA'], url: `/organisations/${ctx.ids.partnerB}` },
-    { who: ['partnerAdminA', 'partnerViewerA', 'trainerA'], url: `/organisations/${ctx.ids.employerA}` },
+    { who: ['employerAdminA'], url: `/organisations/${ctx.ids.employerB}` },
+    { who: ['employerAdminA'], url: `/organisations/${ctx.ids.partnerA}` },
+    { who: ['partnerAdminA', 'trainerA', 'trainerFree'], url: `/organisations/${ctx.ids.partnerB}` },
+    { who: ['partnerAdminA', 'trainerA', 'trainerFree'], url: `/organisations/${ctx.ids.employerA}` },
     { who: ['employerAdminA'], url: `/organisations/${ctx.ids.employerB}/members` },
     { who: ['partnerAdminA'], url: `/organisations/${ctx.ids.partnerB}/members` },
-    { who: ['partnerAdminA', 'partnerViewerA', 'trainerA'], url: `/centres/${ctx.ids.centrePartnerB}` },
-    { who: ['partnerAdminA', 'partnerViewerA', 'trainerA'], url: `/centres/${ctx.ids.centreVta}` },
-    { who: ['centreAdmin'], url: `/centres/${ctx.ids.centrePartnerA}` },
+    { who: ['partnerAdminA', 'trainerA', 'trainerFree'], url: `/centres/${ctx.ids.centrePartnerB}` },
+    { who: ['partnerAdminA', 'trainerA', 'trainerFree'], url: `/centres/${ctx.ids.centreVta}` },
+    { who: ['partnerAdminB', 'trainerFree'], url: `/centres/${ctx.ids.centrePartnerA}` },
   ];
 
   it('returns 404 (not 403) for out-of-scope records, so they cannot be discovered', async () => {
@@ -45,11 +46,10 @@ describe('Phase 1 test 3: no access to another organisation by ID', () => {
 
   it('the same people can read their own records', async () => {
     expect((await clients.employerAdminA!.get(`/organisations/${ctx.ids.employerA}`)).status).toBe(200);
-    expect((await clients.recruiterA!.get(`/organisations/${ctx.ids.employerA}`)).status).toBe(200);
     expect((await clients.partnerAdminA!.get(`/organisations/${ctx.ids.partnerA}/members`)).status).toBe(200);
     expect((await clients.trainerA!.get(`/centres/${ctx.ids.centrePartnerA}`)).status).toBe(200);
-    expect((await clients.partnerViewerA!.get(`/centres/${ctx.ids.centrePartnerA}`)).status).toBe(200);
-    expect((await clients.centreAdmin!.get(`/centres/${ctx.ids.centreVta}`)).status).toBe(200);
+    expect((await clients.partnerAdminA!.get(`/centres/${ctx.ids.centrePartnerA}`)).status).toBe(200);
+    expect((await clients.partnerAdminB!.get(`/centres/${ctx.ids.centrePartnerB}`)).status).toBe(200);
   });
 });
 
@@ -65,6 +65,8 @@ describe('no access to another organisation by list filter', () => {
 
     const trainerCentres = await clients.trainerA!.get('/centres?q=Mysuru');
     expect(trainerCentres.body.items).toEqual([]);
+    // An independent trainer has no centre until given a batch, so sees none.
+    expect((await clients.trainerFree!.get('/centres')).body.items).toEqual([]);
 
     const learnerOrgs = await clients.learner!.get('/organisations');
     expect(learnerOrgs.status).toBe(403);
@@ -84,9 +86,8 @@ describe('no access by request body or to admin actions', () => {
     }
   });
 
-  it('a recruiter and a partner viewer cannot read team member lists', async () => {
-    expect((await clients.recruiterA!.get(`/organisations/${ctx.ids.employerA}/members`)).status).toBe(403);
-    expect((await clients.partnerViewerA!.get(`/organisations/${ctx.ids.partnerA}/members`)).status).toBe(403);
+  it('a trainer cannot read their training partner’s member list', async () => {
+    expect((await clients.trainerA!.get(`/organisations/${ctx.ids.partnerA}/members`)).status).toBe(403);
   });
 
   it('member lists never include another organisation’s people', async () => {
@@ -94,7 +95,6 @@ describe('no access by request body or to admin actions', () => {
     const ids = res.body.items.map((m: { userId: string }) => m.userId);
     expect(ids).toContain(ctx.ids.trainerA);
     expect(ids).not.toContain(ctx.ids.partnerAdminB);
-    expect(ids).not.toContain(ctx.ids.multiRole);
   });
 });
 

@@ -10,7 +10,7 @@ const JOB = 'Two-wheeler workshop technician (e2e)';
 
 test.describe.serial('hiring: vacancy to verified joining', () => {
   test('a recruiter posts a job and sends it to AutoTalent Grid; AutoTalent Grid publishes it', async ({ page, browser }) => {
-    await signInEmail(page, EMAIL.recruiterA);
+    await signInEmail(page, EMAIL.employerAdminA);
     await page.getByRole('link', { name: 'Post a job' }).first().click();
     await page.getByLabel('Job title').fill(JOB);
     await page.getByLabel('Experience needed (months)').fill('6');
@@ -57,7 +57,7 @@ test.describe.serial('hiring: vacancy to verified joining', () => {
   });
 
   test('the recruiter shortlists, interviews, offers and records the joining', async ({ page }) => {
-    await signInEmail(page, EMAIL.recruiterA);
+    await signInEmail(page, EMAIL.employerAdminA);
     await page.goto('/employer/jobs');
     await page.getByRole('link', { name: new RegExp(JOB.replace(/[()]/g, '\\$&')) }).click();
     await page.getByRole('link', { name: /Venkatesh Learner/ }).click();
@@ -106,7 +106,7 @@ test.describe.serial('hiring: vacancy to verified joining', () => {
   });
 
   test('the employer searches candidates (masked) and invites one to apply', async ({ page, browser }) => {
-    await signInEmail(page, EMAIL.recruiterA);
+    await signInEmail(page, EMAIL.employerAdminA);
     await page.getByRole('navigation', { name: 'Employer Portal' }).getByRole('link', { name: 'Candidates' }).click();
     await page.getByLabel('Skill area').selectOption('2W');
     await page.getByRole('link', { name: /Venkatesh L\./ }).click();

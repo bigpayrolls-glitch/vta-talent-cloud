@@ -6,7 +6,7 @@ let ctx: Ctx;
 let ops: Client;
 beforeAll(async () => {
   ctx = await setup();
-  ops = await loginEmail(ctx, EMAIL.opsAdmin);
+  ops = await loginEmail(ctx, EMAIL.secondAdmin);
 });
 afterAll(() => ctx.close());
 
@@ -117,9 +117,17 @@ describe('T-02 trainers and centres', () => {
 
   it('giving the trainer role through Add role also creates a trainer profile', async () => {
     const sa = await loginEmail(ctx, EMAIL.superAdmin);
-    expect((await sa.post('/admin/role-assignments', { userId: ctx.ids.multiRole, role: 'trainer', centreId: ctx.ids.centrePartnerB })).status).toBe(201);
-    const tp = await ctx.db.selectFrom('trainer_profiles').select('verification_status').where('user_id', '=', ctx.ids.multiRole!).executeTakeFirst();
+    expect((await sa.post('/admin/role-assignments', { userId: ctx.ids.pendingUser, role: 'trainer', centreId: ctx.ids.centrePartnerB })).status).toBe(201);
+    const tp = await ctx.db.selectFrom('trainer_profiles').select('verification_status').where('user_id', '=', ctx.ids.pendingUser!).executeTakeFirst();
     expect(tp?.verification_status).toBe('pending');
+  });
+
+  it('the trainer role can be given with no centre, for an independent trainer', async () => {
+    const sa = await loginEmail(ctx, EMAIL.superAdmin);
+    const res = await sa.post('/admin/role-assignments', { userId: ctx.ids.employerAdminPending, role: 'trainer' });
+    expect(res.status).toBe(201);
+    const ra = await ctx.db.selectFrom('role_assignments').select(['organisation_id', 'centre_id']).where('id', '=', res.body.id).executeTakeFirstOrThrow();
+    expect(ra).toEqual({ organisation_id: null, centre_id: null });
   });
 });
 

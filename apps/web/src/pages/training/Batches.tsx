@@ -70,10 +70,9 @@ export function BatchesPage({ base }: { base: string }) {
   return (
     <div>
       <PageHeader
-        title={admin ? 'Batches' : 'My batches'}
-        description={admin ? 'Training batches: course, centre, trainer, dates and who is enrolled.' : 'Batches at your centres. Attendance and assessments arrive in the next phase.'}
+        title={admin ? 'Batches' : 'Batches'}
+        description={admin ? 'Training batches: course, centre, trainer, dates and who is enrolled.' : 'Batches at your centres, or the batches you teach.'}
         actions={
-          admin &&
           can('batch.manage') && (
             <button className="btn-primary" onClick={() => setCreating(true)}>
               <Plus className="size-4" aria-hidden />
@@ -126,7 +125,7 @@ export function BatchesPage({ base }: { base: string }) {
           </div>
         </>
       )}
-      {creating && <CreateBatchModal onClose={() => setCreating(false)} />}
+      {creating && <CreateBatchModal base={base} onClose={() => setCreating(false)} />}
     </div>
   );
 }
@@ -146,7 +145,7 @@ function CapacityBar({ enrolled, capacity }: { enrolled: number; capacity: numbe
   );
 }
 
-function CreateBatchModal({ onClose }: { onClose: () => void }) {
+function CreateBatchModal({ base, onClose }: { base: string; onClose: () => void }) {
   const qc = useQueryClient();
   const toast = useToast();
   const navigate = useNavigate();
@@ -157,7 +156,7 @@ function CreateBatchModal({ onClose }: { onClose: () => void }) {
   const trainers = useQuery({
     queryKey: ['trainer-options', v.centreId],
     enabled: !!v.centreId,
-    queryFn: () => api.get<Page<{ id: string; name: string; specialisations: string[] }>>(`/trainers${qs({ centreId: v.centreId, verificationStatus: 'verified', pageSize: 100 })}`),
+    queryFn: () => api.get<Page<{ id: string; name: string; specialisations: string[]; centres: unknown[] }>>(`/trainers${qs({ centreId: v.centreId, includeIndependent: 'true', verificationStatus: 'verified', pageSize: 100 })}`),
   });
   const upd = (k: keyof typeof v) => (e: { target: { value: string } }) => setV({ ...v, [k]: e.target.value, ...(k === 'centreId' && { trainerId: '' }) });
 
@@ -184,7 +183,7 @@ function CreateBatchModal({ onClose }: { onClose: () => void }) {
             await qc.invalidateQueries({ queryKey: ['batches'] });
             await qc.invalidateQueries({ queryKey: ['dashboard'] });
             toast('success', 'Batch created');
-            navigate(`/admin/batches/${r.id}`);
+            navigate(`${base}/${r.id}`);
           });
         }}
       >
@@ -204,10 +203,16 @@ function CreateBatchModal({ onClose }: { onClose: () => void }) {
             {centres.data?.items.map((c) => <option key={c.id} value={c.id}>{c.name}{c.city ? `, ${c.city}` : ''} ({c.organisationName ?? 'AutoTalent Grid'})</option>)}
           </select>
         </Field>
-        <Field label="Trainer" htmlFor="bf-trainer" error={f.errors.trainerId} hint={v.centreId ? 'Verified trainers at this centre.' : 'Choose a centre first.'}>
+        <Field label="Trainer" htmlFor="bf-trainer" error={f.errors.trainerId} hint={v.centreId ? 'Verified trainers at this centre, and verified independent trainers.' : 'Choose a centre first.'}>
           <select id="bf-trainer" className="field-input" value={v.trainerId} onChange={upd('trainerId')} disabled={!v.centreId}>
             <option value="">{v.centreId && trainers.data?.items.length === 0 ? 'No verified trainers at this centre' : 'Choose a trainer'}</option>
-            {trainers.data?.items.map((t) => <option key={t.id} value={t.id}>{t.name}{t.specialisations.length ? ` (${t.specialisations.join(', ')})` : ''}</option>)}
+            {trainers.data?.items.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+                {t.specialisations.length ? ` (${t.specialisations.join(', ')})` : ''}
+                {t.centres.length === 0 ? ', independent' : ''}
+              </option>
+            ))}
           </select>
         </Field>
         <div className="grid grid-cols-2 gap-4">
@@ -249,7 +254,7 @@ export function BatchDetailPage({ base }: { base: string }) {
   if (batch.isError) return <ErrorNote message={(batch.error as Error).message} />;
   const b = batch.data!;
   const open = b.status === 'planned' || b.status === 'active';
-  const manage = b.canManage && base.startsWith('/admin');
+  const manage = b.canManage;
   const candidateLinks = can('candidate.read') && base.startsWith('/admin');
   const refresh = async () => {
     await qc.invalidateQueries({ queryKey: ['batch'] });
@@ -407,7 +412,7 @@ export function BatchDetailPage({ base }: { base: string }) {
             ))}
           </ul>
         )}
-        {roster.data && !roster.data.showContact && <p className="border-t border-line px-5 py-3 text-[13px] text-muted">Contact details are shown to the batch trainer and AutoTalent Grid staff only.</p>}
+        {roster.data && !roster.data.showContact && <p className="border-t border-line px-5 py-3 text-[13px] text-muted">Contact details are shown to the batch trainer, the training partner running the centre and AutoTalent Grid admins.</p>}
         {roster.data && roster.data.sessionsHeld > 0 && (
           <p className="border-t border-line px-5 py-3 text-[13px] text-muted">
             Attendance over {roster.data.sessionsHeld} {roster.data.sessionsHeld === 1 ? 'session' : 'sessions'} so far. {roster.data.thresholdPct}% is needed to complete the course; excused sessions are not counted.
@@ -549,7 +554,7 @@ function EditBatchModal({ batch, onClose, onDone }: { batch: BatchDetail; onClos
   const [busy, setBusy] = useState(false);
   const trainers = useQuery({
     queryKey: ['trainer-options', batch.centre.id],
-    queryFn: () => api.get<Page<{ id: string; name: string }>>(`/trainers${qs({ centreId: batch.centre.id, verificationStatus: 'verified', pageSize: 100 })}`),
+    queryFn: () => api.get<Page<{ id: string; name: string }>>(`/trainers${qs({ centreId: batch.centre.id, includeIndependent: 'true', verificationStatus: 'verified', pageSize: 100 })}`),
   });
   const upd = (k: keyof typeof v) => (e: { target: { value: string } }) => setV({ ...v, [k]: e.target.value });
   const submit = async () => {

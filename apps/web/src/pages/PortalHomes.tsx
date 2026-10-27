@@ -36,15 +36,15 @@ export function PartnerLayout() {
   useEffect(() => {
     if (isTrainer) startAutoSync();
   }, [isTrainer]);
-  const isPartner = !!me?.roles.some((r) => r.role === 'partner_admin' || r.role === 'partner_viewer');
-  const isPartnerAdmin = !!me?.roles.some((r) => r.role === 'partner_admin');
+  const isPartner = !!me?.roles.some((r) => r.role === 'partner_admin');
+  // Five logins (27 Oct 2026): a training partner runs everything for its own centres, including trainers.
   const nav: NavItem[] = [
     PLANS.partner.nav[0]!,
     ...(isPartner ? [{ to: '/partner/programmes', label: 'Programmes', icon: BarChart3, bottom: true }] : []),
     PLANS.partner.nav[1]!,
+    ...(isPartner ? [{ to: '/partner/trainers', label: 'Trainers', icon: UserCog, bottom: true }] : []),
     ...(isTrainer ? [{ to: '/partner/sync', label: 'Sync', icon: RefreshCw, bottom: true }] : []),
     ...(isPartner ? [{ to: '/partner/organisation', label: 'Organisation', icon: Building2 }] : []),
-    ...(isPartnerAdmin ? [{ to: '/partner/team', label: 'Team', icon: UserCog }] : []),
   ];
   return (
     <PortalLayout portal="partner" nav={nav} headerExtra={isTrainer ? <SyncIndicator /> : undefined}>
@@ -56,7 +56,7 @@ export function PartnerLayout() {
 export function PortalHomeContent({ portal }: { portal: 'partner' }) {
   const { me } = useAuth();
   const plan = PLANS[portal];
-  const myRoles = me?.roles.filter((r) => ['partner_admin', 'partner_viewer', 'trainer'].includes(r.role)) ?? [];
+  const myRoles = me?.roles.filter((r) => ['partner_admin', 'trainer'].includes(r.role)) ?? [];
 
   return (
     <>
@@ -76,6 +76,12 @@ export function PortalHomeContent({ portal }: { portal: 'partner' }) {
         )}
       </section>
 
+      {portal === 'partner' && me?.roles.some((r) => r.role === 'trainer' && !r.centreName) && !me.roles.some((r) => r.role === 'trainer' && r.centreName) && (
+        <p className="card mt-6 px-5 py-4 text-sm">
+          <span className="font-semibold">You are an independent trainer.</span> AutoTalent Grid checks your details first. Once you are verified, training partners can give you batches,
+          and they appear here.
+        </p>
+      )}
       {portal === 'partner' && me?.roles.some((r) => r.role === 'trainer') && (
         <>
           <TrainerToday />

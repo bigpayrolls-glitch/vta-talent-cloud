@@ -28,7 +28,7 @@ const idParam = z.object({ id: uuidSchema });
 
 /** Partner organisations the actor belongs to. */
 const partnerOrgs = (req: FastifyRequest) =>
-  [...new Set(req.actor!.assignments.filter((a) => (a.role === 'partner_admin' || a.role === 'partner_viewer') && a.organisationId).map((a) => a.organisationId!))];
+  [...new Set(req.actor!.assignments.filter((a) => a.role === 'partner_admin' && a.organisationId).map((a) => a.organisationId!))];
 
 /**
  * AD-10 and PA-02 to PA-06. VTA staff manage programmes; partners see only programmes assigned to their

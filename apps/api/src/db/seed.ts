@@ -111,33 +111,29 @@ export async function seed(db: DB): Promise<SeedResult> {
   };
 
   await person('superAdmin', 'Asha Super Admin', { email: 'superadmin@demo.vta.local' }, [{ role: 'super_admin' }]);
-  await person('opsAdmin', 'Vikram Operations', { email: 'ops@demo.vta.local' }, [{ role: 'ops_admin' }]);
-  await person('centreAdmin', 'Meena Centre Admin', { email: 'centre@demo.vta.local' }, [{ role: 'centre_admin', centre: 'centreVta' }]);
+  // Five logins (27 Oct 2026): Admin, Employer, Learner, Trainer, Training Partner. A second Admin shows that admins can be a team.
+  await person('opsAdmin', 'Vikram Admin', { email: 'ops@demo.vta.local' }, [{ role: 'super_admin' }]);
   await person('employerAdminA', 'Rahul Employer A', { email: 'employer-a@demo.vta.local' }, [{ role: 'employer_admin', org: 'employerA' }]);
-  await person('recruiterA', 'Divya Recruiter A', { email: 'recruiter-a@demo.vta.local' }, [{ role: 'employer_recruiter', org: 'employerA' }]);
   await person('employerAdminB', 'Kiran Employer B', { email: 'employer-b@demo.vta.local' }, [{ role: 'employer_admin', org: 'employerB' }]);
   await person('employerAdminPending', 'Meera Employer Pending', { email: 'employer-pending@demo.vta.local' }, [{ role: 'employer_admin', org: 'employerPending' }]);
   await person('partnerAdminA', 'Farah Partner A', { email: 'partner-a@demo.vta.local' }, [{ role: 'partner_admin', org: 'partnerA' }]);
-  await person('partnerViewerA', 'Sanjay Viewer A', { email: 'viewer-a@demo.vta.local' }, [{ role: 'partner_viewer', org: 'partnerA' }]);
   await person('partnerAdminB', 'Lakshmi Partner B', { email: 'partner-b@demo.vta.local' }, [{ role: 'partner_admin', org: 'partnerB' }]);
   await person('trainerA', 'Prakash Trainer', { phone: '+919900000101' }, [{ role: 'trainer', org: 'partnerA', centre: 'centrePartnerA' }]);
   await person('learner', 'Venkatesh Learner', { phone: PHONE_LEARNER }, [{ role: 'learner' }]);
-  // A user with two roles, to demonstrate the portal switcher.
-  await person('multiRole', 'Nisha Multi-role', { email: 'multi@demo.vta.local' }, [
-    { role: 'ops_admin' },
-    { role: 'partner_viewer', org: 'partnerB' },
-  ]);
   await person('pendingUser', 'Arjun Pending', { email: 'pending@demo.vta.local' }, [], 'pending');
 
   // ---- Phase 2: training master data (all invented) ----
   await person('trainerVta', 'Suresh AutoTalent Grid Trainer', { phone: '+919900000102' }, [{ role: 'trainer', centre: 'centreVta' }]);
   await person('trainerB', 'Imran Trainer B', { phone: '+919900000103' }, [{ role: 'trainer', org: 'partnerB', centre: 'centrePartnerB' }]);
   await person('trainerPending', 'Kavya New Trainer', { phone: '+919900000104' }, [{ role: 'trainer', org: 'partnerA', centre: 'centrePartnerA' }]);
+  // An independent (freelance) trainer: no centre until a training partner or Admin gives them a batch.
+  await person('trainerFree', 'Arun Independent Trainer', { phone: '+919900000105' }, [{ role: 'trainer' }]);
   for (const [key, specs, status] of [
     ['trainerA', ['2W'], 'verified'],
     ['trainerVta', ['4W', 'EV'], 'verified'],
     ['trainerB', ['EV'], 'verified'],
     ['trainerPending', ['2W'], 'pending'],
+    ['trainerFree', ['4W', '2W'], 'verified'],
   ] as const) {
     await db
       .insertInto('trainer_profiles')
@@ -379,7 +375,7 @@ export async function seed(db: DB): Promise<SeedResult> {
       .execute();
   };
   await job('job2wA', 'employerA', 'employerAdminA', 'published', { title: 'Two-wheeler service technician', skill: '2W', city: 'Bengaluru', closing: '2026-12-15', salary: [16000, 22000] });
-  await job('jobDraftA', 'employerA', 'recruiterA', 'draft', { title: 'Senior two-wheeler technician', skill: '2W', city: 'Bengaluru', closing: '2026-12-31' });
+  await job('jobDraftA', 'employerA', 'employerAdminA', 'draft', { title: 'Senior two-wheeler technician', skill: '2W', city: 'Bengaluru', closing: '2026-12-31' });
   await job('jobEvB', 'employerB', 'employerAdminB', 'pending_review', { title: 'EV service technician', skill: 'EV', city: 'Mysuru', closing: '2026-12-20', salary: [18000, 26000] });
   // A live four-wheeler job, so a two-wheeler learner sees "Recommended for your skills" and "Other jobs".
   await job('job4wB', 'employerB', 'employerAdminB', 'published', { title: 'Four-wheeler service technician', skill: '4W', city: 'Mysuru', closing: '2026-12-31', salary: [17000, 24000] });
@@ -406,7 +402,7 @@ export async function seed(db: DB): Promise<SeedResult> {
       consent_snapshot: JSON.stringify({ sharedAt: new Date().toISOString(), noticeVersion: NOTICE_VERSION, employer: 'Sunrise Two-Wheeler Service (demo)', job: 'Two-wheeler service technician', fields: ['Name', 'Mobile number', 'City and preferred work area', 'Skills, experience, education, languages and availability'], certificates: [], documents: [] }),
     })
     .execute();
-  for (const [from, to, by, kind] of [[null, 'applied', 'cand2', 'candidate'], ['applied', 'shortlisted', 'recruiterA', 'employer']] as const) {
+  for (const [from, to, by, kind] of [[null, 'applied', 'cand2', 'candidate'], ['applied', 'shortlisted', 'employerAdminA', 'employer']] as const) {
     await db.insertInto('application_events').values({ id: newId(), application_id: ids.applicationAnitha, from_status: from, to_status: to, actor_id: ids[by]!, actor_kind: kind }).execute();
   }
   for (const purpose of ['privacy_notice', 'terms'] as const) {

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { SECTORS } from './hiring.js';
+import { SKILL_AREAS } from './training.js';
 import { NOTICE_VERSION } from './learner.js';
 import { emailSchema, nameSchema, PARTNER_SUBTYPES, phoneSchema } from './schemas.js';
 
@@ -40,3 +41,21 @@ export const orgSignupSchema = z
   .refine((v) => v.type !== 'employer' || !!v.sector, { path: ['sector'], message: 'Choose a sector', when: () => true })
   .refine((v) => v.type !== 'partner' || !!v.partnerSubtype, { path: ['partnerSubtype'], message: 'Choose the partner type', when: () => true });
 export type OrgSignupInput = z.input<typeof orgSignupSchema>;
+
+// ---------------------------------------------------------------------------
+// Five logins (27 Oct 2026): an individual or freelance trainer signs up with their mobile number.
+// They can sign in at once; an Admin verifies them before they can be given a batch.
+// ---------------------------------------------------------------------------
+
+export const trainerSignupSchema = z.object({
+  phone: phoneSchema,
+  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
+  name: nameSchema,
+  city: z.string().trim().min(2, 'Enter a city').max(80),
+  specialisations: z.array(z.enum(SKILL_AREAS), 'Choose at least one skill area').min(1, 'Choose at least one skill area').max(5),
+  experienceYears: z.coerce.number().int('Whole years').min(0, '0 or more').max(50, 'At most 50'),
+  acceptPrivacy: z.literal(true, 'Accept the privacy notice to continue'),
+  acceptTerms: z.literal(true, 'Accept the terms of use to continue'),
+  noticeVersion: z.literal(NOTICE_VERSION, 'The privacy notice has changed. Reload the page and read it again.'),
+});
+export type TrainerSignupInput = z.input<typeof trainerSignupSchema>;

@@ -6,6 +6,7 @@ import {
   NOTICE_VERSION,
   portalsForRoles,
   registerSchema,
+  trainerSignupSchema,
   type MeDto,
 } from '@vta/shared';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
@@ -25,7 +26,8 @@ import {
 } from '../lib/crypto.js';
 import { ApiError, invalid, unauthenticated } from '../lib/errors.js';
 import { iso, parse } from '../lib/validate.js';
-import { createSelfRegisteredCandidate, consentRequired } from './learner/service.js';
+import { notify, vtaReviewers } from '../lib/notify.js';
+import { createSelfRegisteredCandidate, consentRequired, recordConsent } from './learner/service.js';
 
 const MAX_FAILED_LOGINS = 5;
 const LOCK_MINUTES = 15;
@@ -206,6 +208,40 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     await audit(db, { ...auditCtx(req), actorId: id }, { action: 'auth.login', entityType: 'user', entityId: id, after: { method: 'otp', registered: true } });
     reply.code(201);
     return { ok: true, existing: false, noticeVersion: NOTICE_VERSION };
+  });
+
+  /**
+   * Five logins (27 Oct 2026): an individual or freelance trainer signs up with a phone code. They are signed in
+   * at once, as a trainer with no centre; an Admin verifies them before any batch can be given to them.
+   * An already registered number is simply signed in, as with learner registration.
+   */
+  app.post('/register/trainer', { config: { public: true, ...ipLimit(10) } }, async (req, reply) => {
+    const input = parse(trainerSignupSchema, req.body);
+    await checkCode(input.phone, input.code, 'register');
+    const existing = await db.selectFrom('users').select(['id']).where('phone', '=', input.phone).executeTakeFirst();
+    if (existing) {
+      await signInByPhone(req, reply, input.phone);
+      return { ok: true, existing: true };
+    }
+    const id = newId();
+    await db.transaction().execute(async (trx) => {
+      const now = new Date();
+      await trx.insertInto('users').values({ id, name: input.name, phone: input.phone, email: null, status: 'active', phone_verified_at: now }).execute();
+      await trx
+        .insertInto('trainer_profiles')
+        .values({ user_id: id, specialisations: input.specialisations, verification_status: 'pending', city: input.city, experience_years: input.experienceYears, self_registered: true })
+        .execute();
+      await trx.insertInto('role_assignments').values({ id: newId(), user_id: id, role: 'trainer', granted_by: null }).execute();
+      for (const purpose of ['privacy_notice', 'terms'] as const) {
+        await recordConsent(trx, { userId: id, purpose, granted: true, noticeVersion: input.noticeVersion, source: 'self', recordedBy: id });
+      }
+      await audit(trx, { ...auditCtx(req), actorId: id }, { action: 'trainer.self_registered', entityType: 'user', entityId: id, after: { name: input.name, city: input.city, specialisations: input.specialisations, experience_years: input.experienceYears } });
+      await notify(trx, await vtaReviewers(trx), 'trainer_signed_up', { name: input.name, city: input.city }, '/admin/trainers?verificationStatus=pending');
+    });
+    await createSession(db, req, reply, id, secure);
+    await audit(db, { ...auditCtx(req), actorId: id }, { action: 'auth.login', entityType: 'user', entityId: id, after: { method: 'otp', registered: true } });
+    reply.code(201);
+    return { ok: true, existing: false };
   });
 
   app.post('/logout', { config: { permission: 'self.read' } }, async (req, reply) => {

@@ -12,8 +12,17 @@ The product is now **AutoTalent Grid** ("Train. Connect. Employ."), replacing "V
 
 | Area | What you can do |
 | --- | --- |
-| Change a sign-in mobile number | Operations and Super Admins change the number a learner or trainer signs in with, from the candidate, trainer or user page, recording how they checked who it is. The person is signed out everywhere, codes for the old number stop working, they are notified in the app, and the audit log keeps both numbers masked. A number another account uses is refused. |
-| Partner team (PA-07) | Partner admins invite viewers by email (read-only access to the organisation's programmes, beneficiaries, reports and documents) and remove them; access ends at once. They cannot remove themselves or another admin. Invitations and removals are in the audit log. |
+| Change a sign-in mobile number | Admins change the number a learner or trainer signs in with, from the candidate, trainer or user page, recording how they checked who it is. The person is signed out everywhere, codes for the old number stop working, they are notified in the app, and the audit log keeps both numbers masked. A number another account uses is refused. |
+| Partner team (PA-07) | Removed on 27 Oct 2026: each training partner has one login. |
+
+## Five logins (27 Oct 2026)
+
+| Area | What you can do |
+| --- | --- |
+| Admin | One Admin role with everything. Former Operations Admins and Centre Admins became Admins (migration `0014_five_logins`). |
+| Employer, Training Partner | One login per organisation. Former recruiters and partner viewers lost access; anyone left without a role was deactivated and signed out. A second login for the same organisation is refused. |
+| Training Partner | Runs its own centres: creates batches, enrols candidates, adds trainers at its centres and gives batches to verified independent trainers. |
+| Trainer sign-up | Individual or freelance trainers sign up at `/join/trainer` with a mobile code (skill areas, city, experience). Admins are notified and verify them; then any training partner can give them a batch, which adds that centre to the trainer. |
 
 ## Phase 10: pilot readiness
 
@@ -65,7 +74,7 @@ The product is now **AutoTalent Grid** ("Train. Connect. Employ."), replacing "V
 | Area | What you can do |
 | --- | --- |
 | Company (EM-01, EM-02) | The employer admin completes the company profile (sector, city, contact, optional GSTIN), uploads registration documents and sends it to VTA. VTA sees the profile, documents and any possible duplicate (same GSTIN or name) in the organisation dialog, then verifies, rejects or asks for more. Until verified, jobs can be drafted but not sent for review, and candidate search is closed. The verified name and GSTIN are locked. |
-| Team (EM-02) | The employer admin invites recruiters by email and removes them (access ends at once). Recruiters post jobs, search and manage applicants; only admins change the company and team. |
+| Team (EM-02) | Removed on 27 Oct 2026: each employer has one login. |
 | Jobs (EM-03, AD-09) | Post a job: skill area, skills, experience, city and area, optional monthly salary range, openings, shift, description, closing date, "VTA certificate preferred". VTA reviews each job and publishes, rejects, pauses or closes it with a reason the employer sees. Editing a live job sends it back for review. Employers can pause, resume and close. |
 | Learners find and apply (EE-07, EE-08) | Learners see published jobs from verified employers until the closing date, filter by skill, city or words, and apply after seeing exactly what the employer will see. The application keeps a snapshot of what was shared and when; a second active application to the same job is refused (also by the database). |
 | Tracking (EE-09) | Status, timeline and interview time and place. Interview notes and how it went stay with the employer. A learner can withdraw; the employer then stops seeing their contact details and documents. |
@@ -119,7 +128,7 @@ The product is now **AutoTalent Grid** ("Train. Connect. Employ."), replacing "V
 | Batches (T-04) | Create a batch from a course, centre, verified trainer, dates and capacity. Enrol candidates (all or nothing, capacity checked), withdraw with a reason, re-enrol, start, complete or cancel. Centre admins manage batches at their own centre only. |
 | Search (T-05) | Candidate, batch, course and trainer lists are searched, filtered and paged on the server (100 a page at most). |
 | Documents (T-06) | Upload PDF, JPG or PNG files up to 10 MB to a candidate. The real file type is checked from its content. Files are private: each download uses a link that works for 5 minutes, and every link handed out is audited. |
-| Training Partner portal | Partner admins and viewers see batches at their centres; trainers see only their own batches. Rosters show phone numbers to the batch trainer and VTA staff only. |
+| Training Partner portal | Training partners see and run batches at their centres (create, enrol, trainers); trainers see only their own batches. Rosters show phone numbers to the batch trainer, the partner running the centre and Admins. |
 | Dashboard | Candidates, batches, enrolments and courses, plus a list of things to verify or review. |
 
 ## What works in Phase 1
@@ -153,21 +162,19 @@ To start fresh at any time: `pnpm db:reset` (drops everything, migrates, re-seed
 
 `pnpm db:seed` creates one user per role in invented organisations. Passwords are generated fresh on every run and are never committed.
 
-| Role | Sign in with | Lands in |
+There are five logins (decision of 27 Oct 2026): **Admin** (everything), **Employer** (one per company), **Learner**, **Trainer** (individual or freelance, or added by a partner) and **Training Partner** (one per partner, runs everything at its centres).
+
+| Login | Sign in with | Lands in |
 | --- | --- | --- |
-| Super Admin | superadmin@demo.vta.local | Admin Portal |
-| Operations Admin | ops@demo.vta.local | Admin Portal |
-| Centre Admin | centre@demo.vta.local | Admin Portal (own centre only) |
-| Employer Admin (A and B) | employer-a@ / employer-b@demo.vta.local | Employer Portal |
-| Recruiter | recruiter-a@demo.vta.local | Employer Portal |
-| Partner Admin (A and B) | partner-a@ / partner-b@demo.vta.local | Training Partner Portal |
-| Partner Viewer | viewer-a@demo.vta.local | Training Partner Portal |
+| Admin (two demo Admins) | superadmin@ / ops@demo.vta.local | Admin Portal |
+| Employer (A, B, and one not yet verified) | employer-a@ / employer-b@ / employer-pending@demo.vta.local | Employer Portal |
+| Training Partner (A and B) | partner-a@ / partner-b@demo.vta.local | Training Partner Portal |
 | Trainer (Partner A centre) | phone 99000 00101 | Training Partner Portal |
-| Trainer (VTA centre) | phone 99000 00102 | Training Partner Portal |
+| Trainer (AutoTalent Grid centre) | phone 99000 00102 | Training Partner Portal |
 | Trainer (Partner B centre) | phone 99000 00103 | Training Partner Portal |
 | Trainer, not yet verified | phone 99000 00104 | Training Partner Portal |
+| Independent trainer (no centre yet) | phone 99000 00105 | Training Partner Portal |
 | Learner | phone 99000 00201 | Learner Portal |
-| Two roles | multi@demo.vta.local | Portal chooser |
 
 The demo data also has three courses (2W, 4W and EV), nine candidates (one flagged as a possible duplicate), three running or planned batches at three centres, and a finished batch ("2W Peenya July 2026") with an approved pass, a result waiting for review, a candidate below the attendance threshold and one issued certificate. `pnpm db:seed` prints that certificate's check page link.
 
@@ -260,7 +267,7 @@ The D-numbers here are this project's own; requirements §20 numbers its open de
 - **Uploads:** PDF, JPG and PNG up to 10 MB.
 - **Enrolment:** pending or verified candidates can be enrolled; rejected profiles, profiles needing correction and unreviewed possible duplicates cannot.
 - **D8 certificates:** "Course completion record", issued by `CREDENTIAL_ISSUER_NAME`; the check page shows name, course, issue date, issuer and status only.
-- **Review:** only Super Admins and Operations Admins review results and issue certificates.
+- **Review:** only Admins review results and issue certificates (never the person who submitted the result).
 - **Unassessed criteria** count as zero marks; every required criterion must be assessed before submitting.
 - **Programmes:** a cohort is the enrolments in the batches linked to the programme. "Active" = attended in the last 14 days. Placement rate = VTA-verified joinings after enrolment ÷ people who completed. Partners see no names unless VTA records a basis.
 - **Hiring:** only VTA-verified, opted-in learners appear in search; contact details are shared only through an application. VTA reviews every job before it is published.

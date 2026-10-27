@@ -4,17 +4,12 @@
  * four portals; trainers work inside the Training Partner portal.
  */
 
-export const ROLES = [
-  'super_admin',
-  'ops_admin',
-  'centre_admin',
-  'employer_admin',
-  'employer_recruiter',
-  'learner',
-  'partner_admin',
-  'partner_viewer',
-  'trainer',
-] as const;
+/**
+ * Five logins (decision of 27 Oct 2026): Admin (everything), Employer, Learner, Trainer and Training Partner.
+ * The internal keys are kept so existing records and audit history stay readable. Earlier roles
+ * (Operations Admin, Centre Admin, Recruiter, Partner Viewer) were folded in by migration 0014.
+ */
+export const ROLES = ['super_admin', 'employer_admin', 'learner', 'partner_admin', 'trainer'] as const;
 export type Role = (typeof ROLES)[number];
 
 export const PORTALS = ['admin', 'employer', 'learn', 'partner'] as const;
@@ -22,25 +17,17 @@ export type Portal = (typeof PORTALS)[number];
 
 export const ROLE_PORTAL: Record<Role, Portal> = {
   super_admin: 'admin',
-  ops_admin: 'admin',
-  centre_admin: 'admin',
   employer_admin: 'employer',
-  employer_recruiter: 'employer',
   learner: 'learn',
   partner_admin: 'partner',
-  partner_viewer: 'partner',
   trainer: 'partner',
 };
 
 export const ROLE_LABEL: Record<Role, string> = {
-  super_admin: 'Super Admin',
-  ops_admin: 'Operations Admin',
-  centre_admin: 'Centre Admin',
-  employer_admin: 'Employer Admin',
-  employer_recruiter: 'Recruiter',
+  super_admin: 'Admin',
+  employer_admin: 'Employer',
   learner: 'Learner',
-  partner_admin: 'Partner Admin',
-  partner_viewer: 'Partner Viewer',
+  partner_admin: 'Training Partner',
   trainer: 'Trainer',
 };
 
@@ -60,27 +47,18 @@ export type OrgType = 'vta' | 'employer' | 'partner';
  */
 export const ROLE_SCOPE: Record<
   Role,
-  { organisation: OrgType | null; centre: boolean; organisationFromCentre?: boolean }
+  { organisation: OrgType | null; centre: boolean; organisationFromCentre?: boolean; centreOptional?: boolean }
 > = {
   super_admin: { organisation: null, centre: false },
-  ops_admin: { organisation: null, centre: false },
-  centre_admin: { organisation: null, centre: true },
   employer_admin: { organisation: 'employer', centre: false },
-  employer_recruiter: { organisation: 'employer', centre: false },
   learner: { organisation: null, centre: false },
   partner_admin: { organisation: 'partner', centre: false },
-  partner_viewer: { organisation: 'partner', centre: false },
-  trainer: { organisation: 'partner', centre: true, organisationFromCentre: true },
+  // A trainer works at a centre; an independent (freelance) trainer has no centre until assigned to a batch.
+  trainer: { organisation: 'partner', centre: true, organisationFromCentre: true, centreOptional: true },
 };
 
 /** Roles whose sessions use the short staff idle timeout (SEC-09). */
-export const STAFF_ROLES: readonly Role[] = [
-  'super_admin',
-  'ops_admin',
-  'centre_admin',
-  'employer_admin',
-  'employer_recruiter',
-];
+export const STAFF_ROLES: readonly Role[] = ['super_admin', 'employer_admin'];
 
 export function portalsForRoles(roles: readonly Role[]): Portal[] {
   const set = new Set(roles.map((r) => ROLE_PORTAL[r]));

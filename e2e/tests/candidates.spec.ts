@@ -35,7 +35,7 @@ test.describe.serial('candidates', () => {
 
     await page.getByRole('button', { name: 'Verify' }).click();
     await expect(page.getByText('Candidate verified')).toBeVisible();
-    await expect(page.getByText(/Verified \d+ \w+ \d{4} by Vikram Operations/)).toBeVisible();
+    await expect(page.getByText(/Verified \d+ \w+ \d{4} by Vikram Admin/)).toBeVisible();
 
     await page.getByRole('button', { name: 'Upload' }).click();
     const dialog = page.getByRole('dialog', { name: 'Upload document' });
@@ -64,11 +64,9 @@ test.describe.serial('candidates', () => {
     await expect(page.getByText('Reason: Same person as the existing profile')).toBeVisible();
   });
 
-  test('a centre admin sees only candidates at their centre and cannot add new ones', async ({ page }) => {
-    await signInEmail(page, EMAIL.centreAdmin);
-    await page.getByRole('link', { name: 'Candidates' }).first().click();
-    await expect(page.getByRole('link', { name: 'Ramesh Kulkarni' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Add candidate' })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Import CSV' })).toHaveCount(0);
+  test('a training partner cannot open the Admin candidate list', async ({ page }) => {
+    await signInEmail(page, EMAIL.partnerAdminA);
+    await page.goto('/admin/candidates');
+    await expect(page.getByRole('heading', { name: 'Access denied' })).toBeVisible();
   });
 });

@@ -60,17 +60,15 @@ test.describe.serial('training operations', () => {
     await expect(page.getByText('Batch started')).toBeVisible();
   });
 
-  test('the training partner sees the batch read-only, without phone numbers', async ({ page }) => {
+  test('the training partner runs the batch at its own centre and sees contact details', async ({ page }) => {
     await signInEmail(page, 'partner-b@demo.vta.local');
     await page.getByRole('link', { name: 'Batches' }).first().click();
-    await expect(page.getByRole('heading', { name: 'My batches' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Batches' })).toBeVisible();
     await expect(page.getByText('2W Peenya October 2026')).toHaveCount(0); // another partner's batch
     await page.getByRole('link', { name: /EV Mysuru Battery January 2027/ }).click();
     await expect(page.getByText('Pooja Naik')).toBeVisible();
-    await expect(page.getByText('+91 99000')).toHaveCount(0);
-    await expect(page.getByText('Contact details are shown to the batch trainer and AutoTalent Grid staff only.')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Enrol candidates' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Cancel batch' })).toHaveCount(0);
+    await expect(page.getByText(/\+91 99000 00216/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Cancel batch' })).toBeVisible();
   });
 
   test('the trainer sees only their own batches, with phone numbers', async ({ page }) => {

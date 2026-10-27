@@ -29,6 +29,7 @@ describe('Phase 1 test 4: every API route declares a permission', () => {
       'POST /api/v1/auth/otp/request',
       'POST /api/v1/auth/otp/verify',
       'POST /api/v1/auth/register', // self-registration, needs a phone code (EE-01)
+      'POST /api/v1/auth/register/trainer', // independent trainers sign up; an Admin verifies them (27 Oct 2026)
       'GET /api/v1/public/credentials/:code', // QR verification page, approved fields only (AD-07)
       'GET /api/v1/auth/password/reset/:token', // checks a reset link before the form is shown
       'POST /api/v1/auth/password/forgot', // same reply for any email; 3 emails an hour per account
@@ -51,13 +52,13 @@ describe('Phase 1 test 4: every API route declares a permission', () => {
 
 describe('Phase 1 test 6: audit log', () => {
   it('sensitive actions write actor, action, target, request ID and before/after', async () => {
-    const ops = await loginEmail(ctx, EMAIL.opsAdmin);
-    await ops.post(`/admin/users/${ctx.ids.recruiterA}/suspend`, { reason: 'Audit test' });
+    const ops = await loginEmail(ctx, EMAIL.secondAdmin);
+    await ops.post(`/admin/users/${ctx.ids.employerAdminPending}/suspend`, { reason: 'Audit test' });
     const row = await ctx.db
       .selectFrom('audit_events')
       .selectAll()
       .where('action', '=', 'user.suspended')
-      .where('entity_id', '=', ctx.ids.recruiterA!)
+      .where('entity_id', '=', ctx.ids.employerAdminPending!)
       .executeTakeFirstOrThrow();
     expect(row.actor_id).toBe(ctx.ids.opsAdmin);
     expect(row.request_id).toBeTruthy();
@@ -82,26 +83,19 @@ describe('Phase 1 test 6: audit log', () => {
     const byActor = await sa.get(`/admin/audit-events?actorId=${ctx.ids.opsAdmin}&action=user.`);
     expect(byActor.body.items.length).toBeGreaterThan(0);
     expect(byActor.body.items.every((e: { actorId: string }) => e.actorId === ctx.ids.opsAdmin)).toBe(true);
-    const byEntity = await sa.get(`/admin/audit-events?entityType=user&entityId=${ctx.ids.recruiterA}`);
-    expect(byEntity.body.items[0].entityLabel).toBe('Divya Recruiter A');
+    const byEntity = await sa.get(`/admin/audit-events?entityType=user&entityId=${ctx.ids.employerAdminPending}`);
+    expect(byEntity.body.items[0].entityLabel).toBe('Meera Employer Pending');
   });
 });
 
 describe('platform basics', () => {
   it('dashboard counts what Phase 1 holds, with an as-of time', async () => {
-    const ops = await loginEmail(ctx, EMAIL.opsAdmin);
+    const ops = await loginEmail(ctx, EMAIL.secondAdmin);
     const d = (await ops.get('/admin/dashboard')).body;
     expect(d.asOf).toBeTruthy();
     expect(d.employers.total).toBe(3);
     expect(d.partners.verified).toBe(3); // two training partners and one CSR sponsor (Phase 7)
     expect(d.awaitingAction.organisationsPendingVerification).toBe(1);
-  });
-
-  it('centre admins see a dashboard scoped to their centre only', async () => {
-    const c = await loginEmail(ctx, EMAIL.centreAdmin);
-    const d = (await c.get('/admin/dashboard')).body;
-    expect(d).toMatchObject({ scope: 'centre', centres: { active: 1 } });
-    expect(d.employers).toBeUndefined();
   });
 
   it('errors have a consistent shape with a request ID', async () => {

@@ -39,13 +39,8 @@ test('an employer admin upgrades to Growth with a test payment and gets an invoi
   await expect(page.getByRole('link', { name: /INV-\d{8}-\d{4}/ }).first()).toBeVisible();
 });
 
-test('a recruiter sees the plan but cannot buy one; the plan pages fit a phone', async ({ page }) => {
-  await signInEmail(page, EMAIL.recruiterA);
-  await page.goto('/employer/subscription');
-  await expect(page.getByText('Only your company’s employer admin can change the plan.').or(page.getByText("Only your company's employer admin can change the plan."))).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Change plan' })).toHaveCount(0);
-  await page.goto('/employer/subscription/plans/starter');
-  await expect(page.getByText('Only your company’s employer admin can buy a plan.').or(page.getByText("Only your company's employer admin can buy a plan."))).toBeVisible();
+test('the plan pages fit a phone', async ({ page }) => {
+  await signInEmail(page, EMAIL.employerAdminA);
   await page.setViewportSize({ width: 375, height: 800 });
   for (const path of ['/employer/subscription', '/employer/subscription/plans']) {
     await page.goto(path);

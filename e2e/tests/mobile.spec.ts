@@ -70,7 +70,7 @@ test.describe('on a phone', () => {
 
   test('employer and learner hiring screens fit a phone', async ({ page }) => {
     await signInEmail(page, EMAIL.employerAdminA);
-    for (const path of ['/employer', '/employer/jobs', '/employer/jobs/new', '/employer/candidates', '/employer/company', '/employer/team']) {
+    for (const path of ['/employer', '/employer/jobs', '/employer/jobs/new', '/employer/candidates', '/employer/company']) {
       await page.goto(path);
       await page.waitForLoadState('networkidle');
       await expectNoHorizontalScroll(page);

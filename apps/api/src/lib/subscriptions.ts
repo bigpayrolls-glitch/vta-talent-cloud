@@ -123,7 +123,7 @@ export async function subscriptionDto(db: DB, organisationId: string, paymentMod
       .innerJoin('users as u', 'u.id', 'r.user_id')
       .select(sql<string>`count(DISTINCT r.user_id)`.as('n'))
       .where('r.organisation_id', '=', organisationId)
-      .where('r.role', 'in', ['employer_admin', 'employer_recruiter'])
+      .where('r.role', '=', 'employer_admin')
       .where('r.revoked_at', 'is', null)
       .where('u.status', 'in', ['active', 'invited']),
   );

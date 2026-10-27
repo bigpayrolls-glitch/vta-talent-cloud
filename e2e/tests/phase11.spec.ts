@@ -1,4 +1,3 @@
-import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { EMAIL, signInEmail, signInPhone, withDb } from './helpers.js';
 
@@ -30,33 +29,4 @@ test('AutoTalent Grid changes a learner’s mobile number; they sign in with the
   await page.getByLabel('How you checked who they are').fill('Restoring the demo number');
   await page.getByRole('button', { name: 'Change number' }).click();
   await expect(page.getByText('now signs in with +91 99000 00212')).toBeVisible();
-});
-
-test('a partner admin invites a viewer and removes them; the page passes accessibility checks', async ({ page }) => {
-  await signInEmail(page, EMAIL.partnerAdminA);
-  await page.getByRole('link', { name: 'Team' }).first().click();
-  await expect(page).toHaveURL(/\/partner\/team$/);
-  await expect(page.getByText('Viewers can see your programmes')).toBeVisible();
-  await page.getByRole('button', { name: 'Invite viewer' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Invite viewer' });
-  await dialog.getByLabel('Name').fill('Kavya Viewer');
-  await dialog.getByLabel('Email').fill(`kavya.${Date.now()}@skillbridge.example`);
-  await dialog.getByRole('button', { name: 'Send invitation' }).click();
-  await expect(dialog.getByText(/invitation link to pass on/)).toBeVisible();
-  await dialog.getByRole('button', { name: 'Done' }).click();
-
-  const row = page.locator('li').filter({ hasText: 'Kavya Viewer' });
-  await expect(row.getByText(/^Viewer,/)).toBeVisible();
-  const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
-  expect(r.violations.map((v) => v.id)).toEqual([]);
-
-  await row.getByRole('button', { name: 'Remove' }).click();
-  await page.getByRole('dialog', { name: 'Remove from team?' }).getByRole('button', { name: 'Remove' }).click();
-  await expect(page.getByText('Kavya Viewer no longer has access')).toBeVisible();
-  await expect(row).toHaveCount(0);
-});
-
-test('a viewer does not get the Team page', async ({ page }) => {
-  await signInEmail(page, EMAIL.partnerViewerA);
-  await expect(page.getByRole('navigation', { name: 'Training Partner Portal' }).getByRole('link', { name: 'Team' })).toHaveCount(0);
 });

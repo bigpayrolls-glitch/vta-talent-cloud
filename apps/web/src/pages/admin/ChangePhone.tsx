@@ -9,7 +9,7 @@ import { useForm } from '../../lib/useForm';
 
 /**
  * Phase 11: VTA changes the mobile number a learner or trainer signs in with, after checking who they are.
- * Shown to Operations and Super Admins, for accounts that sign in by phone.
+ * Shown to Admins, for accounts that sign in by phone.
  */
 export function ChangePhoneButton({ userId, name, phone, className = 'btn-quiet btn-sm' }: { userId: string; name: string; phone: string | null; className?: string }) {
   const { can, me } = useAuth();

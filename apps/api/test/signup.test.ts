@@ -46,7 +46,7 @@ describe('organisation self-registration', () => {
   });
 
   it('AutoTalent Grid sees it flagged as self-registered and awaiting email confirmation; the person cannot sign in yet', async () => {
-    const admin = await loginEmail(ctx, EMAIL.opsAdmin);
+    const admin = await loginEmail(ctx, EMAIL.secondAdmin);
     const list = await admin.get('/admin/organisations?q=Kaveri');
     expect(list.body.items[0]).toMatchObject({ legalName: 'Kaveri Auto Works', registrationSource: 'self', awaitingEmail: true, submittedAt: null });
     const login = await ctx.app.inject({ method: 'POST', url: '/api/v1/auth/login', payload: { email: 'asha@kaveri.example', password: 'A-strong-pass-42' }, remoteAddress: nextIp() });
@@ -70,7 +70,7 @@ describe('organisation self-registration', () => {
     expect(submit.status).toBe(400);
     expect(submit.body.error.fields.documents).toBeDefined();
 
-    const admin = await loginEmail(ctx, EMAIL.opsAdmin);
+    const admin = await loginEmail(ctx, EMAIL.secondAdmin);
     expect((await admin.get('/admin/organisations?q=Kaveri')).body.items[0].awaitingEmail).toBe(false);
   });
 
@@ -117,7 +117,7 @@ describe('organisation self-registration', () => {
     expect(res.statusCode).toBe(202);
     const org = await ctx.db.selectFrom('organisations').selectAll().where('contact_email', '=', 'copy@sunrise.example').executeTakeFirstOrThrow();
     expect(org.duplicate_of).toBe(ctx.ids.employerA);
-    const admin = await loginEmail(ctx, EMAIL.opsAdmin);
+    const admin = await loginEmail(ctx, EMAIL.secondAdmin);
     const row = (await admin.get('/admin/organisations?type=employer&pageSize=100')).body.items.find((o: { id: string }) => o.id === org.id);
     expect(row.possibleDuplicate).toBe(true);
   });
