@@ -18,7 +18,7 @@ import type { Course } from '../../db/types.js';
 import { newId } from '../../lib/crypto.js';
 import { formatDay, todayIst } from '../../lib/dates.js';
 import { conflict, invalid, notFound } from '../../lib/errors.js';
-import { notify } from '../../lib/notify.js';
+import { notify, orgMembers, vtaReviewers } from '../../lib/notify.js';
 import { iso, parse } from '../../lib/validate.js';
 import { consentRequired } from './service.js';
 
@@ -259,16 +259,10 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
         after: { candidateId: userId, enrolmentId, amount_paise: fee, receipt, test: fee > 0 },
       });
       const learner = await trx.selectFrom('users').select('name').where('id', '=', userId).executeTakeFirstOrThrow();
-      const centreAdmins = await trx
-        .selectFrom('role_assignments as ra')
-        .innerJoin('users as u', 'u.id', 'ra.user_id')
-        .select('u.id')
-        .where('ra.role', '=', 'centre_admin')
-        .where('ra.centre_id', '=', b.centre_id)
-        .where('ra.revoked_at', 'is', null)
-        .where('u.status', '=', 'active')
-        .execute();
-      await notify(trx, centreAdmins.map((r) => r.id), 'self_enrolled', { learner: learner.name, batch: b.name, amount: fee > 0 ? money(fee) : '' }, `/admin/batches/${b.id}`);
+      // Whoever runs the centre hears about it: the training partner, or AutoTalent Grid admins for its own centres.
+      const centreOrg = await trx.selectFrom('centres as c').leftJoin('organisations as o', 'o.id', 'c.organisation_id').select(['o.id', 'o.type']).where('c.id', '=', b.centre_id).executeTakeFirst();
+      const runners = centreOrg?.id && centreOrg.type === 'partner' ? await orgMembers(trx, centreOrg.id, ['partner_admin']) : await vtaReviewers(trx);
+      await notify(trx, runners, 'self_enrolled', { learner: learner.name, batch: b.name, amount: fee > 0 ? money(fee) : '' }, `/admin/batches/${b.id}`);
       return { enrolmentId, receiptNumber: receipt };
     });
     reply.code(201);

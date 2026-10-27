@@ -52,10 +52,8 @@ export function RegisterPage() {
   return (
     <div className="min-h-dvh bg-white">
       <header className="flex h-16 items-center border-b border-line px-4 lg:px-6">
-        <Link to="/login" aria-label="AutoTalent Grid sign in">
-          <Link to="/" aria-label="AutoTalent Grid home" className="inline-block w-fit rounded-lg">
-            <Wordmark tagline />
-          </Link>
+        <Link to="/" aria-label="AutoTalent Grid home" className="inline-block w-fit rounded-lg">
+          <Wordmark tagline />
         </Link>
       </header>
       <main className="mx-auto w-full max-w-sm px-4 py-8">
@@ -65,6 +63,12 @@ export function RegisterPage() {
         </Link>
         <h1 className="mt-4 text-[28px] font-bold tracking-tight">Create your account</h1>
         <p className="mt-1 text-muted">For learners and technicians. You can add your skills and experience after this.</p>
+        <p className="mt-2 text-sm text-muted">
+          Are you a trainer?{' '}
+          <Link to="/join/trainer" className="font-semibold text-brand underline">
+            Sign up as a trainer
+          </Link>
+        </p>
 
         {!sent ? (
           <form

@@ -21,7 +21,7 @@ const programmeBody = (over: Record<string, unknown> = {}) => ({
 
 beforeAll(async () => {
   ctx = await setup();
-  for (const k of ['opsAdmin', 'partnerAdminA', 'partnerViewerA', 'partnerAdminB', 'employerAdminA', 'centreAdmin'] as const) c[k] = await loginEmail(ctx, EMAIL[k]);
+  for (const k of ['secondAdmin', 'partnerAdminA', 'partnerViewerA', 'partnerAdminB', 'employerAdminA', 'centreAdmin'] as const) c[k] = await loginEmail(ctx, EMAIL[k]);
 });
 afterAll(() => ctx.close());
 
@@ -69,10 +69,10 @@ describe('PA-03 programme dashboard with definitions (§17)', () => {
   it('a verified joining after enrolment counts; an offer alone does not count as joined', async () => {
     const anitha = await ctx.db.selectFrom('job_applications').select('id').where('id', '=', ctx.ids.applicationAnitha!).executeTakeFirstOrThrow();
     await ctx.db.updateTable('job_applications').set({ status: 'offer' }).where('id', '=', anitha.id).execute();
-    let m = Object.fromEntries((await c.opsAdmin!.get(`/programmes/${ctx.ids.programmeA}/metrics`)).body.metrics.map((x: { key: string; value: number }) => [x.key, x.value]));
+    let m = Object.fromEntries((await c.secondAdmin!.get(`/programmes/${ctx.ids.programmeA}/metrics`)).body.metrics.map((x: { key: string; value: number }) => [x.key, x.value]));
     expect(m).toMatchObject({ offers: 1, joined: 0, joined_verified: 0 });
     await ctx.db.updateTable('job_applications').set({ status: 'joined', joining_date: '2026-10-20', outcome_verification: 'verified' }).where('id', '=', anitha.id).execute();
-    m = Object.fromEntries((await c.opsAdmin!.get(`/programmes/${ctx.ids.programmeA}/metrics`)).body.metrics.map((x: { key: string; value: number }) => [x.key, x.value]));
+    m = Object.fromEntries((await c.secondAdmin!.get(`/programmes/${ctx.ids.programmeA}/metrics`)).body.metrics.map((x: { key: string; value: number }) => [x.key, x.value]));
     expect(m).toMatchObject({ offers: 1, joined: 1, joined_verified: 1 });
   });
 });
@@ -88,7 +88,7 @@ describe('PA-04 beneficiaries: only approved fields', () => {
   });
 
   it('AutoTalent Grid can approve names only with a recorded basis; the change is audited', async () => {
-    const current = (await c.opsAdmin!.get(`/programmes/${ctx.ids.programmeA}`)).body;
+    const current = (await c.secondAdmin!.get(`/programmes/${ctx.ids.programmeA}`)).body;
     const body = {
       name: current.name,
       sponsorOrganisationId: current.sponsor.id,
@@ -104,9 +104,9 @@ describe('PA-04 beneficiaries: only approved fields', () => {
       budgetSource: current.budget.source,
       budgetAsOf: current.budget.asOf,
     };
-    const refused = await c.opsAdmin!.put(`/admin/programmes/${ctx.ids.programmeA}`, body);
+    const refused = await c.secondAdmin!.put(`/admin/programmes/${ctx.ids.programmeA}`, body);
     expect(refused.body.error.fields.sharingBasis).toMatch(/Record the basis/);
-    const ok = await c.opsAdmin!.put(`/admin/programmes/${ctx.ids.programmeA}`, { ...body, sharingBasis: 'Beneficiary consent forms collected by Skill Bridge (demo)' });
+    const ok = await c.secondAdmin!.put(`/admin/programmes/${ctx.ids.programmeA}`, { ...body, sharingBasis: 'Beneficiary consent forms collected by Skill Bridge (demo)' });
     expect(ok.status).toBe(200);
     const list = (await c.partnerViewerA!.get(`/programmes/${ctx.ids.programmeA}/beneficiaries`)).body;
     expect(list.sharingBasis).toMatch(/consent forms/);
@@ -114,7 +114,7 @@ describe('PA-04 beneficiaries: only approved fields', () => {
     const ev = await ctx.db.selectFrom('audit_events').select('after').where('action', '=', 'programme.updated').executeTakeFirstOrThrow();
     expect(ev.after).toMatchObject({ beneficiaryFields: expect.arrayContaining(['name']) });
     // Put it back for the rest of the tests.
-    expect((await c.opsAdmin!.put(`/admin/programmes/${ctx.ids.programmeA}`, { ...body, beneficiaryFields: current.beneficiaryFields })).status).toBe(200);
+    expect((await c.secondAdmin!.put(`/admin/programmes/${ctx.ids.programmeA}`, { ...body, beneficiaryFields: current.beneficiaryFields })).status).toBe(200);
   });
 
   it('partners cannot create or change programmes', async () => {
@@ -150,13 +150,13 @@ describe('PA-06 / AD-11 reports and exports', () => {
   });
 
   it('AutoTalent Grid filters the cohort report by programme, partner, course and dates', async () => {
-    const byProgramme = await c.opsAdmin!.get(`/admin/reports/cohort?programmeId=${ctx.ids.programmeA}`);
+    const byProgramme = await c.secondAdmin!.get(`/admin/reports/cohort?programmeId=${ctx.ids.programmeA}`);
     expect(byProgramme.body).toMatchObject({ batches: 2, filters: { programme: 'Two-Wheeler Livelihoods Bengaluru 2026' } });
-    const byPartnerB = await c.opsAdmin!.get(`/admin/reports/cohort?partnerId=${ctx.ids.partnerB}`);
+    const byPartnerB = await c.secondAdmin!.get(`/admin/reports/cohort?partnerId=${ctx.ids.partnerB}`);
     expect(byPartnerB.body.metrics.find((m: { key: string }) => m.key === 'enrolled').value).toBe(2);
-    const dated = await c.opsAdmin!.get('/admin/reports/cohort?from=2026-10-01&to=2026-10-31');
+    const dated = await c.secondAdmin!.get('/admin/reports/cohort?from=2026-10-01&to=2026-10-31');
     expect(dated.body.batches).toBe(1); // only the October batch starts in October
-    const csv = await get(c.opsAdmin!, `/admin/reports/cohort.csv?partnerId=${ctx.ids.partnerA}`);
+    const csv = await get(c.secondAdmin!, `/admin/reports/cohort.csv?partnerId=${ctx.ids.partnerA}`);
     expect(csv.body).toMatch(/Partner,Skill Bridge Foundation \(demo\)/);
     expect((await c.partnerAdminA!.get('/admin/reports/cohort')).status).toBe(403);
   });
@@ -178,12 +178,12 @@ describe('PA-05 programme documents', () => {
 
 describe('AD-10 creating programmes', () => {
   it('AutoTalent Grid creates a programme for a partner; the partner then sees it', async () => {
-    const bad = await c.opsAdmin!.post('/admin/programmes', programmeBody({ partnerOrganisationIds: [ctx.ids.employerA], endDate: '2026-01-01', budgetAmount: 50000 }));
+    const bad = await c.secondAdmin!.post('/admin/programmes', programmeBody({ partnerOrganisationIds: [ctx.ids.employerA], endDate: '2026-01-01', budgetAmount: 50000 }));
     expect(bad.status).toBe(400);
     expect(Object.keys(bad.body.error.fields)).toEqual(expect.arrayContaining(['endDate', 'budgetSource']));
-    const notPartner = await c.opsAdmin!.post('/admin/programmes', programmeBody({ partnerOrganisationIds: [ctx.ids.employerA] }));
+    const notPartner = await c.secondAdmin!.post('/admin/programmes', programmeBody({ partnerOrganisationIds: [ctx.ids.employerA] }));
     expect(notPartner.body.error.fields.partnerOrganisationIds).toBeDefined();
-    const ok = await c.opsAdmin!.post('/admin/programmes', programmeBody());
+    const ok = await c.secondAdmin!.post('/admin/programmes', programmeBody());
     expect(ok.status).toBe(201);
     expect((await c.partnerAdminB!.get('/programmes')).body.items.map((p: { name: string }) => p.name)).toEqual(['EV Skills Mysuru 2027']);
     expect((await c.partnerAdminA!.get(`/programmes/${ok.body.id}`)).status).toBe(404);
@@ -211,6 +211,6 @@ describe('PA-01 partner organisation profile', () => {
     expect((await c.partnerViewerA!.put('/partner/organisation', body)).status).toBe(403);
     expect((await c.partnerAdminA!.post('/partner/organisation/submit')).body.error.message).toMatch(/already verified/);
     // VTA sees the interests when reviewing.
-    expect((await c.opsAdmin!.get(`/admin/organisations/${ctx.ids.partnerA}/company`)).body.programmeInterests).toMatch(/EV/);
+    expect((await c.secondAdmin!.get(`/admin/organisations/${ctx.ids.partnerA}/company`)).body.programmeInterests).toMatch(/EV/);
   });
 });

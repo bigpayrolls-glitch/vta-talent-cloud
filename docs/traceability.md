@@ -41,10 +41,10 @@ Numbers in brackets are the requirements document's §20 list. README uses its o
 3. **Hosting, file storage, virus scanning, monitoring and backups** (§20.8; README D10). Files sit on the API server's disk (or in the database on the staging copy) and are labelled "not scanned". A backup script and a tested restore drill exist (docs/operations.md); the host's own backups still need choosing.
 4. **Pilot service target, RPO and RTO** (§15 Availability and Backups).
 5. **Legal entity and certificate issuer name** (§20.2; README D8). The issuer comes from `CREDENTIAL_ISSUER_NAME` for now.
-6. **Credential types, approval authority, QR fields, accreditation** (§20.5). Assumed: one "course completion record" type; Super and Operations Admins approve.
+6. **Credential types, approval authority, QR fields, accreditation** (§20.5). Assumed: one "course completion record" type; Admins approve.
 7. **Privacy notice wording, consent text, employer visibility rules, retention and deletion policy** (§20.6). The notice is a DRAFT (`2026-10-draft`). Learners can download their data and ask to close their account (Phase 9); retention periods are still needed.
 8. **Minimum age** (§15 Privacy; README D4). 18+ is assumed for the pilot.
-9. **Roles in the MVP** (§20.3). Centre Admin and Partner Viewer are both built. Confirm that they stay.
+9. **Roles in the MVP** (§20.3). Decided 27 Oct 2026: five logins only (Admin, Employer, Learner, Trainer, Training Partner). Centre Admin, Operations Admin, Recruiter and Partner Viewer were folded in or removed (migration `0014_five_logins`).
 10. **Standalone app or LMS extension** (§20.1; README D1). Standalone is assumed. EE-04 has no LMS data.
 11. **Languages** (§20.7). English only.
 12. **Programme metric definitions** (§13, §17). Assumed: "active" means attended in the last 14 days; placement rate = verified joinings ÷ people who completed. Partners need to agree these.
@@ -88,7 +88,7 @@ Numbers in brackets are the requirements document's §20 list. README uses its o
 | ID | Name | Priority | Status | Where | Evidence | Notes |
 | --- | --- | --- | --- | --- | --- | --- |
 | EM-01 | Company onboarding | Must | Built | `api/routes/signup.ts`, `api/routes/hiring/company.ts`, `web/public/JoinPage.tsx`, `web/employer/Company.tsx` | `signup.test.ts` › "creates a pending organisation and an inactive admin…", "a self-registered employer cannot publish jobs or search candidates until VTA verifies it"; `hiring.test.ts` › "a pending employer completes the profile, uploads a document and sends it to VTA" | Sign-up emails need an email provider (D10). |
-| EM-02 | Company profile | Must | Built | `api/routes/hiring/company.ts`, `web/employer/Company.tsx` | `hiring.test.ts` › "the employer admin invites and removes a recruiter…", "a verified company's registered name and GSTIN are locked" | |
+| EM-02 | Company profile | Must | Built | `api/routes/hiring/company.ts`, `web/employer/Company.tsx` | `hiring.test.ts` › "a verified company's registered name and GSTIN are locked" | Team invitations removed on 27 Oct 2026: one login per employer. |
 | EM-03 | Post a vacancy | Must | Built | `api/routes/hiring/employerJobs.ts`, `web/employer/Jobs.tsx` | `hiring.test.ts` › "a recruiter posts a job; it goes to VTA…", "validates the job: salary range, closing date, required fields" | |
 | EM-04 | Candidate search | Must | Built | `api/routes/hiring/search.ts`, `web/employer/Candidates.tsx` | `hiring.test.ts` › "only verified candidates who opted in appear…", "filters by certificate and experience…" | Filters: skill, city or area, experience, certificate or course, availability. Only some are tested. |
 | EM-05 | View candidate profile | Must | Built | `api/routes/hiring/search.ts`, `web/employer/Application.tsx` | `hiring.test.ts` › "only verified candidates who opted in appear, with a masked name and no contact details" | Contact details are shared only through an application. |
@@ -141,7 +141,7 @@ Numbers in brackets are the requirements document's §20 list. README uses its o
 | PA-04 | Beneficiary list | Must | Built | `api/routes/programmes/programmes.ts` | `programmes.test.ts` › "names, mobile numbers and dates of birth are hidden by default", "VTA can approve names only with a recorded basis…" | A database constraint enforces the basis. The list is not paged (see SH-09). |
 | PA-05 | Programme documents | Should | Built | `api/routes/programmes/programmes.ts` | `programmes.test.ts` › "the partner admin uploads; the viewer can open but not upload; another partner cannot" | |
 | PA-06 | Outcome reporting | Must | Built | `api/routes/programmes/programmes.ts` (`report.csv`) | `programmes.test.ts` › "the programme report is aggregate only, downloads as CSV and is logged" | |
-| PA-07 | Partner users | Should | Built | `api/routes/programmes/partner.ts` (`/partner/team`), `web/employer/Company.tsx` (`PartnerTeamPage`) | `phase11.test.ts` › "the partner admin sees the team and invites a viewer who can read but not change anything", "the partner admin removes a viewer (access ends at once)…"; `e2e/tests/phase11.spec.ts` › "a partner admin invites a viewer and removes them…" | Invitations and removals are audited. Added in Phase 11. |
+| PA-07 | Partner users | Should | Removed | none | `fivelogins.test.ts` | Removed on 27 Oct 2026 by decision: one login per training partner. |
 | PA-08 | Programme queries | Could | Not built | none | none | Not mentioned in README. |
 
 ## Business rules (§13)

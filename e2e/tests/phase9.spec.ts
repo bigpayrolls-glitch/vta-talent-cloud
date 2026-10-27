@@ -36,7 +36,7 @@ test('an AutoTalent Grid decision shows on the bell; opening it goes to the righ
 });
 
 test('forgot password: the link sets a new password; then it is changed back from the account page', async ({ page }) => {
-  const email = EMAIL.partnerViewerA;
+  const email = EMAIL.partnerAdminB;
   const original = passwordOf(email);
   await page.goto('/login');
   await page.getByRole('link', { name: 'Forgot password?' }).click();
@@ -45,7 +45,7 @@ test('forgot password: the link sets a new password; then it is changed back fro
   await page.getByRole('button', { name: 'Send reset link' }).click();
   await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
 
-  await page.goto(await latestEmailLink('Password reset', 'Sanjay Viewer A', after));
+  await page.goto(await latestEmailLink('Password reset', 'Lakshmi Partner B', after));
   await expect(page.getByRole('heading', { name: 'Choose a new password' })).toBeVisible();
   await page.getByLabel('New password', { exact: true }).fill('Temporary-pass-91');
   await page.getByLabel('Confirm new password').fill('Temporary-pass-92');

@@ -118,19 +118,16 @@ export async function loginPhone(ctx: Ctx, phone: string): Promise<Client> {
 
 export { cookieFrom };
 
-/** Demo sign-ins by key. */
+/** Demo sign-ins by key. Five logins: Admin, Employer, Learner, Trainer (by phone), Training Partner. */
 export const EMAIL = {
   superAdmin: 'superadmin@demo.vta.local',
-  opsAdmin: 'ops@demo.vta.local',
-  centreAdmin: 'centre@demo.vta.local',
+  /** Vikram Admin: a second Admin (super_admin) since the five-logins decision of 27 Oct 2026. Seed id key: `opsAdmin`. */
+  secondAdmin: 'ops@demo.vta.local',
   employerAdminA: 'employer-a@demo.vta.local',
-  recruiterA: 'recruiter-a@demo.vta.local',
   employerAdminB: 'employer-b@demo.vta.local',
   employerAdminPending: 'employer-pending@demo.vta.local',
   partnerAdminA: 'partner-a@demo.vta.local',
-  partnerViewerA: 'viewer-a@demo.vta.local',
   partnerAdminB: 'partner-b@demo.vta.local',
-  multi: 'multi@demo.vta.local',
   pending: 'pending@demo.vta.local',
 } as const;
 
@@ -139,5 +136,7 @@ export const PHONE = {
   trainerVta: '+919900000102',
   trainerB: '+919900000103',
   trainerPending: '+919900000104',
+  /** Arun Independent Trainer: verified, trainer role with no centre and no organisation. */
+  trainerFree: '+919900000105',
   learner: '+919900000201',
 } as const;

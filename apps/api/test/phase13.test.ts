@@ -10,7 +10,8 @@ const pub = (url: string) => ctx.app.inject({ method: 'GET', url: `/api/v1${url}
 beforeAll(async () => {
   ctx = await setup();
   c.learner = await loginPhone(ctx, PHONE.learner);
-  c.centre = await loginEmail(ctx, EMAIL.centreAdmin);
+  c.admin = await loginEmail(ctx, EMAIL.secondAdmin);
+  c.partnerA = await loginEmail(ctx, EMAIL.partnerAdminA);
   c.employer = await loginEmail(ctx, EMAIL.employerAdminA);
 });
 afterAll(() => ctx.close());
@@ -94,16 +95,21 @@ describe('learner self-enrolment', () => {
     expect((await other.get(`/me/enrolments/${enrolmentId}/receipt`)).status).toBe(404);
   });
 
-  it('a full batch is refused; the centre hears about online enrolments', async () => {
+  it('a full batch is refused; whoever runs the centre hears about online enrolments', async () => {
     await ctx.db.updateTable('batches').set({ capacity: 1 }).where('id', '=', ctx.ids.batchVta!).execute(); // Deepa already has the one seat
     const full = await c.learner!.post('/me/enrolments', { batchId: ctx.ids.batchVta, method: 'card', acceptTerms: true });
     expect(full.status).toBe(409);
     expect(full.body.error.message).toBe('This batch is full. Choose another batch.');
     await ctx.db.updateTable('batches').set({ capacity: 20 }).where('id', '=', ctx.ids.batchVta!).execute();
     expect((await c.learner!.post('/me/enrolments', { batchId: ctx.ids.batchVta, method: 'card', acceptTerms: true })).status).toBe(201);
-    const n = (await c.centre!.get('/notifications')).body.items[0];
+    // AutoTalent Grid runs the Bengaluru centre, so its Admins are told.
+    const n = (await c.admin!.get('/notifications')).body.items[0];
     expect(n.title).toMatch(/enrolled in 4W Bengaluru November 2026/);
     expect(n.body).toBe('They enrolled online and paid ₹9,999.');
+    // Skill Bridge runs Peenya, so the training partner heard about the earlier enrolment there, and not about this one.
+    const partner = (await c.partnerA!.get('/notifications')).body.items.map((x: { title: string }) => x.title);
+    expect(partner.some((t: string) => /enrolled in 2W Peenya November 2026/.test(t))).toBe(true);
+    expect(partner.some((t: string) => /4W Bengaluru/.test(t))).toBe(false);
   });
 
   it('a free course needs no payment method', async () => {

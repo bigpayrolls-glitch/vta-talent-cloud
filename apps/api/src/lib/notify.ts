@@ -42,8 +42,8 @@ export async function orgMembers(db: Executor, organisationId: string, roles: re
   return rows.map((r) => r.id);
 }
 
-export const EMPLOYER_TEAM: readonly Role[] = ['employer_admin', 'employer_recruiter'];
-export const PARTNER_TEAM: readonly Role[] = ['partner_admin', 'partner_viewer'];
+export const EMPLOYER_TEAM: readonly Role[] = ['employer_admin'];
+export const PARTNER_TEAM: readonly Role[] = ['partner_admin'];
 
 /** VTA staff who act on verification and review queues. */
 export async function vtaReviewers(db: Executor): Promise<string[]> {
@@ -51,7 +51,7 @@ export async function vtaReviewers(db: Executor): Promise<string[]> {
     .selectFrom('role_assignments as ra')
     .innerJoin('users as u', 'u.id', 'ra.user_id')
     .select('u.id')
-    .where('ra.role', 'in', ['super_admin', 'ops_admin'])
+    .where('ra.role', '=', 'super_admin')
     .where('ra.revoked_at', 'is', null)
     .where('u.status', '=', 'active')
     .execute();

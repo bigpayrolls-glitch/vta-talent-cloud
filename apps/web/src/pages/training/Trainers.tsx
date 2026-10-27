@@ -29,6 +29,10 @@ interface TrainerRow {
   verificationReason: string | null;
   openBatches: number;
   centres: TrainerCentre[];
+  /** Five logins (27 Oct 2026): trainers who signed up themselves give a city and experience. */
+  city: string | null;
+  experienceYears: number | null;
+  selfRegistered: boolean;
 }
 interface TrainerDetail extends Omit<TrainerRow, 'openBatches'> {
   email: string | null;
@@ -48,7 +52,8 @@ function useCentres() {
   return useQuery({ queryKey: ['centre-options'], queryFn: () => api.get<Page<CentreOption>>(`/centres${qs({ status: 'active', pageSize: 100 })}`) });
 }
 
-export function TrainersPage() {
+/** `base`: /admin/trainers for Admins, /partner/trainers for training partners (their trainers and verified independents). */
+export function TrainersPage({ base = '/admin/trainers' }: { base?: string }) {
   const { can } = useAuth();
   const { values, page, set, setPage } = useListParams(['q', 'verificationStatus', 'centreId'] as const);
   const [adding, setAdding] = useState(false);
@@ -63,7 +68,11 @@ export function TrainersPage() {
     <div>
       <PageHeader
         title="Trainers"
-        description="Trainers, the centres they teach at, and whether they are verified to run batches."
+        description={
+          base.startsWith('/partner')
+            ? 'Your trainers, and verified independent trainers you can give a batch to.'
+            : 'Trainers, the centres they teach at, and whether they are verified to run batches. Independent trainers sign up themselves.'
+        }
         actions={
           can('trainer.manage') && (
             <button className="btn-primary" onClick={() => setAdding(true)}>
@@ -92,13 +101,17 @@ export function TrainersPage() {
             <ul className="divide-y divide-line">
               {q.data!.items.map((t) => (
                 <li key={t.id}>
-                  <Link to={`/admin/trainers/${t.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-4 hover:bg-surface/60">
+                  <Link to={`${base}/${t.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-5 py-4 hover:bg-surface/60">
                     <span className="min-w-0 flex-1">
                       <span className="flex flex-wrap items-center gap-2">
                         <span className="font-semibold">{t.name}</span>
                         <SkillTags areas={t.specialisations} />
                       </span>
-                      <span className="mt-0.5 block text-sm text-muted">{t.centres.map((c) => c.name).join(', ')}</span>
+                      <span className="mt-0.5 block text-sm text-muted">
+                        {t.centres.length ? t.centres.map((c) => c.name).join(', ') : 'Independent trainer, no centre yet'}
+                        {t.city ? `, ${t.city}` : ''}
+                        {t.experienceYears != null ? `, ${t.experienceYears} ${t.experienceYears === 1 ? 'year' : 'years'} experience` : ''}
+                      </span>
                     </span>
                     <span className="text-sm text-muted">{t.openBatches} open {t.openBatches === 1 ? 'batch' : 'batches'}</span>
                     <StatusBadge status={t.verificationStatus} />
@@ -173,7 +186,7 @@ function AddTrainerModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-export function TrainerDetailPage() {
+export function TrainerDetailPage({ base = '/admin/trainers' }: { base?: string }) {
   const { id = '' } = useParams();
   const { can } = useAuth();
   const qc = useQueryClient();
@@ -204,7 +217,7 @@ export function TrainerDetailPage() {
 
   return (
     <div>
-      <Link to="/admin/trainers" className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
+      <Link to={base} className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
         <ArrowLeft className="size-4" aria-hidden />
         All trainers
       </Link>
@@ -216,11 +229,16 @@ export function TrainerDetailPage() {
           </div>
           <p className="mt-1 text-muted">
             {[formatPhone(t.phone), t.email].filter(Boolean).join(', ')}
-            <ChangePhoneButton userId={t.id} name={t.name} phone={t.phone} className="ml-2 text-sm font-medium text-brand hover:underline" />
+            {can('user.read') && <ChangePhoneButton userId={t.id} name={t.name} phone={t.phone} className="ml-2 text-sm font-medium text-brand hover:underline" />}
           </p>
+          {(t.city || t.experienceYears != null || t.selfRegistered) && (
+            <p className="mt-1 text-sm text-muted">
+              {[t.selfRegistered ? 'Signed up as an independent trainer' : null, t.city, t.experienceYears != null ? `${t.experienceYears} ${t.experienceYears === 1 ? 'year' : 'years'} experience` : null].filter(Boolean).join(', ')}
+            </p>
+          )}
           {t.verificationReason && t.verificationStatus !== 'verified' && <p className="mt-1 text-sm text-warning">Reason: {t.verificationReason}</p>}
         </div>
-        {manage && (
+        {can('trainer.verify') && (
           <div className="flex flex-wrap gap-2">
             {t.verificationStatus !== 'verified' && (
               <button className="btn-primary" onClick={() => void act(() => api.post(`/admin/trainers/${t.id}/verify`), 'Trainer verified')}>Verify</button>
@@ -234,6 +252,7 @@ export function TrainerDetailPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="card overflow-hidden">
           <h2 className="border-b border-line px-5 py-4 font-semibold">Centres</h2>
+          {!t.centres.length && <p className="px-5 py-3.5 text-sm text-muted">Independent trainer: no centre yet. Giving them a batch adds that batch&apos;s centre.</p>}
           <ul className="divide-y divide-line">
             {t.centres.map((c) => (
               <li key={c.assignmentId} className="px-5 py-3.5">
@@ -258,7 +277,7 @@ export function TrainerDetailPage() {
               <button className="btn-secondary" type="submit" disabled={!addCentre}>Add</button>
             </form>
           )}
-          <p className="border-t border-line px-5 py-3 text-[13px] text-muted">To remove a centre, open the trainer’s user record and remove that role.</p>
+          {can('user.read') && <p className="border-t border-line px-5 py-3 text-[13px] text-muted">To remove a centre, open the trainer’s user record and remove that role.</p>}
         </section>
 
         <section className="card p-5">
@@ -277,7 +296,11 @@ export function TrainerDetailPage() {
               </div>
             </div>
           )}
-          <Link to={`/admin/users/${t.id}`} className="mt-6 inline-block text-sm font-semibold text-brand">Account and roles</Link>
+          {can('user.read') && (
+            <Link to={`/admin/users/${t.id}`} className="mt-6 inline-block text-sm font-semibold text-brand">
+              Account and roles
+            </Link>
+          )}
         </section>
       </div>
 
@@ -289,7 +312,7 @@ export function TrainerDetailPage() {
           <ul className="divide-y divide-line">
             {t.batches.map((b) => (
               <li key={b.id}>
-                <Link to={`/admin/batches/${b.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3.5 hover:bg-surface/60">
+                <Link to={`${base.replace(/trainers$/, 'batches')}/${b.id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3.5 hover:bg-surface/60">
                   <span className="min-w-0 flex-1">
                     <span className="block font-medium">{b.name}</span>
                     <span className="block text-sm text-muted">{b.courseTitle}, {dateRange(b.startDate, b.endDate)}</span>

@@ -29,6 +29,7 @@ describe('Phase 1 test 4: every API route declares a permission', () => {
       'POST /api/v1/auth/otp/request',
       'POST /api/v1/auth/otp/verify',
       'POST /api/v1/auth/register', // self-registration, needs a phone code (EE-01)
+      'POST /api/v1/auth/register/trainer', // independent trainers sign up; an Admin verifies them (27 Oct 2026)
       'GET /api/v1/public/credentials/:code', // QR verification page, approved fields only (AD-07)
       'GET /api/v1/auth/password/reset/:token', // checks a reset link before the form is shown
       'POST /api/v1/auth/password/forgot', // same reply for any email; 3 emails an hour per account
@@ -51,7 +52,7 @@ describe('Phase 1 test 4: every API route declares a permission', () => {
 
 describe('Phase 1 test 6: audit log', () => {
   it('sensitive actions write actor, action, target, request ID and before/after', async () => {
-    const ops = await loginEmail(ctx, EMAIL.opsAdmin);
+    const ops = await loginEmail(ctx, EMAIL.secondAdmin);
     await ops.post(`/admin/users/${ctx.ids.recruiterA}/suspend`, { reason: 'Audit test' });
     const row = await ctx.db
       .selectFrom('audit_events')
@@ -89,7 +90,7 @@ describe('Phase 1 test 6: audit log', () => {
 
 describe('platform basics', () => {
   it('dashboard counts what Phase 1 holds, with an as-of time', async () => {
-    const ops = await loginEmail(ctx, EMAIL.opsAdmin);
+    const ops = await loginEmail(ctx, EMAIL.secondAdmin);
     const d = (await ops.get('/admin/dashboard')).body;
     expect(d.asOf).toBeTruthy();
     expect(d.employers.total).toBe(3);

@@ -89,7 +89,7 @@ async function issue(trx: Transaction<Database>, req: FastifyRequest, enrolmentI
 }
 
 /** Centre admins see credentials for batches at their centres; platform admins see all. */
-const credentialScope = (req: FastifyRequest): 'all' | string[] => batchManageScope(req.actor!);
+const credentialScope = (req: FastifyRequest): Promise<'all' | string[]> => batchManageScope(req.server.db, req.actor!);
 
 export const credentialRoutes: FastifyPluginAsync = async (app) => {
   const db = app.db;
@@ -136,7 +136,7 @@ export const credentialRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/admin/credentials', { config: { permission: 'credential.read' } }, async (req) => {
     const f = parse(listQuerySchema.extend({ status: z.enum(['active', 'revoked', 'superseded']).optional(), batchId: uuidSchema.optional() }), req.query);
-    const scope = credentialScope(req);
+    const scope = await credentialScope(req);
     if (scope !== 'all' && scope.length === 0) return { items: [], page: f.page, pageSize: f.pageSize, total: 0 };
     let q = db
       .selectFrom('credentials as cr')
@@ -188,7 +188,7 @@ export const credentialRoutes: FastifyPluginAsync = async (app) => {
       .select(['b.centre_id', 'b.id as batch_id', 'b.name as batch_name', 'cp.candidate_code', 'ib.name as issued_by_name', 'rb.name as revoked_by_name'])
       .where('cr.id', '=', id)
       .executeTakeFirst();
-    if (!c || !inScope(credentialScope(req), c.centre_id)) throw notFound('Credential');
+    if (!c || !inScope(await credentialScope(req), c.centre_id)) throw notFound('Credential');
     return {
       id: c.id,
       type: CREDENTIAL_TYPE_LABEL[c.credential_type],

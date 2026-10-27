@@ -13,6 +13,7 @@ import { notify } from '../../lib/notify.js';
 import { iso, parse } from '../../lib/validate.js';
 import { batchManageScope, batchReadScope, batchVisible, inScope, rosterShowsContact, type BatchScope } from '../../policy/index.js';
 import { attendanceByCandidate, emptyStats } from '../operations/common.js';
+import { grantRole } from '../admin/roles.js';
 
 type Executor = Kysely<Database> | Transaction<Database>;
 const idParam = z.object({ id: uuidSchema });
@@ -49,29 +50,29 @@ async function loadManagedBatch(db: Executor, req: FastifyRequest, id: string, f
   let q = db.selectFrom('batches').selectAll().where('id', '=', id);
   if (forUpdate) q = q.forUpdate();
   const batch = await q.executeTakeFirst();
-  if (!batch || !inScope(batchManageScope(req.actor!), batch.centre_id)) throw notFound('Batch');
+  if (!batch || !inScope(await batchManageScope(db, req.actor!), batch.centre_id)) throw notFound('Batch');
   return batch;
 }
 
-/** A batch's trainer must be active, verified and hold the trainer role at that centre. */
-async function assertTrainerFits(db: Executor, trainerId: string, centreId: string) {
+/**
+ * A batch's trainer must be active, verified and hold the trainer role at that centre, or be a verified
+ * independent (freelance) trainer, who is then given the trainer role at that centre with the batch.
+ * Returns true when that centre role still has to be granted.
+ */
+async function assertTrainerFits(db: Executor, trainerId: string, centreId: string): Promise<boolean> {
   const t = await db
     .selectFrom('users as u')
     .leftJoin('trainer_profiles as tp', 'tp.user_id', 'u.id')
     .select(['u.status', 'tp.verification_status'])
     .where('u.id', '=', trainerId)
     .executeTakeFirst();
-  const atCentre = await db
-    .selectFrom('role_assignments')
-    .select('id')
-    .where('user_id', '=', trainerId)
-    .where('role', '=', 'trainer')
-    .where('centre_id', '=', centreId)
-    .where('revoked_at', 'is', null)
-    .executeTakeFirst();
-  if (!t || !atCentre) throw invalid('Choose a trainer assigned to this centre', { trainerId: 'Not a trainer at this centre' });
+  const roles = await db.selectFrom('role_assignments').select('centre_id').where('user_id', '=', trainerId).where('role', '=', 'trainer').where('revoked_at', 'is', null).execute();
+  const atCentre = roles.some((r) => r.centre_id === centreId);
+  const independent = roles.some((r) => r.centre_id === null);
+  if (!t || (!atCentre && !independent)) throw invalid('Choose a trainer assigned to this centre, or a verified independent trainer', { trainerId: 'Not a trainer at this centre' });
   if (t.verification_status !== 'verified') throw invalid('This trainer is not verified yet', { trainerId: 'Trainer not verified' });
   if (t.status === 'suspended' || t.status === 'deactivated') throw invalid('This trainer’s account is not active', { trainerId: 'Account not active' });
+  return !atCentre;
 }
 
 export const batchRoutes: FastifyPluginAsync = async (app) => {
@@ -136,7 +137,7 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
     return {
       ...dto(row),
       cancelReason: row.cancel_reason,
-      canManage: inScope(batchManageScope(req.actor!), batch.centre_id),
+      canManage: inScope(await batchManageScope(db, req.actor!), batch.centre_id),
     };
   });
 
@@ -145,7 +146,7 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
     const { id } = parse(idParam, req.params);
     const { q } = parse(z.object({ q: z.string().trim().max(100).optional() }), req.query);
     const batch = await loadVisibleBatch(db, req, id);
-    const showContact = rosterShowsContact(req.actor!, batch);
+    const showContact = await rosterShowsContact(db, req.actor!, batch);
     let rq = db
       .selectFrom('enrolments as e')
       .innerJoin('users as u', 'u.id', 'e.candidate_id')
@@ -196,14 +197,14 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
   /** T-04: create a batch. Centre admins only at their own centres. */
   app.post('/admin/batches', { config: { permission: 'batch.manage' } }, async (req, reply) => {
     const b = parse(batchSchema, req.body);
-    if (!inScope(batchManageScope(req.actor!), b.centreId)) throw invalid('Centre not found', { centreId: 'Not found' });
+    if (!inScope(await batchManageScope(db, req.actor!), b.centreId)) throw invalid('Centre not found', { centreId: 'Not found' });
     const course = await db.selectFrom('courses').select(['status']).where('id', '=', b.courseId).executeTakeFirst();
     if (!course) throw invalid('Course not found', { courseId: 'Not found' });
     if (course.status !== 'active') throw invalid('This course is inactive', { courseId: 'Course is inactive' });
     const centre = await db.selectFrom('centres').select(['status']).where('id', '=', b.centreId).executeTakeFirst();
     if (!centre) throw invalid('Centre not found', { centreId: 'Not found' });
     if (centre.status !== 'active') throw invalid('This centre is inactive', { centreId: 'Centre is inactive' });
-    await assertTrainerFits(db, b.trainerId, b.centreId);
+    const grantCentre = await assertTrainerFits(db, b.trainerId, b.centreId);
     const row = {
       id: newId(),
       name: b.name,
@@ -217,6 +218,7 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
       created_by: req.actor!.userId,
     };
     await db.transaction().execute(async (trx) => {
+      if (grantCentre) await grantRole(trx, req, { userId: row.trainer_id, role: 'trainer', centreId: row.centre_id });
       await trx.insertInto('batches').values(row).execute();
       await audit(trx, auditCtx(req), { action: 'batch.created', entityType: 'batch', entityId: row.id, after: row });
       await notifyTrainer(trx, row.trainer_id, row.id, row.name, row.course_id, row.start_date, req.actor!.userId);
@@ -240,7 +242,9 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
       const startDate = b.startDate ?? cur.start_date;
       const endDate = b.endDate ?? cur.end_date;
       if (endDate < startDate) throw invalid('End date must be on or after the start date', { endDate: 'Before the start date' });
-      if (b.trainerId && b.trainerId !== cur.trainer_id) await assertTrainerFits(trx, b.trainerId, cur.centre_id);
+      if (b.trainerId && b.trainerId !== cur.trainer_id && (await assertTrainerFits(trx, b.trainerId, cur.centre_id))) {
+        await grantRole(trx, req, { userId: b.trainerId, role: 'trainer', centreId: cur.centre_id });
+      }
       if (b.capacity !== undefined) {
         const { n } = await trx.selectFrom('enrolments').select(sql<string>`count(*)`.as('n')).where('batch_id', '=', id).where('status', '!=', 'withdrawn').executeTakeFirstOrThrow();
         if (b.capacity < Number(n)) throw invalid(`${n} candidates are enrolled, so capacity cannot be lower than that`, { capacity: `At least ${n}` });

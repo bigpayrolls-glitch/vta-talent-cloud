@@ -122,6 +122,10 @@ export function LoginPage() {
               <Link to={next ? `/register?next=${encodeURIComponent(next)}` : '/register'} className="font-medium text-[#C8101A] underline underline-offset-2">
                 Create an account
               </Link>
+              {' '}or{' '}
+              <Link to="/join/trainer" className="font-medium text-[#C8101A] underline underline-offset-2">
+                sign up as a trainer
+              </Link>
               .
             </p>
             <p>
@@ -131,7 +135,7 @@ export function LoginPage() {
               </Link>
               .
             </p>
-            <p className="pt-1 text-sm text-muted [@media(max-height:820px)]:hidden">Trainers are added by their training partner or AutoTalent Grid.</p>
+
           </div>
         </div>
       </main>

@@ -330,7 +330,7 @@ interface AccountRequestRow {
   createdAt: string;
 }
 
-/** Phase 9: a learner's open request to close their account. Only a Super Admin can complete or decline it. */
+/** Phase 9: a learner's open request to close their account. Only an Admin can complete or decline it. */
 function ClosureRequest({ userId }: { userId: string }) {
   const { can } = useAuth();
   const qc = useQueryClient();
@@ -353,7 +353,7 @@ function ClosureRequest({ userId }: { userId: string }) {
           <p className="mt-1 text-sm">
             On {formatDate(r.createdAt)}. {r.reason ? <>Reason: &ldquo;{r.reason}&rdquo;</> : 'No reason given.'} Their profile is already out of employer search.
           </p>
-          {!can('user.deactivate') && <p className="mt-1 text-sm text-muted">A Super Admin completes or declines it.</p>}
+          {!can('user.deactivate') && <p className="mt-1 text-sm text-muted">An Admin completes or declines it.</p>}
         </div>
         {can('user.deactivate') && (
           <div className="flex gap-2">

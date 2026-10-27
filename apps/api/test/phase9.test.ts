@@ -14,7 +14,7 @@ const userId = async (email: string) => (await ctx.db.selectFrom('users').select
 
 beforeAll(async () => {
   ctx = await setup();
-  for (const k of ['employerAdminA', 'recruiterA', 'employerAdminB', 'opsAdmin', 'superAdmin'] as const) c[k] = await loginEmail(ctx, EMAIL[k]);
+  for (const k of ['employerAdminA', 'recruiterA', 'employerAdminB', 'secondAdmin', 'superAdmin'] as const) c[k] = await loginEmail(ctx, EMAIL[k]);
   c.ravi = await loginPhone(ctx, RAVI);
   c.learner = await loginPhone(ctx, PHONE.learner);
   for (const purpose of ['privacy_notice', 'terms'] as const) await c.ravi.post('/me/consents', { purpose, granted: true, noticeVersion: NOTICE_VERSION });
@@ -39,14 +39,14 @@ describe('SH-07 notifications', () => {
     });
     jobId = job.body.id;
     await c.recruiterA!.post(`/employer/jobs/${jobId}/submit`);
-    expect(await titles(c.opsAdmin!)).toContain('Job waiting for review: Brake specialist');
+    expect(await titles(c.secondAdmin!)).toContain('Job waiting for review: Brake specialist');
     expect(await titles(c.superAdmin!)).toContain('Job waiting for review: Brake specialist');
     expect(await titles(c.recruiterA!)).not.toContain('Job waiting for review: Brake specialist');
 
-    await c.opsAdmin!.post(`/admin/jobs/${jobId}/moderate`, { action: 'publish' });
+    await c.secondAdmin!.post(`/admin/jobs/${jobId}/moderate`, { action: 'publish' });
     for (const k of ['recruiterA', 'employerAdminA'] as const) expect(await titles(c[k]!)).toContain('Brake specialist is live');
     expect(await titles(c.employerAdminB!)).not.toContain('Brake specialist is live');
-    expect(await count(await userId(EMAIL.opsAdmin), 'job_published')).toBe(0);
+    expect(await count(await userId(EMAIL.secondAdmin), 'job_published')).toBe(0);
   });
 
   it('an application reaches the employer; each move reaches the learner with a link to it', async () => {
@@ -97,7 +97,7 @@ describe('SH-07 notifications', () => {
   });
 
   it('verification decisions reach the organisation and the learner', async () => {
-    await c.opsAdmin!.post(`/admin/organisations/${ctx.ids.employerPending}/request-info`, { reason: 'Upload a clearer GST certificate' });
+    await c.secondAdmin!.post(`/admin/organisations/${ctx.ids.employerPending}/request-info`, { reason: 'Upload a clearer GST certificate' });
     const pending = await loginEmail(ctx, EMAIL.employerAdminPending);
     const n = (await pending.get('/notifications')).body.items[0];
     expect(n).toMatchObject({ title: 'AutoTalent Grid needs more information', link: '/employer/company' });
@@ -108,7 +108,7 @@ describe('SH-07 notifications', () => {
     const learner = (await ctx.db.selectFrom('users').select('id').where('phone', '=', PHONE.learner).executeTakeFirstOrThrow()).id;
     const before = await count(learner, 'enrolled');
     const batch = await ctx.db.selectFrom('batches').select(['id']).where('status', '=', 'planned').executeTakeFirstOrThrow();
-    const r = await c.opsAdmin!.post(`/admin/batches/${batch.id}/enrolments`, { candidateIds: [learner] });
+    const r = await c.secondAdmin!.post(`/admin/batches/${batch.id}/enrolments`, { candidateIds: [learner] });
     expect(r.status, JSON.stringify(r.body)).toBe(201);
     expect(await count(learner, 'enrolled')).toBe(before + 1);
   });
@@ -202,16 +202,16 @@ describe('learner data download and account closure', () => {
     expect((await c.learner!.get('/me/closure-request')).body.request).toMatchObject({ reason: 'Moving abroad' });
     const learnerId = (await ctx.db.selectFrom('users').select('id').where('phone', '=', PHONE.learner).executeTakeFirstOrThrow()).id;
     expect((await ctx.db.selectFrom('candidate_profiles').select('searchable').where('user_id', '=', learnerId).executeTakeFirstOrThrow()).searchable).toBe(false);
-    expect(await titles(c.opsAdmin!)).toContain('A learner asked to close their account');
+    expect(await titles(c.secondAdmin!)).toContain('A learner asked to close their account');
     expect((await c.learner!.post('/me/closure-request/cancel')).status).toBe(200);
     expect((await c.learner!.get('/me/closure-request')).body.request).toBeNull();
   });
 
   it('only a Super Admin completes it: deactivated, signed out, open applications withdrawn; records kept', async () => {
     await c.ravi!.post('/me/closure-request', {});
-    const list = (await c.opsAdmin!.get('/admin/account-requests')).body.items;
+    const list = (await c.secondAdmin!.get('/admin/account-requests')).body.items;
     const req = list.find((x: { name: string }) => x.name)!;
-    expect((await c.opsAdmin!.post(`/admin/account-requests/${req.id}/complete`, {})).status).toBe(403);
+    expect((await c.secondAdmin!.post(`/admin/account-requests/${req.id}/complete`, {})).status).toBe(403);
     expect((await c.superAdmin!.post(`/admin/account-requests/${req.id}/decline`, {})).body.error.fields.reason).toBeDefined();
 
     // Give Ravi an open application first.

@@ -11,8 +11,8 @@ const PDF = Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(200, 0x20), B
 
 beforeAll(async () => {
   ctx = await setup();
-  c.ops = await loginEmail(ctx, EMAIL.opsAdmin);
-  c.centre = await loginEmail(ctx, EMAIL.centreAdmin);
+  c.ops = await loginEmail(ctx, EMAIL.secondAdmin);
+  c.partner = await loginEmail(ctx, EMAIL.partnerAdminA);
   c.learner = await loginPhone(ctx, PHONE.learner);
 });
 afterAll(() => ctx.close());
@@ -49,8 +49,8 @@ describe('AD-05 document verification', () => {
     expect(logged.map((l) => l.action).sort()).toEqual(['document.rejected', 'document.verified']);
   });
 
-  it('only AutoTalent Grid operations can review; a document must belong to that candidate', async () => {
-    expect((await c.centre!.post(`/admin/candidates/${learnerId}/documents/${docB}/review`, { decision: 'verified' })).status).toBe(403);
+  it('only an Admin can review, not even the training partner running the centre; a document must belong to that candidate', async () => {
+    expect((await c.partner!.post(`/admin/candidates/${learnerId}/documents/${docB}/review`, { decision: 'verified' })).status).toBe(403);
     const other = (await ctx.db.selectFrom('candidate_profiles').select('user_id').where('user_id', '!=', learnerId).executeTakeFirstOrThrow()).user_id;
     expect((await c.ops!.post(`/admin/candidates/${other}/documents/${docB}/review`, { decision: 'verified' })).status).toBe(404);
   });
@@ -100,8 +100,8 @@ describe('maintenance job', () => {
 
   it('a deactivated account that was not an expired sign-up is never reopened', async () => {
     ctx.mem.sentInvites.clear();
-    await ctx.db.updateTable('users').set({ status: 'deactivated' }).where('email', '=', EMAIL.partnerViewerA).execute();
-    expect((await signup(EMAIL.partnerViewerA, 'Sneaky Org')).statusCode).toBe(202);
+    await ctx.db.updateTable('users').set({ status: 'deactivated' }).where('email', '=', EMAIL.employerAdminPending).execute();
+    expect((await signup(EMAIL.employerAdminPending, 'Sneaky Org')).statusCode).toBe(202);
     expect(ctx.mem.sentInvites.size).toBe(0);
     expect(await ctx.db.selectFrom('organisations').select('id').where('legal_name', '=', 'Sneaky Org').executeTakeFirst()).toBeUndefined();
   });
@@ -109,7 +109,7 @@ describe('maintenance job', () => {
 
 describe('tests the traceability review found missing', () => {
   it('EM-07: an interview outcome is recorded; private notes stay with the employer', async () => {
-    const rec = await loginEmail(ctx, EMAIL.recruiterA);
+    const rec = await loginEmail(ctx, EMAIL.employerAdminA);
     const app = ctx.ids.applicationAnitha!;
     const made = await rec.post(`/employer/applications/${app}/interviews`, { scheduledAt: '2026-10-24T11:00:00+05:30', mode: 'phone' });
     expect(made.status).toBe(201);
@@ -123,7 +123,7 @@ describe('tests the traceability review found missing', () => {
   });
 
   it('EM-08: AutoTalent Grid can flag a recorded joining with a note', async () => {
-    const rec = await loginEmail(ctx, EMAIL.recruiterA);
+    const rec = await loginEmail(ctx, EMAIL.employerAdminA);
     const app = ctx.ids.applicationAnitha!;
     expect((await rec.post(`/employer/applications/${app}/move`, { to: 'offer' })).status).toBe(200);
     expect((await rec.post(`/employer/applications/${app}/move`, { to: 'joined', joiningDate: '2026-10-25' })).status).toBe(200);

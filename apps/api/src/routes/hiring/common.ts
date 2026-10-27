@@ -12,7 +12,7 @@ import { iso } from '../../lib/validate.js';
  * another employer: anything outside is "not found" (SEC-02).
  */
 export function employerOrgId(req: FastifyRequest): string {
-  const a = req.actor!.assignments.find((x) => (x.role === 'employer_admin' || x.role === 'employer_recruiter') && x.organisationId);
+  const a = req.actor!.assignments.find((x) => x.role === 'employer_admin' && x.organisationId);
   if (!a?.organisationId) throw forbidden('This account is not linked to an employer.');
   return a.organisationId;
 }

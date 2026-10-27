@@ -11,7 +11,7 @@ let ctx: Ctx;
 let ops: Client;
 beforeAll(async () => {
   ctx = await setup();
-  ops = await loginEmail(ctx, EMAIL.opsAdmin);
+  ops = await loginEmail(ctx, EMAIL.secondAdmin);
 });
 afterAll(() => ctx.close());
 
@@ -75,18 +75,20 @@ describe('T-06 private file upload', () => {
     expect(res.json().error.message).toMatch(/expired/);
   });
 
-  it('only admins can upload; centre admins only see documents of candidates at their centres', async () => {
-    const centre = await loginEmail(ctx, EMAIL.centreAdmin);
-    expect((await centre.upload(uploadUrl(ctx.ids.cand4!), PDF)).status).toBe(403);
-    // cand1 is enrolled at a partner centre, not the centre admin's VTA centre
-    expect((await centre.get(`/files/${docId}/link`)).status).toBe(404);
-    // cand4 is enrolled at the VTA centre
-    const own = await ops.upload(uploadUrl(ctx.ids.cand4!), PDF);
-    expect((await centre.get(`/files/${own.body.id}/link`)).status).toBe(200);
-    for (const email of [EMAIL.partnerAdminA, EMAIL.employerAdminA]) {
-      const c = await loginEmail(ctx, email);
-      expect((await c.get(`/files/${docId}/link`)).status, email).toBe(403);
-    }
+  it('only admins can upload; training partners only see documents of candidates at their own centres', async () => {
+    const partner = await loginEmail(ctx, EMAIL.partnerAdminA);
+    expect((await partner.upload(uploadUrl(ctx.ids.cand1!), PDF)).status).toBe(403);
+    // cand1 is enrolled at Skill Bridge's Peenya centre, which partner A runs
+    expect((await partner.get(`/files/${docId}/link`)).status).toBe(200);
+    // cand4 is enrolled only at the AutoTalent Grid centre
+    const vta = await ops.upload(uploadUrl(ctx.ids.cand4!), PDF);
+    expect((await partner.get(`/files/${vta.body.id}/link`)).status).toBe(404);
+    // Another training partner sees neither
+    const partnerB = await loginEmail(ctx, EMAIL.partnerAdminB);
+    expect((await partnerB.get(`/files/${docId}/link`)).status).toBe(404);
+    expect((await partnerB.get(`/files/${vta.body.id}/link`)).status).toBe(404);
+    const employer = await loginEmail(ctx, EMAIL.employerAdminA);
+    expect((await employer.get(`/files/${docId}/link`)).status).toBe(403);
   });
 
   it('signatures never appear in request logs', async () => {

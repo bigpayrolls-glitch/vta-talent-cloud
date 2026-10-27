@@ -162,6 +162,9 @@ export interface TrainerProfilesTable {
   verification_reason: string | null;
   verified_by: string | null;
   verified_at: Date | null;
+  city: string | null;
+  experience_years: number | null;
+  self_registered: Generated<boolean>;
   created_at: Timestamp;
   updated_at: Timestamp;
 }

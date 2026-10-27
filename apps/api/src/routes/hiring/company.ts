@@ -1,4 +1,4 @@
-import { companyProfileSchema, DOCUMENT_KINDS, inviteRecruiterSchema, UPLOAD_MAX_BYTES, UPLOAD_TYPES, uuidSchema } from '@vta/shared';
+import { companyProfileSchema, DOCUMENT_KINDS, UPLOAD_MAX_BYTES, UPLOAD_TYPES, uuidSchema } from '@vta/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { createHash } from 'node:crypto';
 import { sql } from 'kysely';
@@ -9,10 +9,9 @@ import { notify, vtaReviewers } from '../../lib/notify.js';
 import type { DB } from '../../db/index.js';
 import type { Organisation } from '../../db/types.js';
 import { newId } from '../../lib/crypto.js';
-import { conflict, forbidden, invalid, notFound } from '../../lib/errors.js';
+import { invalid, notFound } from '../../lib/errors.js';
 import { LINK_TTL_SECONDS, safeFileName, signLink, sniffMime } from '../../lib/storage.js';
 import { iso, parse } from '../../lib/validate.js';
-import { createInvitation } from '../admin/users.js';
 import { employerOrg, employerOrgId } from './common.js';
 
 const idParam = z.object({ id: uuidSchema });
@@ -189,65 +188,5 @@ export const companyRoutes: FastifyPluginAsync = async (app) => {
     return { url: `/api/v1/files/${d.id}/content?exp=${exp}&sig=${sig}`, expiresInSeconds: LINK_TTL_SECONDS };
   });
 
-  // ---- team (EM-02) ----
-
-  const team = async (orgId: string) =>
-    db
-      .selectFrom('role_assignments as ra')
-      .innerJoin('users as u', 'u.id', 'ra.user_id')
-      .select(['ra.id as assignment_id', 'ra.role', 'u.id', 'u.name', 'u.email', 'u.status', 'u.last_login_at'])
-      .where('ra.organisation_id', '=', orgId)
-      .where('ra.role', 'in', ['employer_admin', 'employer_recruiter'])
-      .where('ra.revoked_at', 'is', null)
-      .orderBy('u.name')
-      .execute();
-
-  app.get('/employer/team', { config: { permission: 'employer.company' } }, async (req) => ({
-    items: (await team(employerOrgId(req))).map((m) => ({
-      assignmentId: m.assignment_id,
-      userId: m.id,
-      name: m.name,
-      email: m.email,
-      role: m.role,
-      status: m.status,
-      lastLoginAt: iso(m.last_login_at),
-      isMe: m.id === req.actor!.userId,
-    })),
-  }));
-
-  /** An employer admin invites a recruiter by email (the existing invitation link sets their password). */
-  app.post('/employer/team', { config: { permission: 'employer.company' } }, async (req, reply) => {
-    const b = parse(inviteRecruiterSchema, req.body);
-    const orgId = employerOrgId(req);
-    const email = b.email.toLowerCase();
-    if (await db.selectFrom('users').select('id').where('email', '=', email).executeTakeFirst()) throw conflict('Someone already uses this email', { email: 'Already in use' });
-    const id = newId();
-    let token = '';
-    await db.transaction().execute(async (trx) => {
-      await trx.insertInto('users').values({ id, name: b.name, email, status: 'invited' }).execute();
-      const assignment = newId();
-      await trx.insertInto('role_assignments').values({ id: assignment, user_id: id, role: 'employer_recruiter', organisation_id: orgId, granted_by: req.actor!.userId }).execute();
-      await audit(trx, auditCtx(req), { action: 'employer.recruiter_invited', entityType: 'organisation', entityId: orgId, after: { userId: id, name: b.name, email } });
-      token = await createInvitation(trx as unknown as DB, id, req.actor!.userId);
-    });
-    const link = `${app.config.APP_ORIGIN}/invite/${token}`;
-    await app.providers.email.sendInvitation(email, b.name, link);
-    reply.code(201);
-    return { id, devInviteUrl: app.providers.devEcho ? link : undefined };
-  });
-
-  /** Removes a recruiter's access to this company (their account remains; sessions see the change at once). */
-  app.post('/employer/team/:id/remove', { config: { permission: 'employer.company' } }, async (req) => {
-    const { id } = parse(idParam, req.params);
-    const orgId = employerOrgId(req);
-    const ra = await db.selectFrom('role_assignments').selectAll().where('id', '=', id).where('organisation_id', '=', orgId).where('revoked_at', 'is', null).executeTakeFirst();
-    if (!ra || (ra.role !== 'employer_recruiter' && ra.role !== 'employer_admin')) throw notFound('Team member');
-    if (ra.user_id === req.actor!.userId) throw forbidden('You cannot remove yourself.');
-    if (ra.role === 'employer_admin') throw forbidden('Only AutoTalent Grid can remove an employer admin.');
-    await db.transaction().execute(async (trx) => {
-      await trx.updateTable('role_assignments').set({ revoked_at: new Date(), revoked_by: req.actor!.userId }).where('id', '=', id).execute();
-      await audit(trx, auditCtx(req), { action: 'employer.recruiter_removed', entityType: 'organisation', entityId: orgId, before: { userId: ra.user_id, role: ra.role } });
-    });
-    return { ok: true };
-  });
+  // One login per company (decision of 27 Oct 2026): there is no team to invite. AutoTalent Grid changes the login if needed.
 };

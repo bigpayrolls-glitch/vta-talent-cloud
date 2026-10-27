@@ -6,7 +6,7 @@ let ctx: Ctx;
 let ops: Client;
 beforeAll(async () => {
   ctx = await setup();
-  ops = await loginEmail(ctx, EMAIL.opsAdmin);
+  ops = await loginEmail(ctx, EMAIL.secondAdmin);
 });
 afterAll(() => ctx.close());
 

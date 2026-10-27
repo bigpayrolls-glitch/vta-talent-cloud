@@ -45,7 +45,7 @@ test.describe('accessibility (axe, WCAG 2.2 AA)', () => {
 
   test('employer portal', async ({ page }) => {
     await signInEmail(page, EMAIL.employerAdminA);
-    for (const path of ['/employer', '/employer/jobs', '/employer/jobs/new', '/employer/candidates', '/employer/company', '/employer/team', '/employer/account', '/employer/subscription', '/employer/subscription/plans', '/employer/subscription/plans/starter', '/employer/subscription/checkout?plan=starter&cycle=monthly']) {
+    for (const path of ['/employer', '/employer/jobs', '/employer/jobs/new', '/employer/candidates', '/employer/company', '/employer/account', '/employer/subscription', '/employer/subscription/plans', '/employer/subscription/plans/starter', '/employer/subscription/checkout?plan=starter&cycle=monthly']) {
       await page.goto(path);
       await check(page, path);
     }
@@ -113,9 +113,9 @@ test.describe('accessibility: dialogs, menus and keyboard', () => {
     });
     expect(outline, 'focused input shows a focus indicator').toBe(true);
 
-    await page.keyboard.type(EMAIL.centreAdmin);
+    await page.keyboard.type(EMAIL.partnerAdminA);
     await page.keyboard.press('Tab');
-    await page.keyboard.type(passwordOf(EMAIL.centreAdmin));
+    await page.keyboard.type(passwordOf(EMAIL.partnerAdminA));
     await page.keyboard.press('Enter');
     await expect(page).not.toHaveURL(/\/login$/);
     // "Skip to content" is the first thing a keyboard user reaches in a portal.

@@ -14,13 +14,9 @@ const post = (url: string, payload: object, ip = nextIp()) =>
 describe('Phase 1 test 1: each role signs in and reaches only its own portal', () => {
   it.each([
     [EMAIL.superAdmin, ['admin']],
-    [EMAIL.opsAdmin, ['admin']],
-    [EMAIL.centreAdmin, ['admin']],
+    [EMAIL.secondAdmin, ['admin']],
     [EMAIL.employerAdminA, ['employer']],
-    [EMAIL.recruiterA, ['employer']],
     [EMAIL.partnerAdminA, ['partner']],
-    [EMAIL.partnerViewerA, ['partner']],
-    [EMAIL.multi, ['admin', 'partner']],
   ])('%s → %j', async (email, portals) => {
     const c = await loginEmail(ctx, email);
     const me = await c.get('/auth/me');
@@ -38,8 +34,22 @@ describe('Phase 1 test 1: each role signs in and reaches only its own portal', (
     expect((await c.get('/auth/me')).body.portals).toEqual(['learn']);
   });
 
+  it('an independent trainer with no centre still lands in the Training Partner portal', async () => {
+    const c = await loginPhone(ctx, PHONE.trainerFree);
+    expect((await c.get('/auth/me')).body.portals).toEqual(['partner']);
+  });
+
+  it('someone holding two roles sees both portals in the switcher', async () => {
+    const sa = await loginEmail(ctx, EMAIL.superAdmin);
+    expect((await sa.post('/admin/role-assignments', { userId: ctx.ids.opsAdmin, role: 'learner' })).status).toBe(201);
+    const c = await loginEmail(ctx, EMAIL.secondAdmin);
+    expect((await c.get('/auth/me')).body.portals).toEqual(['admin', 'learn']);
+    const grant = await ctx.db.selectFrom('role_assignments').select('id').where('user_id', '=', ctx.ids.opsAdmin).where('role', '=', 'learner').where('revoked_at', 'is', null).executeTakeFirstOrThrow();
+    expect((await sa.post(`/admin/role-assignments/${grant.id}/revoke`)).status).toBe(200);
+  });
+
   it('non-admin roles are refused on Admin Portal routes', async () => {
-    for (const email of [EMAIL.employerAdminA, EMAIL.partnerAdminA, EMAIL.partnerViewerA]) {
+    for (const email of [EMAIL.employerAdminA, EMAIL.partnerAdminA]) {
       const c = await loginEmail(ctx, email);
       expect((await c.get('/admin/users')).status).toBe(403);
       expect((await c.get('/admin/dashboard')).status).toBe(403);
@@ -52,7 +62,7 @@ describe('Phase 1 test 1: each role signs in and reaches only its own portal', (
 describe('F-03 email + password sign-in', () => {
   it('gives the same generic error for an unknown email and a wrong password', async () => {
     const a = await post('/auth/login', { email: 'nobody@demo.vta.local', password: 'whatever-123' });
-    const b = await post('/auth/login', { email: EMAIL.opsAdmin, password: 'wrong-password-1' });
+    const b = await post('/auth/login', { email: EMAIL.secondAdmin, password: 'wrong-password-1' });
     expect(a.statusCode).toBe(401);
     expect(b.statusCode).toBe(401);
     expect(a.json().error.message).toBe(b.json().error.message);
@@ -82,13 +92,13 @@ describe('F-03 email + password sign-in', () => {
   });
 
   it('sign-out ends the session on the server', async () => {
-    const c = await loginEmail(ctx, EMAIL.opsAdmin);
+    const c = await loginEmail(ctx, EMAIL.secondAdmin);
     expect((await c.post('/auth/logout')).status).toBe(200);
     expect((await c.get('/auth/me')).status).toBe(401);
   });
 
   it('session cookie is httpOnly and SameSite=Lax', async () => {
-    const res = await post('/auth/login', { email: EMAIL.opsAdmin, password: ctx.passwordOf(EMAIL.opsAdmin) });
+    const res = await post('/auth/login', { email: EMAIL.secondAdmin, password: ctx.passwordOf(EMAIL.secondAdmin) });
     const set = String(res.headers['set-cookie']);
     expect(set).toMatch(/HttpOnly/i);
     expect(set).toMatch(/SameSite=Lax/i);
@@ -97,7 +107,7 @@ describe('F-03 email + password sign-in', () => {
 
 describe('CSRF protection', () => {
   it('refuses a state-changing request without the CSRF header', async () => {
-    const c = await loginEmail(ctx, EMAIL.opsAdmin);
+    const c = await loginEmail(ctx, EMAIL.secondAdmin);
     const res = await c.post('/auth/logout', {}, { csrf: null });
     expect(res.status).toBe(403);
     const wrong = await c.post('/auth/logout', {}, { csrf: 'not-the-token' });
@@ -179,15 +189,15 @@ describe('Invitations', () => {
   it('invites by email, accepts with a password, and signs the user in', async () => {
     const admin = await loginEmail(ctx, EMAIL.superAdmin);
     const res = await admin.post('/admin/users', {
-      name: 'New Recruiter',
-      email: 'new-recruiter@demo.vta.local',
-      role: { role: 'employer_recruiter', organisationId: ctx.ids.employerA },
+      name: 'New Admin',
+      email: 'new-admin@demo.vta.local',
+      role: { role: 'super_admin' },
     });
     expect(res.status).toBe(201);
-    const link = ctx.mem.sentInvites.get('new-recruiter@demo.vta.local')!;
+    const link = ctx.mem.sentInvites.get('new-admin@demo.vta.local')!;
     const token = link.split('/invite/')[1]!;
 
-    expect((await ctx.app.inject({ method: 'GET', url: `/api/v1/auth/invitations/${token}` })).json().name).toBe('New Recruiter');
+    expect((await ctx.app.inject({ method: 'GET', url: `/api/v1/auth/invitations/${token}` })).json().name).toBe('New Admin');
 
     const common = await post(`/auth/invitations/${token}/accept`, { password: 'password123' });
     expect(common.statusCode).toBe(400);
@@ -197,24 +207,26 @@ describe('Invitations', () => {
     const ok = await post(`/auth/invitations/${token}/accept`, { password: 'A-strong-pass-42' });
     expect(ok.statusCode).toBe(200);
     const c = await clientFromCookie(ctx.app, cookieFrom(ok));
-    expect((await c.get('/auth/me')).body.portals).toEqual(['employer']);
+    expect((await c.get('/auth/me')).body.portals).toEqual(['admin']);
 
     // The link works once only
     expect((await post(`/auth/invitations/${token}/accept`, { password: 'A-strong-pass-43' })).statusCode).toBe(404);
   });
 
   it('expired invitation links are refused', async () => {
-    const admin = await loginEmail(ctx, EMAIL.opsAdmin);
+    const admin = await loginEmail(ctx, EMAIL.secondAdmin);
     await admin.post('/admin/users', { name: 'Late Person', email: 'late@demo.vta.local' });
     const token = ctx.mem.sentInvites.get('late@demo.vta.local')!.split('/invite/')[1]!;
     await ctx.db.updateTable('invitations').set({ expires_at: new Date(Date.now() - 1000) }).execute();
     expect((await post(`/auth/invitations/${token}/accept`, { password: 'A-strong-pass-42' })).statusCode).toBe(404);
   });
 
-  it('an Ops Admin cannot attach a role while inviting (only Super Admin assigns roles)', async () => {
-    const ops = await loginEmail(ctx, EMAIL.opsAdmin);
-    const res = await ops.post('/admin/users', { name: 'Sneaky Admin', email: 'sneaky@demo.vta.local', role: { role: 'super_admin' } });
-    expect(res.status).toBe(403);
+  it('an employer or training partner cannot invite people or hand out roles', async () => {
+    for (const email of [EMAIL.employerAdminA, EMAIL.partnerAdminA]) {
+      const c = await loginEmail(ctx, email);
+      const res = await c.post('/admin/users', { name: 'Sneaky Admin', email: 'sneaky@demo.vta.local', role: { role: 'super_admin' } });
+      expect(res.status).toBe(403);
+    }
     expect(await ctx.db.selectFrom('users').select('id').where('email', '=', 'sneaky@demo.vta.local').executeTakeFirst()).toBeUndefined();
   });
 

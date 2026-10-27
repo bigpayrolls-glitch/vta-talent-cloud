@@ -9,7 +9,7 @@ const c: Record<string, Client> = {};
 
 beforeAll(async () => {
   ctx = await setup();
-  c.opsAdmin = await loginEmail(ctx, EMAIL.opsAdmin);
+  c.secondAdmin = await loginEmail(ctx, EMAIL.secondAdmin);
   c.partnerAdminA = await loginEmail(ctx, EMAIL.partnerAdminA);
   c.trainerA = await loginPhone(ctx, PHONE.trainerA);
   c.trainerB = await loginPhone(ctx, PHONE.trainerB);
@@ -58,7 +58,7 @@ describe('TR-09 offline snapshot: only the batch essentials', () => {
 
   it('a trainer with no running batch gets an empty list; other roles cannot ask', async () => {
     expect((await c.trainerB!.get('/trainer/offline-snapshot')).body.batches).toEqual([]); // batchB is planned
-    expect((await c.opsAdmin!.get('/trainer/offline-snapshot')).status).toBe(403);
+    expect((await c.secondAdmin!.get('/trainer/offline-snapshot')).status).toBe(403);
     expect((await c.partnerAdminA!.get('/trainer/offline-snapshot')).status).toBe(403);
   });
 });
@@ -173,7 +173,7 @@ describe('TR-04 offline attendance sync', () => {
   });
 
   it('only trainers may sync; the request needs the CSRF token; limits are enforced', async () => {
-    expect((await sync(c.opsAdmin!, [op()])).status).toBe(403);
+    expect((await sync(c.secondAdmin!, [op()])).status).toBe(403);
     expect((await sync(c.partnerAdminA!, [op()])).status).toBe(403);
     expect((await c.trainerA!.post('/sync/attendance', { ops: [op()] }, { csrf: null })).status).toBe(403);
     expect((await sync(c.trainerA!, [])).status).toBe(400);

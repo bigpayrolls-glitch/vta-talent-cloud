@@ -12,9 +12,9 @@ let orgA = '';
 
 beforeAll(async () => {
   ctx = await setup();
-  c.ops = await loginEmail(ctx, EMAIL.opsAdmin);
+  c.ops = await loginEmail(ctx, EMAIL.secondAdmin);
   c.adminA = await loginEmail(ctx, EMAIL.employerAdminA);
-  c.recruiterA = await loginEmail(ctx, EMAIL.recruiterA);
+  c.partnerA = await loginEmail(ctx, EMAIL.partnerAdminA);
   c.adminB = await loginEmail(ctx, EMAIL.employerAdminB);
   c.pending = await loginEmail(ctx, EMAIL.employerAdminPending);
   orgA = (await ctx.db.selectFrom('jobs').select('organisation_id').where('id', '=', ctx.ids.job2wA!).executeTakeFirstOrThrow()).organisation_id;
@@ -24,11 +24,11 @@ afterAll(() => ctx.close());
 const setPlan = (plan: string, months?: number) => c.ops!.post(`/admin/organisations/${orgA}/subscription`, { plan, months, reason: 'Phase 12 test' });
 
 describe('the current plan', () => {
-  it('both employer roles see the plan, usage and how payment works', async () => {
-    const s = (await c.recruiterA!.get('/employer/subscription')).body;
+  it('the employer sees the plan, usage and how payment works', async () => {
+    const s = (await c.adminA!.get('/employer/subscription')).body;
     expect(s).toMatchObject({ plan: 'growth', status: 'active', source: 'admin', paymentMode: 'test' });
     expect(s.usage).toMatchObject({ activeJobs: 1, activeJobsLimit: 10, applicantsLimit: 100, applicantsPer: 'month' });
-    expect(s.usage.teamMembers).toBe(2);
+    expect(s.usage.teamMembers).toBe(1); // one login per employer
     expect(s.usage.resetsOn).toMatch(/^\d{4}-\d{2}-01$/);
   });
 
@@ -53,15 +53,15 @@ describe('Free plan limits', () => {
   });
 
   it('contact details and interviews need a paid plan; the name is still shown', async () => {
-    const app = (await c.recruiterA!.get(`/employer/applications/${ctx.ids.applicationAnitha}`)).body;
+    const app = (await c.adminA!.get(`/employer/applications/${ctx.ids.applicationAnitha}`)).body;
     expect(app.candidate).toMatchObject({ phone: null, email: null, contactShared: false, contactNeedsUpgrade: true });
     expect(app.candidate.name).not.toBe('Withdrawn applicant');
     expect(app.interviewsOnPlan).toBe(false);
     const viewed = await ctx.db.selectFrom('audit_events').select('id').where('action', '=', 'application.contact_viewed').where('actor_id', 'is not', null).execute();
     const before = viewed.length;
-    await c.recruiterA!.get(`/employer/applications/${ctx.ids.applicationAnitha}`);
+    await c.adminA!.get(`/employer/applications/${ctx.ids.applicationAnitha}`);
     expect((await ctx.db.selectFrom('audit_events').select('id').where('action', '=', 'application.contact_viewed').execute()).length).toBe(before); // nothing shown, nothing logged
-    const iv = await c.recruiterA!.post(`/employer/applications/${ctx.ids.applicationAnitha}/interviews`, { scheduledAt: '2026-11-20T11:00:00+05:30', mode: 'phone' });
+    const iv = await c.adminA!.post(`/employer/applications/${ctx.ids.applicationAnitha}/interviews`, { scheduledAt: '2026-11-20T11:00:00+05:30', mode: 'phone' });
     expect(iv.status).toBe(403);
     expect(iv.body.error.message).toMatch(/Starter plan and above/);
   });
@@ -81,15 +81,15 @@ describe('Free plan limits', () => {
         .values({ id: newId(), job_id: ctx.ids.job2wA!, candidate_id: o.user_id, consent_snapshot: JSON.stringify({ test: true }), applied_at: new Date(base + i * 1000) })
         .execute();
     }
-    const list = (await c.recruiterA!.get(`/employer/jobs/${ctx.ids.job2wA}/applications`)).body;
+    const list = (await c.adminA!.get(`/employer/jobs/${ctx.ids.job2wA}/applications`)).body;
     expect(list.items).toHaveLength(4);
     expect(list.lockedCount).toBe(1);
     const hidden = list.items.find((a: { locked: boolean }) => a.locked);
     expect(hidden).toMatchObject({ name: 'Hidden applicant', city: null, skillAreas: [] });
-    const open = await c.recruiterA!.get(`/employer/applications/${hidden.id}`);
+    const open = await c.adminA!.get(`/employer/applications/${hidden.id}`);
     expect(open.status).toBe(403);
     expect(open.body.error.message).toMatch(/3 applicants per job/);
-    expect((await c.recruiterA!.post(`/employer/applications/${hidden.id}/move`, { to: 'shortlisted' })).status).toBe(403);
+    expect((await c.adminA!.post(`/employer/applications/${hidden.id}/move`, { to: 'shortlisted' })).status).toBe(403);
   });
 });
 
@@ -97,9 +97,9 @@ describe('buying a plan (test payment)', () => {
   let paymentId = '';
   let firstEnd = '';
 
-  it('only the employer admin can pay; the terms must be accepted; an unverified company cannot pay yet', async () => {
+  it('only the employer can pay; the terms must be accepted; an unverified company cannot pay yet', async () => {
     const body = { plan: 'starter', cycle: 'monthly', method: 'upi', acceptTerms: true };
-    expect((await c.recruiterA!.post('/employer/subscription/checkout', body)).status).toBe(403);
+    expect((await c.partnerA!.post('/employer/subscription/checkout', body)).status).toBe(403);
     const noTerms = await c.adminA!.post('/employer/subscription/checkout', { ...body, acceptTerms: false });
     expect(noTerms.status).toBe(400);
     expect(noTerms.body.error.fields.acceptTerms).toBe('Accept the terms to continue');
@@ -119,15 +119,15 @@ describe('buying a plan (test payment)', () => {
     const days = (new Date(s.periodEnd).getTime() - Date.now()) / 86_400_000;
     expect(days).toBeGreaterThan(27);
     expect(days).toBeLessThan(32);
-    const list = (await c.recruiterA!.get(`/employer/jobs/${ctx.ids.job2wA}/applications`)).body;
+    const list = (await c.adminA!.get(`/employer/jobs/${ctx.ids.job2wA}/applications`)).body;
     expect(list.lockedCount).toBe(0);
-    const app = (await c.recruiterA!.get(`/employer/applications/${ctx.ids.applicationAnitha}`)).body;
+    const app = (await c.adminA!.get(`/employer/applications/${ctx.ids.applicationAnitha}`)).body;
     expect(app.candidate.phone).toMatch(/^\+91/);
     expect(app.interviewsOnPlan).toBe(true);
   });
 
   it('the invoice is listed and opens with the company details, marked as a test payment', async () => {
-    const items = (await c.recruiterA!.get('/employer/subscription/payments')).body.items;
+    const items = (await c.adminA!.get('/employer/subscription/payments')).body.items;
     expect(items[0]).toMatchObject({ id: paymentId, plan: 'starter', cycle: 'monthly', amountPaise: 99_900, method: 'card', test: true });
     const inv = (await c.adminA!.get(`/employer/subscription/payments/${paymentId}`)).body;
     expect(inv.company.name).toBe('Sunrise Two-Wheeler Service (demo)');
@@ -162,7 +162,7 @@ describe('AutoTalent Grid staff', () => {
     expect((await setPlan('enterprise')).body).toBeDefined();
     const r = await c.ops!.post(`/admin/organisations/${orgA}/subscription`, { plan: 'enterprise', months: 12, reason: 'Signed agreement' });
     expect(r.body).toMatchObject({ plan: 'enterprise', source: 'admin', usage: { activeJobsLimit: null, applicantsLimit: null } });
-    const n = (await c.recruiterA!.get('/notifications')).body.items[0];
+    const n = (await c.adminA!.get('/notifications')).body.items[0];
     expect(n.title).toBe('AutoTalent Grid set your plan to Enterprise');
     const enterpriseCheckout = await c.adminA!.post('/employer/subscription/checkout', { plan: 'growth', cycle: 'monthly', method: 'upi', acceptTerms: true });
     expect(enterpriseCheckout.status).toBe(409);

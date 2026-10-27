@@ -212,11 +212,6 @@ export function SubscriptionPage() {
             <div className="mt-1 divide-y divide-line">
               <UsageBar label="Active jobs" note="Waiting for review, live or paused" n={s.usage.activeJobs} limit={s.usage.activeJobsLimit} />
               <UsageBar label="Applicants" note={s.usage.applicantsPer === 'job' ? 'Most on one job' : 'This month'} n={s.usage.applicants} limit={s.usage.applicantsLimit} />
-              <div className="grid grid-cols-[minmax(0,140px)_1fr_auto] items-center gap-4 py-2.5 text-sm">
-                <span>Team members</span>
-                <span />
-                <span className="font-semibold">{s.usage.teamMembers}</span>
-              </div>
             </div>
           </section>
         </div>

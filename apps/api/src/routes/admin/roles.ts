@@ -40,6 +40,22 @@ export async function grantRole(db: Executor, req: FastifyRequest, input: z.infe
     if (!input.organisationId) return insertGrant(db, req, input);
   }
 
+  // Independent (freelance) trainers: no centre and no organisation until they are given a batch.
+  if (rule.centreOptional && !input.centreId && !input.organisationId) return insertGrant(db, req, input);
+
+  // One login per employer and per training partner (decision of 27 Oct 2026).
+  if ((input.role === 'employer_admin' || input.role === 'partner_admin') && input.organisationId) {
+    const taken = await db
+      .selectFrom('role_assignments')
+      .select('id')
+      .where('organisation_id', '=', input.organisationId)
+      .where('role', '=', input.role)
+      .where('revoked_at', 'is', null)
+      .where('user_id', '!=', input.userId)
+      .executeTakeFirst();
+    if (taken) throw invalid('This organisation already has its login. Each employer and training partner has one login.', { organisationId: 'Already has a login' });
+  }
+
   if (rule.organisation && !input.organisationId) fields.organisationId = 'Choose an organisation for this role';
   if (!rule.organisation && input.organisationId) fields.organisationId = 'This role is not tied to an organisation';
   if (rule.centre && !input.centreId) fields.centreId = 'Choose a centre for this role';

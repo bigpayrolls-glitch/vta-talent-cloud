@@ -13,7 +13,7 @@ beforeAll(async () => {
   ctx = await setup();
   c.learner = await loginPhone(ctx, PHONE.learner);
   c.ravi = await loginPhone(ctx, RAVI);
-  c.opsAdmin = await loginEmail(ctx, EMAIL.opsAdmin);
+  c.secondAdmin = await loginEmail(ctx, EMAIL.secondAdmin);
   c.trainerA = await loginPhone(ctx, PHONE.trainerA);
 });
 afterAll(() => ctx.close());
@@ -60,7 +60,7 @@ describe('EE-01 self-registration', () => {
     const audit = await ctx.db.selectFrom('audit_events').select(['actor_id']).where('action', '=', 'candidate.self_registered').executeTakeFirstOrThrow();
     expect(audit.actor_id).toBe(profile.id);
     // It appears to VTA staff for verification, marked as self-registered.
-    const staff = (await c.opsAdmin!.get(`/admin/candidates/${profile.id}`)).body;
+    const staff = (await c.secondAdmin!.get(`/admin/candidates/${profile.id}`)).body;
     expect(staff).toMatchObject({ verificationStatus: 'pending' });
   });
 
@@ -130,7 +130,7 @@ describe('SH-05 consent before use', () => {
   });
 
   it('staff and other roles have no learner endpoints', async () => {
-    expect((await c.opsAdmin!.get('/me/profile')).status).toBe(403);
+    expect((await c.secondAdmin!.get('/me/profile')).status).toBe(403);
     expect((await c.trainerA!.get('/me/learning')).status).toBe(403);
   });
 });
@@ -184,7 +184,7 @@ describe('EE-02 own profile', () => {
   });
 
   it('an email already used by another account is refused; an empty email clears it', async () => {
-    expect((await c.learner!.patch('/me/profile', { email: EMAIL.opsAdmin })).body.error.fields.email).toBe('Already in use');
+    expect((await c.learner!.patch('/me/profile', { email: EMAIL.secondAdmin })).body.error.fields.email).toBe('Already in use');
     expect((await c.learner!.patch('/me/profile', { email: 'venkatesh@example.invalid' })).body.email).toBe('venkatesh@example.invalid');
     expect((await c.learner!.patch('/me/profile', { email: '' })).body.email).toBeNull();
   });
@@ -209,7 +209,7 @@ describe('EE-03 evidence documents', () => {
     const file = await ctx.app.inject({ method: 'GET', url: link.body.url });
     expect(file.statusCode).toBe(200);
     // VTA staff see it on the candidate record for verification.
-    expect((await c.opsAdmin!.get(`/files/${docId}/link`)).status).toBe(200);
+    expect((await c.secondAdmin!.get(`/files/${docId}/link`)).status).toBe(200);
   });
 
   it('files that are not PDF, JPG or PNG are refused', async () => {
@@ -225,7 +225,7 @@ describe('EE-03 evidence documents', () => {
   });
 
   it('documents AutoTalent Grid added or verified cannot be deleted by the learner; their own can', async () => {
-    const staffDoc = await c.opsAdmin!.upload(`/admin/candidates/${ctx.ids.learner}/documents?kind=certificate&title=Staff%20upload&fileName=s.pdf`, PDF);
+    const staffDoc = await c.secondAdmin!.upload(`/admin/candidates/${ctx.ids.learner}/documents?kind=certificate&title=Staff%20upload&fileName=s.pdf`, PDF);
     const list = (await c.learner!.get('/me/documents')).body.items;
     expect(list.find((d: { id: string }) => d.id === staffDoc.body.id)).toMatchObject({ uploadedBySelf: false, canDelete: false });
     expect((await c.learner!.del(`/me/documents/${staffDoc.body.id}`)).status).toBe(403);
@@ -273,7 +273,7 @@ describe('EE-04 to EE-06 learning, results and certificates', () => {
   });
 
   it('a revoked certificate shows as revoked, without the internal reason', async () => {
-    await c.opsAdmin!.post(`/admin/credentials/${ctx.ids.credentialRavi}/revoke`, { reason: 'Internal: issued in error by the centre' });
+    await c.secondAdmin!.post(`/admin/credentials/${ctx.ids.credentialRavi}/revoke`, { reason: 'Internal: issued in error by the centre' });
     const res = await c.ravi!.get('/me/credentials');
     expect(res.body.items[0].status).toBe('revoked');
     expect(JSON.stringify(res.body)).not.toMatch(/issued in error/);

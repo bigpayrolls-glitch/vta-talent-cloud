@@ -78,16 +78,13 @@ export async function signInPhone(page: Page, tenDigits: string) {
 
 export const EMAIL = {
   superAdmin: 'superadmin@demo.vta.local',
+  /** A second Admin (five logins, 27 Oct 2026: every admin has everything). */
   opsAdmin: 'ops@demo.vta.local',
-  centreAdmin: 'centre@demo.vta.local',
   employerAdminA: 'employer-a@demo.vta.local',
-  recruiterA: 'recruiter-a@demo.vta.local',
   employerAdminB: 'employer-b@demo.vta.local',
   employerAdminPending: 'employer-pending@demo.vta.local',
   partnerAdminA: 'partner-a@demo.vta.local',
-  partnerViewerA: 'viewer-a@demo.vta.local',
   partnerAdminB: 'partner-b@demo.vta.local',
-  multi: 'multi@demo.vta.local',
 };
 
 /** True when the page has no horizontal scrolling (responsive check). */
