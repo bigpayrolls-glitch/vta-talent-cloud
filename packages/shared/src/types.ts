@@ -37,7 +37,7 @@ export interface Page<T> {
 
 export interface ApiErrorBody {
   error: {
-    code: 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'VALIDATION_FAILED' | 'CONFLICT' | 'RATE_LIMITED' | 'INTERNAL';
+    code: 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'VALIDATION_FAILED' | 'CONFLICT' | 'RATE_LIMITED' | 'UNAVAILABLE' | 'INTERNAL';
     message: string;
     fields?: Record<string, string>;
     requestId?: string;

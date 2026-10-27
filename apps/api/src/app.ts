@@ -8,7 +8,7 @@ import type { DB } from './db/index.js';
 import { resolveActor, SESSION_COOKIE } from './auth/sessions.js';
 import { ApiError } from './lib/errors.js';
 import { newId, safeEqual } from './lib/crypto.js';
-import { consoleProviders, type Providers } from './lib/providers.js';
+import { providersFor, type Providers } from './lib/providers.js';
 import { assertPermission, type Actor } from './policy/index.js';
 import { authRoutes } from './routes/auth.js';
 import { adminRoutes } from './routes/admin.js';
@@ -88,7 +88,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
 
   app.decorate('db', opts.db);
   app.decorate('config', opts.config);
-  app.decorate('providers', opts.providers ?? consoleProviders(app.log));
+  app.decorate('providers', opts.providers ?? providersFor(opts.config, app.log));
   app.decorate('storage', opts.storage ?? (opts.config.STORAGE_DRIVER === 'database' ? databaseStorage(opts.db) : localStorage(opts.config.STORAGE_DIR)));
   app.decorateRequest('actor', null);
 
