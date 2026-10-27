@@ -198,9 +198,10 @@ export function PublicShell({ children, fit = false, nav = false }: { children: 
             <Link to="/privacy" className="hover:text-ink">Privacy notice</Link>
             <Link to="/terms" className="hover:text-ink">Terms of use</Link>
           </nav>
-          <p className="text-sm text-ink/70">
-            A product of
-            <br className="hidden lg:block" /> Big Payrolls Solution Pvt. Ltd.
+          <p className="text-sm text-ink/70 lg:text-right">
+            A product of Big Payrolls Solution Pvt. Ltd.
+            <br />
+            <span className="text-xs">CIN: U78100KA2025PTC205573</span>
           </p>
         </div>
       </footer>
