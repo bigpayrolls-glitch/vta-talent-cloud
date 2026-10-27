@@ -36,6 +36,7 @@ describe('Phase 1 test 4: every API route declares a permission', () => {
       'POST /api/v1/auth/password/reset', // single-use, 30-minute link
       'GET /api/v1/public/courses', // course catalogue: courses, open batches, centres; no people (Phase 13)
       'GET /api/v1/public/courses/:id',
+      'POST /api/v1/payments/razorpay/webhook', // Razorpay's server: accepted only with a valid signature (HMAC of the raw body)
       'POST /api/v1/public/organisations/register', // employer/partner sign-up: pending until email confirmed and AutoTalent Grid verifies (EM-01, PA-01)
     ].sort());
   });

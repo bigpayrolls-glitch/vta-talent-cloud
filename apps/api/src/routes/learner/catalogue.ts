@@ -12,7 +12,8 @@ import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
 import { z } from 'zod';
 import { auditCtx } from '../../app.js';
-import { audit } from '../../audit/service.js';
+import { audit, type AuditContext } from '../../audit/service.js';
+import { startRazorpayOrder } from '../../lib/payments.js';
 import type { DB } from '../../db/index.js';
 import type { Course } from '../../db/types.js';
 import { newId } from '../../lib/crypto.js';
@@ -106,6 +107,110 @@ function courseDto(c: Course, batches: CatalogueBatch[]): CatalogueCourse {
   };
 }
 
+/** Why this learner cannot enrol in this batch, or null. Checked again, with the batch locked, when enrolling. */
+export async function blocker(trx: DB, userId: string, batch: { id: string; capacity: number; status: string; start_date: string }): Promise<string | null> {
+  const p = await trx
+    .selectFrom('candidate_profiles as cp')
+    .innerJoin('users as u', 'u.id', 'cp.user_id')
+    .select(['u.status', 'cp.verification_status', 'cp.duplicate_of'])
+    .where('cp.user_id', '=', userId)
+    .executeTakeFirst();
+  if (!p) return 'Only learner accounts can enrol.';
+  if (await consentRequired(trx, userId)) return 'Accept the privacy notice and terms of use first (in Privacy).';
+  if (p.status !== 'active') return 'Your account is not active. Contact AutoTalent Grid.';
+  if (p.verification_status === 'rejected' || p.verification_status === 'needs_correction') return 'Correct your profile first: AutoTalent Grid asked for changes.';
+  if (p.duplicate_of) return 'AutoTalent Grid is checking your profile. Try again later or contact your centre.';
+  if (!(batch.status === 'planned' || batch.status === 'active') || batch.start_date < todayIst()) return 'This batch is no longer open for enrolment.';
+  const mine = await trx.selectFrom('enrolments').select('id').where('batch_id', '=', batch.id).where('candidate_id', '=', userId).where('status', '!=', 'withdrawn').executeTakeFirst();
+  if (mine) return 'You are already enrolled in this batch.';
+  const { n } = await trx.selectFrom('enrolments').select(sql<string>`count(*)`.as('n')).where('batch_id', '=', batch.id).where('status', '!=', 'withdrawn').executeTakeFirstOrThrow();
+  if (Number(n) >= batch.capacity) return 'This batch is full. Choose another batch.';
+  return null;
+}
+
+export const batchSummary = (trx: DB, batchId: string) =>
+  trx
+    .selectFrom('batches as b')
+    .innerJoin('courses as co', 'co.id', 'b.course_id')
+    .innerJoin('centres as c', 'c.id', 'b.centre_id')
+    .leftJoin('organisations as o', 'o.id', 'c.organisation_id')
+    .select([
+      'b.id',
+      'b.name',
+      'b.status',
+      'b.capacity',
+      'b.start_date',
+      'b.end_date',
+      'b.centre_id',
+      'co.id as course_id',
+      'co.title',
+      'co.skill_area',
+      'co.delivery_mode',
+      'co.duration_value',
+      'co.duration_unit',
+      'co.fee_paise',
+      'co.status as course_status',
+      'c.name as centre',
+      'c.city',
+      'o.legal_name as org',
+      'o.type as org_type',
+    ])
+    .where('b.id', '=', batchId)
+    .executeTakeFirst();
+
+/**
+ * Enrols a learner and records the payment, inside the caller's transaction (test payments, free courses and
+ * Razorpay payments all end here). The batch is locked so two learners cannot take the last seat together.
+ * Returns the reason when the learner can no longer enrol (for example the last seat went while they paid).
+ */
+export async function enrolSelf(
+  trx: DB,
+  ctx: AuditContext,
+  userId: string,
+  batchId: string,
+  pay: { provider: 'test' | 'razorpay'; method: 'upi' | 'card' | 'netbanking' | 'wallet' | 'other'; providerPaymentId?: string; expectedFee?: number },
+): Promise<{ enrolmentId: string; receiptNumber: string } | { blocked: string }> {
+  const locked = await trx.selectFrom('batches').select(['id', 'capacity', 'status', 'start_date']).where('id', '=', batchId).forUpdate().executeTakeFirst();
+  const b = locked ? await batchSummary(trx, batchId) : undefined;
+  if (!locked || !b || b.course_status !== 'active') return { blocked: 'This batch is no longer available.' };
+  const why = await blocker(trx, userId, locked);
+  if (why) return { blocked: why };
+  const fee = b.fee_paise;
+  if (pay.expectedFee !== undefined && pay.expectedFee !== fee) return { blocked: 'The course fee changed while you were paying.' };
+
+  const prior = await trx.selectFrom('enrolments').select('id').where('batch_id', '=', b.id).where('candidate_id', '=', userId).executeTakeFirst();
+  const enrolmentId = prior?.id ?? newId();
+  if (prior) {
+    await trx
+      .updateTable('enrolments')
+      .set({ status: 'enrolled', enrolled_at: new Date(), enrolled_by: userId, withdrawn_at: null, withdraw_reason: null, source: 'self', updated_at: new Date() })
+      .where('id', '=', prior.id)
+      .execute();
+  } else {
+    await trx.insertInto('enrolments').values({ id: enrolmentId, candidate_id: userId, batch_id: b.id, status: 'enrolled', enrolled_by: userId, source: 'self' }).execute();
+  }
+  const seq = (await sql<{ n: string }>`SELECT nextval('enrolment_receipt_seq') AS n`.execute(trx)).rows[0]!.n;
+  const day = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10).replaceAll('-', '');
+  const receipt = `ATG-ENR-${day}-${String(seq).padStart(4, '0')}`;
+  const paymentId = newId();
+  await trx
+    .insertInto('course_payments')
+    .values({ id: paymentId, enrolment_id: enrolmentId, candidate_id: userId, batch_id: b.id, amount_paise: fee, method: fee > 0 ? pay.method : null, provider: fee > 0 ? pay.provider : 'free', provider_payment_id: pay.providerPaymentId ?? null, status: 'succeeded', receipt_number: receipt })
+    .execute();
+  await audit(trx, ctx, {
+    action: 'enrolment.self',
+    entityType: 'batch',
+    entityId: b.id,
+    after: { candidateId: userId, enrolmentId, amount_paise: fee, receipt, provider: fee > 0 ? pay.provider : 'free', ...(pay.providerPaymentId ? { razorpay_payment_id: pay.providerPaymentId } : {}) },
+  });
+  const learner = await trx.selectFrom('users').select('name').where('id', '=', userId).executeTakeFirstOrThrow();
+  // Whoever runs the centre hears about it: the training partner, or AutoTalent Grid admins for its own centres.
+  const centreOrg = await trx.selectFrom('centres as c').leftJoin('organisations as o', 'o.id', 'c.organisation_id').select(['o.id', 'o.type']).where('c.id', '=', b.centre_id).executeTakeFirst();
+  const runners = centreOrg?.id && centreOrg.type === 'partner' ? await orgMembers(trx, centreOrg.id, ['partner_admin']) : await vtaReviewers(trx);
+  await notify(trx, runners, 'self_enrolled', { learner: learner.name, batch: b.name, amount: fee > 0 ? money(fee) : '' }, `/admin/batches/${b.id}`);
+  return { enrolmentId, receiptNumber: receipt };
+}
+
 export const catalogueRoutes: FastifyPluginAsync = async (app) => {
   const db = app.db;
   const publicCfg = { public: true, rateLimit: { max: 60, timeWindow: '1 minute' } };
@@ -154,56 +259,6 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
 
   // ---------------------------------------------------------------- learner self-enrolment
 
-  /** Why this learner cannot enrol in this batch, or null. Checked again, with the batch locked, when enrolling. */
-  async function blocker(trx: DB, userId: string, batch: { id: string; capacity: number; status: string; start_date: string }): Promise<string | null> {
-    const p = await trx
-      .selectFrom('candidate_profiles as cp')
-      .innerJoin('users as u', 'u.id', 'cp.user_id')
-      .select(['u.status', 'cp.verification_status', 'cp.duplicate_of'])
-      .where('cp.user_id', '=', userId)
-      .executeTakeFirst();
-    if (!p) return 'Only learner accounts can enrol.';
-    if (await consentRequired(trx, userId)) return 'Accept the privacy notice and terms of use first (in Privacy).';
-    if (p.status !== 'active') return 'Your account is not active. Contact AutoTalent Grid.';
-    if (p.verification_status === 'rejected' || p.verification_status === 'needs_correction') return 'Correct your profile first: AutoTalent Grid asked for changes.';
-    if (p.duplicate_of) return 'AutoTalent Grid is checking your profile. Try again later or contact your centre.';
-    if (!(batch.status === 'planned' || batch.status === 'active') || batch.start_date < todayIst()) return 'This batch is no longer open for enrolment.';
-    const mine = await trx.selectFrom('enrolments').select('id').where('batch_id', '=', batch.id).where('candidate_id', '=', userId).where('status', '!=', 'withdrawn').executeTakeFirst();
-    if (mine) return 'You are already enrolled in this batch.';
-    const { n } = await trx.selectFrom('enrolments').select(sql<string>`count(*)`.as('n')).where('batch_id', '=', batch.id).where('status', '!=', 'withdrawn').executeTakeFirstOrThrow();
-    if (Number(n) >= batch.capacity) return 'This batch is full. Choose another batch.';
-    return null;
-  }
-
-  const batchSummary = (trx: DB, batchId: string) =>
-    trx
-      .selectFrom('batches as b')
-      .innerJoin('courses as co', 'co.id', 'b.course_id')
-      .innerJoin('centres as c', 'c.id', 'b.centre_id')
-      .leftJoin('organisations as o', 'o.id', 'c.organisation_id')
-      .select([
-        'b.id',
-        'b.name',
-        'b.status',
-        'b.capacity',
-        'b.start_date',
-        'b.end_date',
-        'b.centre_id',
-        'co.id as course_id',
-        'co.title',
-        'co.skill_area',
-        'co.delivery_mode',
-        'co.duration_value',
-        'co.duration_unit',
-        'co.fee_paise',
-        'co.status as course_status',
-        'c.name as centre',
-        'c.city',
-        'o.legal_name as org',
-        'o.type as org_type',
-      ])
-      .where('b.id', '=', batchId)
-      .executeTakeFirst();
 
   /** What the learner will enrol in and pay, and whether they can. */
   app.get('/me/enrol/:id', { config: { permission: 'learner.self' } }, async (req) => {
@@ -222,49 +277,33 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
   app.post('/me/enrolments', { config: { permission: 'learner.self' } }, async (req, reply) => {
     const body = parse(selfEnrolSchema, req.body);
     const userId = req.actor!.userId;
-    const result = await db.transaction().execute(async (trx) => {
-      // Lock the batch so two learners cannot take the last seat at the same time.
-      const locked = await trx.selectFrom('batches').select(['id', 'capacity', 'status', 'start_date']).where('id', '=', body.batchId).forUpdate().executeTakeFirst();
-      const b = locked ? await batchSummary(trx, body.batchId) : undefined;
-      if (!locked || !b || b.course_status !== 'active') throw notFound('Batch');
-      const why = await blocker(trx, userId, locked);
-      if (why) throw conflict(why);
-      const fee = b.fee_paise;
-      if (fee > 0 && !body.method) throw invalid('Choose how to pay', { method: 'Choose how to pay' });
-      if (fee > 0 && app.config.paymentMode !== 'test') throw conflict('Online payment is not set up yet. Contact the training centre to enrol.');
+    const mode = app.config.paymentMode;
+    const quote = await batchSummary(db, body.batchId);
+    if (!quote || quote.course_status !== 'active') throw notFound('Batch');
+    const fee = quote.fee_paise;
+    if (fee > 0 && mode === 'none') throw conflict('Online payment is not set up yet. Contact the training centre to enrol.');
+    if (fee > 0 && mode === 'test' && !body.method) throw invalid('Choose how to pay', { method: 'Choose how to pay' });
 
-      const prior = await trx.selectFrom('enrolments').select('id').where('batch_id', '=', b.id).where('candidate_id', '=', userId).executeTakeFirst();
-      const enrolmentId = prior?.id ?? newId();
-      if (prior) {
-        await trx
-          .updateTable('enrolments')
-          .set({ status: 'enrolled', enrolled_at: new Date(), enrolled_by: userId, withdrawn_at: null, withdraw_reason: null, source: 'self', updated_at: new Date() })
-          .where('id', '=', prior.id)
-          .execute();
-      } else {
-        await trx.insertInto('enrolments').values({ id: enrolmentId, candidate_id: userId, batch_id: b.id, status: 'enrolled', enrolled_by: userId, source: 'self' }).execute();
-      }
-      const seq = (await sql<{ n: string }>`SELECT nextval('enrolment_receipt_seq') AS n`.execute(trx)).rows[0]!.n;
-      const day = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10).replaceAll('-', '');
-      const receipt = `ATG-ENR-${day}-${String(seq).padStart(4, '0')}`;
-      const paymentId = newId();
-      await trx
-        .insertInto('course_payments')
-        .values({ id: paymentId, enrolment_id: enrolmentId, candidate_id: userId, batch_id: b.id, amount_paise: fee, method: fee > 0 ? body.method! : null, provider: fee > 0 ? 'test' : 'free', status: 'succeeded', receipt_number: receipt })
-        .execute();
-      await audit(trx, auditCtx(req), {
-        action: 'enrolment.self',
-        entityType: 'batch',
-        entityId: b.id,
-        after: { candidateId: userId, enrolmentId, amount_paise: fee, receipt, test: fee > 0 },
+    // A paid course with Razorpay: nothing is enrolled yet. An order is made and the learner pays in Razorpay
+    // Checkout; the seat is confirmed when the payment is verified (POST /payments/:id/verify, or the webhook).
+    if (fee > 0 && mode === 'razorpay') {
+      const why = await blocker(db, userId, quote);
+      if (why) throw conflict(why);
+      const learner = await db.selectFrom('users').select(['name', 'email', 'phone']).where('id', '=', userId).executeTakeFirstOrThrow();
+      reply.code(201);
+      return startRazorpayOrder(app, {
+        purpose: 'course',
+        amountPaise: fee,
+        payerId: userId,
+        batchId: quote.id,
+        description: `${quote.title}: ${quote.name}`,
+        prefill: { name: learner.name, email: learner.email ?? undefined, contact: learner.phone ?? undefined },
+        ctx: auditCtx(req),
       });
-      const learner = await trx.selectFrom('users').select('name').where('id', '=', userId).executeTakeFirstOrThrow();
-      // Whoever runs the centre hears about it: the training partner, or AutoTalent Grid admins for its own centres.
-      const centreOrg = await trx.selectFrom('centres as c').leftJoin('organisations as o', 'o.id', 'c.organisation_id').select(['o.id', 'o.type']).where('c.id', '=', b.centre_id).executeTakeFirst();
-      const runners = centreOrg?.id && centreOrg.type === 'partner' ? await orgMembers(trx, centreOrg.id, ['partner_admin']) : await vtaReviewers(trx);
-      await notify(trx, runners, 'self_enrolled', { learner: learner.name, batch: b.name, amount: fee > 0 ? money(fee) : '' }, `/admin/batches/${b.id}`);
-      return { enrolmentId, receiptNumber: receipt };
-    });
+    }
+
+    const result = await db.transaction().execute((trx) => enrolSelf(trx, auditCtx(req), userId, body.batchId, { provider: 'test', method: body.method ?? 'upi' }));
+    if ('blocked' in result) throw conflict(result.blocked);
     reply.code(201);
     return result;
   });

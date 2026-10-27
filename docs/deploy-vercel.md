@@ -78,3 +78,26 @@ database (Supabase, Mumbai) and real SMS and email. The staging project above st
 Set **Settings → Functions → Function Region** to Mumbai (`bom1`), next to the database.
 The build stops with a list of anything missing. Sign-in codes are made and checked by Message Central VerifyNow
 (6 digits, SMS); the app still applies its own limits (one code a minute, five an hour, five tries a code).
+
+## Razorpay (payments on the live site)
+
+With `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` set, employer plans and course fees are paid through Razorpay
+Checkout (UPI, cards, net banking, wallets). Without them the live site falls back to "Ask AutoTalent Grid".
+The live site refuses test keys (`rzp_test_…`); a staging copy may use them to try the whole flow with no money.
+
+| Name | Value |
+|---|---|
+| `RAZORPAY_KEY_ID` | Razorpay Dashboard → Account & Settings → API Keys (`rzp_live_…`; same account as PF Mitra) |
+| `RAZORPAY_KEY_SECRET` | shown with the key id when it is generated |
+| `RAZORPAY_WEBHOOK_SECRET` | the secret you type when creating the webhook below |
+
+**Webhook** (Razorpay Dashboard → Account & Settings → Webhooks → Add new webhook):
+URL `https://www.autotalentgrid.com/api/v1/payments/razorpay/webhook`, a secret of your choice (also put in
+`RAZORPAY_WEBHOOK_SECRET`), events **payment.captured** and **order.paid**. It completes payments whose browser
+closed before returning; repeats are ignored.
+
+How a payment works: the API creates a Razorpay order and a `payment_orders` row; Checkout returns a signed
+payment id; the API checks the signature, fetches the payment from Razorpay (it must belong to the order, be the
+full amount in INR and be captured; an authorised payment is captured), then starts the plan or confirms the seat.
+If the seat has gone meanwhile, the order is marked `needs_refund` and Admins are notified to refund it in the
+Razorpay dashboard. Razorpay must have the website (www.autotalentgrid.com) approved on the account.

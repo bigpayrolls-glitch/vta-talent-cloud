@@ -83,7 +83,7 @@ describe('learner self-enrolment', () => {
     const e = await ctx.db.selectFrom('enrolments').select(['source', 'enrolled_by']).where('id', '=', enrolmentId).executeTakeFirstOrThrow();
     expect(e.source).toBe('self');
     const audit = await ctx.db.selectFrom('audit_events').select('after').where('action', '=', 'enrolment.self').executeTakeFirstOrThrow();
-    expect(audit.after).toMatchObject({ enrolmentId, amount_paise: 499_900, test: true });
+    expect(audit.after).toMatchObject({ enrolmentId, amount_paise: 499_900, provider: 'test' });
   });
 
   it('cannot enrol twice; payments cannot be changed; another person cannot open the receipt', async () => {
