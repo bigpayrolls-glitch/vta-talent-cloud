@@ -178,9 +178,21 @@ describe('first Admin on a new live database', () => {
       expect(user).toMatchObject({ email: 'owner@autotalentgrid.com', name: 'Owner', status: 'invited' });
       const role = await db.selectFrom('role_assignments').selectAll().where('user_id', '=', user.id).executeTakeFirstOrThrow();
       expect(role.role).toBe('super_admin');
-      expect(mem.sentInvites.get('owner@autotalentgrid.com')).toMatch(/^https:\/\/www\.autotalentgrid\.com\/invite\/[\w-]{20,}$/);
-      expect(await createFirstAdmin(db, { ...opts, email: 'second@autotalentgrid.com' })).toMatch(/already exist/);
-      expect(await db.selectFrom('users').select('id').execute()).toHaveLength(1);
+      const first = mem.sentInvites.get('owner@autotalentgrid.com');
+      expect(first).toMatch(/^https:\/\/www\.autotalentgrid\.com\/invite\/[\w-]{20,}$/);
+
+      // Not accepted yet: the next deploy emails a fresh link (the old one stops working).
+      expect(await createFirstAdmin(db, { ...opts, email: 'owner@autotalentgrid.com' })).toMatch(/Invitation sent again/);
+      expect(mem.sentInvites.get('owner@autotalentgrid.com')).not.toBe(first);
+      // A changed address (the first was mistyped) gets its own Admin invitation.
+      expect(await createFirstAdmin(db, { ...opts, email: 'admin@autotalentgrid.com' })).toMatch(/First Admin created for admin@autotalentgrid.com/);
+      expect(await db.selectFrom('users').select('id').execute()).toHaveLength(2);
+
+      // Once an Admin is active, nothing more happens.
+      await db.updateTable('users').set({ status: 'active' }).where('email', '=', 'admin@autotalentgrid.com').execute();
+      mem.sentInvites.clear();
+      expect(await createFirstAdmin(db, { ...opts, email: 'someone@else.com' })).toMatch(/already active/);
+      expect(mem.sentInvites.size).toBe(0);
     } finally {
       await db.destroy();
     }
