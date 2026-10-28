@@ -198,3 +198,25 @@ describe('first Admin on a new live database', () => {
     }
   });
 });
+
+describe('database connections', () => {
+  it('an idle connection closed by the database does not stop the server; the pool carries on', async () => {
+    const { createPool } = await import('../src/db/index.js');
+    const config = loadConfig({ ...process.env, NODE_ENV: 'test' });
+    const dropped: string[] = [];
+    const pool = createPool(config.databaseUrl, 2, (msg) => dropped.push(msg));
+    try {
+      const client = await pool.connect();
+      const { rows } = await client.query<{ pid: number }>('select pg_backend_pid() as pid');
+      client.release(); // now idle in the pool
+      const killer = createPool(config.databaseUrl, 1, () => {});
+      await killer.query('select pg_terminate_backend($1)', [rows[0]!.pid]);
+      await killer.end();
+      await new Promise((r) => setTimeout(r, 300));
+      expect(dropped).toEqual(['Database connection dropped while idle; it was discarded']);
+      expect((await pool.query('select 1 as ok')).rows[0]).toEqual({ ok: 1 });
+    } finally {
+      await pool.end();
+    }
+  });
+});
