@@ -199,9 +199,9 @@ export function CreateBatchModal({ base, onClose, presetCourseId, onCreated }: {
             {courses.data?.items.map((c) => <option key={c.id} value={c.id}>{c.title}{c.code ? ` (${c.code})` : ''}</option>)}
           </select>
         </Field>
-        <Field label="Centre" htmlFor="bf-centre" error={f.errors.centreId}>
+        <Field label="Centre" htmlFor="bf-centre" error={f.errors.centreId} hint={centres.data && centres.data.items.length === 0 ? 'No centre yet. AutoTalent Grid adds centres (Admin → Centres).' : undefined}>
           <select id="bf-centre" className="field-input" value={v.centreId} onChange={upd('centreId')}>
-            <option value="">Choose a centre</option>
+            <option value="">{centres.data && centres.data.items.length === 0 ? 'No centres yet' : 'Choose a centre'}</option>
             {centres.data?.items.map((c) => <option key={c.id} value={c.id}>{c.name}{c.city ? `, ${c.city}` : ''} ({c.organisationName ?? 'AutoTalent Grid'})</option>)}
           </select>
         </Field>

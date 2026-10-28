@@ -121,6 +121,7 @@ function CentreModal({ centre, onClose }: { centre: CentreRow | null; onClose: (
     queryFn: () => api.get<Page<{ id: string; legalName: string }>>(`/admin/organisations${qs({ type: 'partner', pageSize: 100 })}`),
   });
   const upd = (k: keyof typeof v) => (e: { target: { value: string } }) => setV({ ...v, [k]: e.target.value });
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const refresh = async (msg: string) => {
     await qc.invalidateQueries({ queryKey: ['centres'] });
@@ -149,6 +150,23 @@ function CentreModal({ centre, onClose }: { centre: CentreRow | null; onClose: (
               {centre.status === 'active' ? 'Deactivate' : 'Reactivate'}
             </button>
           )}
+          {centre && (
+            <button
+              className={`btn-secondary ${confirmDelete ? 'border-brand bg-brand text-white hover:bg-brand-hover' : 'text-brand'}`}
+              onClick={() => {
+                if (!confirmDelete) return setConfirmDelete(true);
+                void api
+                  .del(`/admin/centres/${centre.id}`)
+                  .then(() => refresh('Centre deleted'))
+                  .catch((e) => {
+                    setConfirmDelete(false);
+                    f.setFormError((e as Error).message);
+                  });
+              }}
+            >
+              {confirmDelete ? 'Yes, delete it' : 'Delete'}
+            </button>
+          )}
           <button className="btn-secondary" onClick={onClose}>Cancel</button>
           <button className="btn-primary" type="submit" form="centre-form" disabled={f.submitting}>
             {centre ? 'Save changes' : 'Add centre'}
@@ -171,6 +189,7 @@ function CentreModal({ centre, onClose }: { centre: CentreRow | null; onClose: (
         }}
       >
         {f.formError && <ErrorNote message={f.formError} />}
+        {confirmDelete && <p role="alert" className="rounded-lg bg-brand-tint px-3 py-2 text-sm text-brand">Delete {centre?.name}? This cannot be undone. Click “Yes, delete it” to confirm.</p>}
         <Field label="Centre name" htmlFor="c-name" error={f.errors.name}>
           <input id="c-name" autoFocus className="field-input" value={v.name} onChange={upd('name')} />
         </Field>

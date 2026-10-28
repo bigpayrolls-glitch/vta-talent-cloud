@@ -22,6 +22,8 @@ import {
   SUGGESTED_SKILLS,
   type Page,
   type PartnerCourse,
+  hoursLabel,
+  minutesToHours,
 } from '@vta/shared';
 import {
   AlertTriangle,
@@ -718,18 +720,24 @@ function StepContent({ v, set, errors }: StepProps) {
   const [skill, setSkill] = useState('');
   const [outcome, setOutcome] = useState('');
   const [editing, setEditing] = useState<number | null>(null);
-  const [draft, setDraft] = useState({ name: '', hours: '' });
-  const totalHours = v.modules.reduce((n, m) => n + (Number(m.hours) || 0), 0);
+  // Time can be typed in hours (0.5, 2) or minutes (30, 90); it is kept and shown in hours.
+  const [draft, setDraft] = useState<{ name: string; amount: string; unit: 'hours' | 'minutes' }>({ name: '', amount: '', unit: 'hours' });
+  const totalHours = Math.round(v.modules.reduce((n, m) => n + (Number(m.hours) || 0), 0) * 100) / 100;
   const toggleSkill = (s: string) => set('skills', v.skills.includes(s) ? v.skills.filter((x) => x !== s) : [...v.skills, s]);
+  const draftHours = draft.unit === 'minutes' ? minutesToHours(Number(draft.amount)) : Math.round(Number(draft.amount) * 100) / 100;
+  const draftOk = !!draft.name.trim() && draftHours > 0;
   const saveModule = () => {
-    if (!draft.name.trim() || !(Number(draft.hours) > 0)) return;
+    if (!draftOk) return;
     const list = [...v.modules];
-    if (editing !== null && editing < list.length) list[editing] = draft;
-    else list.push(draft);
+    const m = { name: draft.name.trim(), hours: String(draftHours) };
+    if (editing !== null && editing < list.length) list[editing] = m;
+    else list.push(m);
     set('modules', list);
-    setDraft({ name: '', hours: '' });
+    setDraft({ name: '', amount: '', unit: draft.unit });
     setEditing(null);
   };
+  /** The first message for a part of this step, from either the browser check or the server. */
+  const errorFor = (key: string) => Object.entries(errors).find(([k]) => k === key || k.startsWith(`${key}.`))?.[1];
 
   return (
     <div className="space-y-7">
@@ -739,25 +747,28 @@ function StepContent({ v, set, errors }: StepProps) {
           <h3 className="font-semibold">Course modules</h3>
           <span className="text-sm text-muted">Total {totalHours} hours</span>
         </div>
-        {errors.modules && <p className="field-error mb-2" role="alert">{errors.modules}</p>}
+        {errorFor('modules') && <p className="field-error mb-2" role="alert">{errorFor('modules')}</p>}
         <div className="overflow-hidden rounded-xl border border-line">
           <table className="w-full text-sm">
             <thead className="bg-surface/70 text-left text-xs uppercase tracking-wide text-muted">
               <tr>
                 <th className="w-10 px-3 py-2">#</th>
                 <th className="px-3 py-2">Module name</th>
-                <th className="w-24 px-3 py-2">Hours</th>
+                <th className="w-28 px-3 py-2">Time</th>
                 <th className="w-24 px-3 py-2 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
               {v.modules.map((m, i) => (
-                <tr key={i}>
+                <tr key={i} className={errorFor(`modules.${i}`) ? 'bg-brand-tint' : undefined}>
                   <td className="px-3 py-2.5 text-muted">{i + 1}</td>
-                  <td className="px-3 py-2.5">{m.name}</td>
-                  <td className="px-3 py-2.5">{m.hours}</td>
+                  <td className="px-3 py-2.5">
+                    {m.name}
+                    {errorFor(`modules.${i}`) && <span className="field-error block">{errorFor(`modules.${i}`)}</span>}
+                  </td>
+                  <td className="px-3 py-2.5">{Number(m.hours) > 0 ? hoursLabel(Number(m.hours)) : m.hours}</td>
                   <td className="px-3 py-2.5 text-right">
-                    <button type="button" className="rounded p-1.5 text-muted hover:bg-surface hover:text-brand" aria-label={`Edit ${m.name}`} onClick={() => { setEditing(i); setDraft(m); }}>
+                    <button type="button" className="rounded p-1.5 text-muted hover:bg-surface hover:text-brand" aria-label={`Edit ${m.name}`} onClick={() => { setEditing(i); setDraft({ name: m.name, amount: m.hours, unit: 'hours' }); }}>
                       <Pencil className="size-4" />
                     </button>
                     <button type="button" className="rounded p-1.5 text-muted hover:bg-surface hover:text-brand" aria-label={`Delete ${m.name}`} onClick={() => set('modules', v.modules.filter((_, j) => j !== i))}>
@@ -773,11 +784,17 @@ function StepContent({ v, set, errors }: StepProps) {
                   <input id="w-mod-name" className="field-input h-9" placeholder="Module name" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), saveModule())} />
                 </td>
                 <td className="px-3 py-2">
-                  <label htmlFor="w-mod-hours" className="sr-only">Hours</label>
-                  <input id="w-mod-hours" type="number" min={1} className="field-input h-9" placeholder="Hrs" value={draft.hours} onChange={(e) => setDraft({ ...draft, hours: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), saveModule())} />
+                  <label htmlFor="w-mod-hours" className="sr-only">Time</label>
+                  <input id="w-mod-hours" type="number" min={0} step="any" inputMode="decimal" className="field-input h-9" placeholder={draft.unit === 'minutes' ? 'Min' : 'Hrs'} value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), saveModule())} />
+                  <label htmlFor="w-mod-unit" className="sr-only">Unit</label>
+                  <select id="w-mod-unit" className="field-input mt-1 h-9 py-0 text-sm" value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value as 'hours' | 'minutes' })}>
+                    <option value="hours">Hrs</option>
+                    <option value="minutes">Mins</option>
+                  </select>
+                  {draft.unit === 'minutes' && draftHours > 0 && <span className="mt-1 block text-xs text-muted">= {draftHours} h</span>}
                 </td>
                 <td className="px-3 py-2 text-right">
-                  <button type="button" className="btn-quiet btn-sm" onClick={saveModule} disabled={!draft.name.trim() || !(Number(draft.hours) > 0)}>
+                  <button type="button" className="btn-quiet btn-sm" onClick={saveModule} disabled={!draftOk}>
                     {editing !== null ? <Check className="size-4" aria-hidden /> : <Plus className="size-4" aria-hidden />}
                     {editing !== null ? 'Save' : 'Add'}
                   </button>
@@ -790,12 +807,12 @@ function StepContent({ v, set, errors }: StepProps) {
 
       <section>
         <h3 className="mb-2 font-semibold">Skills covered</h3>
-        {errors.skills && <p className="field-error mb-2" role="alert">{errors.skills}</p>}
+        {errorFor('skills') && <p className="field-error mb-2" role="alert">{errorFor('skills')}</p>}
         <div className="flex flex-wrap gap-2">
           {[...new Set([...SUGGESTED_SKILLS, ...v.skills])].map((s) => {
             const on = v.skills.includes(s);
             return (
-              <button key={s} type="button" aria-pressed={on} onClick={() => toggleSkill(s)} className={`inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors ${on ? 'border-brand bg-brand text-white' : 'border-line bg-white hover:bg-surface'}`}>
+              <button key={s} type="button" aria-pressed={on} onClick={() => toggleSkill(s)} className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-1 text-left text-sm transition-colors ${on ? 'border-brand bg-brand text-white' : 'border-line bg-white hover:bg-surface'}`}>
                 {on && <Check className="size-3.5" aria-hidden />}
                 {s}
               </button>
@@ -815,7 +832,7 @@ function StepContent({ v, set, errors }: StepProps) {
 
       <section>
         <h3 className="mb-2 font-semibold">Learning outcomes</h3>
-        {errors.learningOutcomes && <p className="field-error mb-2" role="alert">{errors.learningOutcomes}</p>}
+        {errorFor('learningOutcomes') && <p className="field-error mb-2" role="alert">{errorFor('learningOutcomes')}</p>}
         {v.learningOutcomes.length > 0 && (
           <ul className="mb-3 space-y-2">
             {v.learningOutcomes.map((o, i) => (
@@ -887,9 +904,9 @@ function StepFee({ v, set, errors }: StepProps) {
           <Field label="Batch name" htmlFor="w-b-name" error={e('name')}>
             <input id="w-b-name" className="field-input" placeholder="For example, 2W Service Peenya December 2026" value={b.name} onChange={(ev) => setB('name', ev.target.value)} />
           </Field>
-          <Field label="Location (centre)" htmlFor="w-b-centre" error={e('centreId')}>
+          <Field label="Location (centre)" htmlFor="w-b-centre" error={e('centreId')} hint={centres.data && centres.data.items.length === 0 ? 'Your organisation has no centre yet. AutoTalent Grid adds centres: ask them to add yours, then choose it here.' : undefined}>
             <select id="w-b-centre" className="field-input" value={b.centreId} onChange={(ev) => setB('centreId', ev.target.value)}>
-              <option value="">Choose a centre</option>
+              <option value="">{centres.data && centres.data.items.length === 0 ? 'No centres yet' : 'Choose a centre'}</option>
               {centres.data?.items.map((c) => <option key={c.id} value={c.id}>{c.name}{c.city ? `, ${c.city}` : ''}</option>)}
             </select>
           </Field>

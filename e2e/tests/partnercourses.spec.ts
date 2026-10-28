@@ -34,10 +34,18 @@ test('partner creates and submits a course; admin approves and publishes it; lea
   await expect(partner.getByRole('heading', { name: 'Add course content' })).toBeVisible();
   for (const [name, hours] of [['FI system basics', '20'], ['Scan tool diagnostics', '30']] as const) {
     await partner.getByLabel('Module name').fill(name);
-    await partner.getByLabel('Hours').fill(hours);
+    await partner.getByLabel('Time').fill(hours);
     await partner.getByRole('button', { name: 'Add', exact: true }).first().click();
   }
   await expect(partner.getByText('Total 50 hours')).toBeVisible();
+  // A short module typed in minutes is shown in hours.
+  await partner.getByLabel('Module name').fill('Workshop safety briefing');
+  await partner.getByLabel('Unit').selectOption('minutes');
+  await partner.getByLabel('Time').fill('30');
+  await expect(partner.getByText('= 0.5 h')).toBeVisible();
+  await partner.getByRole('button', { name: 'Add', exact: true }).first().click();
+  await expect(partner.getByRole('cell', { name: '0.5 h (30 min)' })).toBeVisible();
+  await expect(partner.getByText('Total 50.5 hours')).toBeVisible();
   await partner.getByRole('button', { name: 'FI System', exact: true }).click();
   await partner.getByRole('button', { name: 'Electrical Diagnostics', exact: true }).click();
   await partner.getByLabel('Prerequisites').fill('10th pass');

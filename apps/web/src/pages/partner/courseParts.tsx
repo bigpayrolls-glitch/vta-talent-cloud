@@ -1,4 +1,4 @@
-import { COURSE_APPROVAL_LABEL, COURSE_CATEGORY_LABEL, COURSE_LEVEL_LABEL, COURSE_TYPE_LABEL, DELIVERY_MODE_LABEL, type PartnerCourse } from '@vta/shared';
+import { COURSE_APPROVAL_LABEL, COURSE_CATEGORY_LABEL, COURSE_LEVEL_LABEL, COURSE_TYPE_LABEL, DELIVERY_MODE_LABEL, hoursLabel, type PartnerCourse } from '@vta/shared';
 import { BatteryCharging, Bike, Car, Clock, GraduationCap, MapPin, MonitorPlay, Truck, Wrench } from 'lucide-react';
 import { durationText } from '../../components/form';
 import { StatusBadge } from '../../components/ui';
@@ -85,13 +85,13 @@ export function CourseSummary({ c, section = 'all' }: { c: PartnerCourse; sectio
                     <tr key={i}>
                       <td className="py-2 pr-2 text-muted">{i + 1}.</td>
                       <td className="py-2">{m.name}</td>
-                      <td className="py-2 text-right text-muted">{m.hours} h</td>
+                      <td className="py-2 text-right text-muted">{hoursLabel(m.hours)}</td>
                     </tr>
                   ))}
                   <tr className="font-semibold">
                     <td />
                     <td className="py-2">Total</td>
-                    <td className="py-2 text-right">{c.modules.reduce((n, m) => n + m.hours, 0)} h</td>
+                    <td className="py-2 text-right">{hoursLabel(c.modules.reduce((n, m) => n + m.hours, 0))}</td>
                   </tr>
                 </tbody>
               </table>

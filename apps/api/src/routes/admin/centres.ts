@@ -5,7 +5,7 @@ import { auditCtx } from '../../app.js';
 import { audit } from '../../audit/service.js';
 import type { DB } from '../../db/index.js';
 import { newId } from '../../lib/crypto.js';
-import { invalid, notFound } from '../../lib/errors.js';
+import { conflict, invalid, notFound } from '../../lib/errors.js';
 import { parse } from '../../lib/validate.js';
 
 const idParam = z.object({ id: uuidSchema });
@@ -60,6 +60,31 @@ export const centreRoutes: FastifyPluginAsync = async (app) => {
       await audit(trx, auditCtx(req), { action: 'centre.updated', entityType: 'centre', entityId: id, before: prior, after: changes });
     });
     return { id };
+  });
+
+  /**
+   * Deletes a centre that nothing uses yet (for example one added by mistake). A centre with batches, or with
+   * people assigned to it, keeps its history: it can only be deactivated.
+   */
+  app.delete('/centres/:id', { config: { permission: 'centre.manage' } }, async (req) => {
+    const { id } = parse(idParam, req.params);
+    const c = await db.selectFrom('centres').selectAll().where('id', '=', id).executeTakeFirst();
+    if (!c) throw notFound('Centre');
+    const inUse = 'This centre has batches or people assigned to it, so it cannot be deleted. Deactivate it instead.';
+    const batch = await db.selectFrom('batches').select('id').where('centre_id', '=', id).executeTakeFirst();
+    const role = await db.selectFrom('role_assignments').select('id').where('centre_id', '=', id).executeTakeFirst();
+    if (batch || role) throw conflict(inUse);
+    try {
+      await db.transaction().execute(async (trx) => {
+        await trx.deleteFrom('centres').where('id', '=', id).execute();
+        await audit(trx, auditCtx(req), { action: 'centre.deleted', entityType: 'centre', entityId: id, before: c });
+      });
+    } catch (e) {
+      // Anything else still pointing at the centre (a foreign key) also blocks deleting.
+      if ((e as { code?: string }).code === '23503') throw conflict(inUse);
+      throw e;
+    }
+    return { ok: true };
   });
 
   for (const [path, status] of [['deactivate', 'inactive'], ['activate', 'active']] as const) {

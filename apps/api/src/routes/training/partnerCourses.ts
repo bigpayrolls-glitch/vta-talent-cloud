@@ -88,7 +88,8 @@ function toRow(b: z.infer<typeof partnerCourseSaveSchema>) {
   if (b.modules !== undefined) {
     row.modules = JSON.stringify(b.modules);
     const hours = b.modules.reduce((n, m) => n + m.hours, 0);
-    row.training_hours = hours > 0 ? hours : null;
+    // The course total is stored in whole hours (rounded up); each module keeps its exact time.
+    row.training_hours = hours > 0 ? Math.ceil(hours) : null;
   }
   if (b.skills !== undefined) row.skills = [...new Set(b.skills)];
   if (b.prerequisites !== undefined) row.prerequisites = b.prerequisites || null;

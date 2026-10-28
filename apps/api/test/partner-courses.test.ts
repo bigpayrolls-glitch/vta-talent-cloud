@@ -198,3 +198,42 @@ describe('reject and delete', () => {
     expect((await c.partnerA!.get(`/partner/courses/${id}`)).status).toBe(404);
   });
 });
+
+describe('fixes of 28 Oct 2026', () => {
+  it('module time may be part of an hour (minutes typed in the wizard become hours) and long skills save', async () => {
+    const r = await c.partnerA!.post('/partner/courses', { ...details, title: 'EV Battery and Motor Safety Awareness Program' });
+    const id = r.body.id;
+    const longSkill = 'Follow EV battery handling and maintenance safety procedures, including PPE and isolation';
+    const save = await c.partnerA!.patch(`/partner/courses/${id}`, {
+      modules: [{ name: 'Introduction to Electric Two-Wheelers', hours: 0.5 }, { name: 'EV Battery Types and Components', hours: 1 }, { name: 'Charging safety', hours: '0.75' }],
+      skills: ['Electrical Diagnostics', longSkill],
+      learningOutcomes: ['Recognize when professional help is needed and escalate early to a qualified EV technician.'],
+    });
+    expect(save.status).toBe(200);
+    const d = (await c.partnerA!.get(`/partner/courses/${id}`)).body;
+    expect(d.modules).toEqual([
+      { name: 'Introduction to Electric Two-Wheelers', hours: 0.5 },
+      { name: 'EV Battery Types and Components', hours: 1 },
+      { name: 'Charging safety', hours: 0.75 },
+    ]);
+    expect(d.skills).toContain(longSkill);
+    const row = await ctx.db.selectFrom('courses').select('training_hours').where('id', '=', id).executeTakeFirstOrThrow();
+    expect(row.training_hours).toBe(3); // 2.25 hours in all, rounded up for the course total
+    const tooShort = await c.partnerA!.patch(`/partner/courses/${id}`, { modules: [{ name: 'Blink', hours: 0.01 }] });
+    expect(tooShort.body.error.fields['modules.0.hours']).toBe('At least 3 minutes');
+  });
+});
+
+describe('centres', () => {
+  it('an Admin deletes an unused centre; a centre with batches can only be deactivated; partners cannot delete', async () => {
+    const add = await c.admin!.post('/admin/centres', { name: 'VOC Bengaluru', city: 'Bengaluru', organisationId: ctx.ids.partnerA });
+    expect(add.status).toBe(201);
+    expect((await c.partnerA!.get('/centres')).body.items.map((x: { name: string }) => x.name)).toContain('VOC Bengaluru');
+    expect((await c.partnerA!.del(`/admin/centres/${add.body.id}`)).status).toBe(403);
+    expect((await c.admin!.del(`/admin/centres/${add.body.id}`)).body).toEqual({ ok: true });
+    expect((await c.partnerA!.get('/centres')).body.items.map((x: { name: string }) => x.name)).not.toContain('VOC Bengaluru');
+    const used = await c.admin!.del(`/admin/centres/${ctx.ids.centrePartnerA}`);
+    expect(used.status).toBe(409);
+    expect(used.body.error.message).toMatch(/Deactivate it instead/);
+  });
+});

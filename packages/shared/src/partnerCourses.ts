@@ -78,17 +78,32 @@ export const partnerCourseDetailsSchema = z.object({
   durationUnit: z.enum(DURATION_UNITS),
 });
 
+/** Module time is kept in hours, to two decimals (30 minutes = 0.5). Partners may type hours or minutes. */
 export const courseModuleSchema = z.object({
   name: z.string().trim().min(2, 'Name the module').max(120),
-  hours: z.coerce.number().int('Whole hours').min(1, 'At least 1 hour').max(500),
+  hours: z.coerce
+    .number('Enter the time in hours or minutes')
+    .min(0.05, 'At least 3 minutes')
+    .max(500, 'At most 500 hours')
+    .transform((h) => Math.round(h * 100) / 100),
 });
+
+/** Minutes typed by a partner, as hours (two decimals). */
+export const minutesToHours = (minutes: number) => Math.round((minutes / 60) * 100) / 100;
+
+/** "6 h", or "0.5 h (30 min)" when it is not a whole number of hours. */
+export function hoursLabel(hours: number): string {
+  const h = Math.round(hours * 100) / 100;
+  if (Number.isInteger(h)) return `${h} h`;
+  return `${h} h (${Math.round(hours * 60)} min)`;
+}
 
 /** Step 2: course content. */
 export const partnerCourseContentSchema = z.object({
   modules: z.array(courseModuleSchema).max(40),
-  skills: z.array(z.string().trim().min(2).max(60)).max(20),
+  skills: z.array(z.string().trim().min(2, 'A skill needs at least 2 characters').max(200, 'Keep each skill under 200 characters')).max(30, 'At most 30 skills'),
   prerequisites: optionalText(300),
-  learningOutcomes: z.array(z.string().trim().min(3).max(200)).max(15),
+  learningOutcomes: z.array(z.string().trim().min(3, 'An outcome needs at least 3 characters').max(300, 'Keep each outcome under 300 characters')).max(20, 'At most 20 outcomes'),
 });
 
 export const firstBatchSchema = z
