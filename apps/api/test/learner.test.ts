@@ -102,7 +102,8 @@ describe('EE-01 self-registration', () => {
     expect(v.headers['set-cookie']).toBeUndefined();
     const { needsSignup, signupToken } = v.json();
     expect(needsSignup).toBe(true);
-    const { code: _unused, ...withoutCode } = registration(phone2, '');
+    const withoutCode: Record<string, unknown> = { ...registration(phone2, '') };
+    delete withoutCode.code;
     // The token is for this number only, and cannot be altered.
     expect((await register({ ...withoutCode, phone: '+919811119999', signupToken })).statusCode).toBe(400);
     expect((await register({ ...withoutCode, signupToken: signupToken.slice(0, -2) + 'xx' })).statusCode).toBe(400);
