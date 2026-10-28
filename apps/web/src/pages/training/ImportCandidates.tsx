@@ -68,6 +68,9 @@ export function ImportCandidatesPage() {
   };
 
   const importable = result ? result.summary.ready + result.summary.possibleDuplicates : 0;
+  // Large files: list rows needing attention first, and at most 500 rows in all, so the page stays quick.
+  const order = { error: 0, possible_duplicate: 1, ready: 2 } as const;
+  const shown = result ? [...result.rows].sort((a, b) => order[a.status] - order[b.status] || (b.messages.length ? 1 : 0) - (a.messages.length ? 1 : 0) || a.row - b.row).slice(0, 500) : [];
 
   return (
     <div>
@@ -80,7 +83,7 @@ export function ImportCandidatesPage() {
       <ol className="mb-6 grid gap-3 md:grid-cols-3">
         <li className="card p-4">
           <p className="text-sm font-semibold">1. Prepare the file</p>
-          <p className="mt-1 text-sm text-muted">Columns name, phone, date_of_birth and city are required. Separate several skills or languages with semicolons.</p>
+          <p className="mt-1 text-sm text-muted">Columns name and phone are required. Add date_of_birth and city if you have them; anyone without them adds them at first sign-in. Separate several skills or languages with semicolons.</p>
           <button className="btn-secondary btn-sm mt-3" onClick={downloadTemplate}>
             <Download className="size-4" aria-hidden />
             Download template
@@ -88,7 +91,7 @@ export function ImportCandidatesPage() {
         </li>
         <li className="card p-4">
           <p className="text-sm font-semibold">2. Check it</p>
-          <p className="mt-1 text-sm text-muted">Up to 500 rows. Rows with problems are listed and will be skipped. Nothing is saved yet.</p>
+          <p className="mt-1 text-sm text-muted">Up to 10,000 rows. Rows with problems are listed and will be skipped. Nothing is saved yet.</p>
         </li>
         <li className="card p-4">
           <p className="text-sm font-semibold">3. Import</p>
@@ -109,8 +112,8 @@ export function ImportCandidatesPage() {
             onChange={async (e) => {
               const f = e.target.files?.[0];
               if (!f) return;
-              if (f.size > 600_000) {
-                setError('The file is too large. Split it into files of up to 500 rows.');
+              if (f.size > 3_500_000) {
+                setError('The file is too large (over 3.5 MB). Split it into two files.');
                 return;
               }
               const text = await f.text();
@@ -159,7 +162,7 @@ export function ImportCandidatesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {result.rows.map((r) => (
+                {shown.map((r) => (
                   <tr key={r.row} className="align-top">
                     <td className="px-4 py-3 tabular-nums text-muted">{r.row}</td>
                     <td className="px-4 py-3 font-medium">{r.name || '—'}</td>
@@ -175,6 +178,11 @@ export function ImportCandidatesPage() {
                 ))}
               </tbody>
             </table>
+            {result.rows.length > shown.length && (
+              <p className="border-t border-line px-4 py-3 text-sm text-muted">
+                Showing rows with problems or notes first, then the rest: {shown.length} of {result.rows.length}. All {importable} importable rows are imported.
+              </p>
+            )}
           </div>
         </section>
       )}

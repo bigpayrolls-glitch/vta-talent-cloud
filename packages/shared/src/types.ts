@@ -26,6 +26,8 @@ export interface MeDto {
   hasPassword: boolean;
   /** Learners who have not accepted the current privacy notice and terms (Phase 5). */
   consentRequired?: boolean;
+  /** Learners imported without a date of birth or city: they add them before using the portal. */
+  basicsRequired?: boolean;
 }
 
 export interface Page<T> {

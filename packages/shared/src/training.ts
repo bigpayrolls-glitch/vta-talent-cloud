@@ -90,6 +90,19 @@ export const candidateSchema = z.object({
 
 export const candidateUpdateSchema = candidateSchema.omit({ phone: true }).partial();
 
+/**
+ * Bulk import (29 Oct 2026): older lists often have no date of birth or city. Such candidates are imported
+ * anyway and must add them (18+ checked then) when they first sign in, before enrolling or applying for jobs.
+ */
+export const candidateImportSchema = candidateSchema.extend({
+  dateOfBirth: z.preprocess((v) => (v === '' ? undefined : v), dateOfBirthSchema.optional()),
+  city: z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? undefined : v), z.string().trim().min(2, 'Enter a city').max(80).optional()),
+});
+export type CandidateImportInput = z.output<typeof candidateImportSchema>;
+
+/** What an imported learner adds at first sign-in. */
+export const learnerBasicsSchema = z.object({ dateOfBirth: dateOfBirthSchema, city: z.string().trim().min(2, 'Enter your city or town').max(80) });
+
 export const CANDIDATE_STATUSES = ['pending', 'verified', 'rejected', 'needs_correction'] as const;
 
 export const trainerCreateSchema = z.object({

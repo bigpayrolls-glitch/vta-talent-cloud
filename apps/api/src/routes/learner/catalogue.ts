@@ -21,7 +21,7 @@ import { formatDay, todayIst } from '../../lib/dates.js';
 import { conflict, invalid, notFound } from '../../lib/errors.js';
 import { notify, orgMembers, vtaReviewers } from '../../lib/notify.js';
 import { iso, parse } from '../../lib/validate.js';
-import { consentRequired } from './service.js';
+import { basicsRequired, consentRequired } from './service.js';
 import { courseImageUrl } from '../training/courses.js';
 
 /**
@@ -128,6 +128,7 @@ export async function blocker(trx: DB, userId: string, batch: { id: string; capa
     .executeTakeFirst();
   if (!p) return 'Only learner accounts can enrol.';
   if (await consentRequired(trx, userId)) return 'Accept the privacy notice and terms of use first (in Privacy).';
+  if (await basicsRequired(trx, userId)) return 'Add your date of birth and city first (in Profile).';
   if (p.status !== 'active') return 'Your account is not active. Contact AutoTalent Grid.';
   if (p.verification_status === 'rejected' || p.verification_status === 'needs_correction') return 'Correct your profile first: AutoTalent Grid asked for changes.';
   if (p.duplicate_of) return 'AutoTalent Grid is checking your profile. Try again later or contact your centre.';

@@ -1,7 +1,7 @@
 import type { FastifyRequest } from 'fastify';
 import { sql, type Kysely, type Transaction } from 'kysely';
 import type { z } from 'zod';
-import type { candidateSchema } from '@vta/shared';
+import type { CandidateImportInput, candidateSchema } from '@vta/shared';
 import { auditCtx } from '../../app.js';
 import { audit, auditMany } from '../../audit/service.js';
 import type { Database } from '../../db/types.js';
@@ -9,6 +9,8 @@ import { newId } from '../../lib/crypto.js';
 
 type Executor = Kysely<Database> | Transaction<Database>;
 export type CandidateInput = z.infer<typeof candidateSchema>;
+
+const chunks = <T>(list: T[], size: number): T[][] => Array.from({ length: Math.ceil(list.length / size) }, (_, i) => list.slice(i * size, (i + 1) * size));
 
 /** VTA + two-digit year + five-digit sequence, e.g. VTA2600042. */
 export async function nextCandidateCode(db: Executor): Promise<string> {
@@ -84,14 +86,14 @@ export async function createCandidate(
  * `duplicates` holds, per input, whether the import check found an existing candidate with the same name and
  * date of birth; that candidate is looked up here so the profile can point to it. Must run inside a transaction.
  */
-export async function createCandidates(trx: Transaction<Database>, req: FastifyRequest, inputs: CandidateInput[], source: 'import'): Promise<{ id: string; code: string }[]> {
+export async function createCandidates(trx: Transaction<Database>, req: FastifyRequest, inputs: CandidateImportInput[], source: 'import'): Promise<{ id: string; code: string }[]> {
   if (!inputs.length) return [];
   const { rows: seq } = await sql<{ n: string }>`select nextval('candidate_code_seq') as n from generate_series(1, ${inputs.length})`.execute(trx);
   const yy = String(new Date().getUTCFullYear()).slice(-2);
   const norm = (n: string) => n.trim().replace(/\s+/g, ' ').toLowerCase();
   // Existing candidates with the same date of birth: the possible duplicates among them, oldest first.
-  const dobs = [...new Set(inputs.map((i) => i.dateOfBirth))];
-  const existing = await trx
+  const dobs = [...new Set(inputs.flatMap((i) => (i.dateOfBirth ? [i.dateOfBirth] : [])))];
+  const existing = !dobs.length ? [] : await trx
     .selectFrom('users as u')
     .innerJoin('candidate_profiles as cp', 'cp.user_id', 'u.id')
     .select(['u.id', 'u.name', 'u.date_of_birth'])
@@ -107,47 +109,51 @@ export async function createCandidates(trx: Transaction<Database>, req: FastifyR
   // In file order, so a second row with the same name and date of birth points to the first (as before).
   const made = inputs.map((input, i) => {
     const id = newId();
-    const k = `${norm(input.name)}|${input.dateOfBirth}`;
-    const duplicateOf = firstMatch.get(k) ?? null;
-    if (!duplicateOf) firstMatch.set(k, id);
+    // Without a date of birth there is nothing to match on; the check runs when they add it.
+    const k = input.dateOfBirth ? `${norm(input.name)}|${input.dateOfBirth}` : null;
+    const duplicateOf = k ? (firstMatch.get(k) ?? null) : null;
+    if (k && !duplicateOf) firstMatch.set(k, id);
     return { id, code: `ATG${yy}${String(seq[i]!.n).padStart(5, '0')}`, input, duplicateOf };
   });
-  await trx
-    .insertInto('users')
-    .values(made.map(({ id, input }) => ({ id, name: input.name, phone: input.phone, email: input.email ?? null, date_of_birth: input.dateOfBirth, status: 'invited' as const })))
-    .execute();
-  await trx
-    .insertInto('candidate_profiles')
-    .values(
-      made.map(({ id, code, input, duplicateOf }) => ({
-        user_id: id,
-        candidate_code: code,
-        city: input.city,
-        state: input.state ?? null,
-        skill_areas: input.skillAreas,
-        experience_months: input.experienceMonths,
-        education: input.education ?? null,
-        languages: input.languages,
-        verification_status: 'pending' as const,
-        duplicate_of: duplicateOf,
-        source,
-        created_by: req.actor?.userId ?? null,
+  // In chunks: PostgreSQL takes at most 65,535 values in one statement.
+  for (const part of chunks(made, 1000)) {
+    await trx
+      .insertInto('users')
+      .values(part.map(({ id, input }) => ({ id, name: input.name, phone: input.phone, email: input.email ?? null, date_of_birth: input.dateOfBirth ?? null, status: 'invited' as const })))
+      .execute();
+    await trx
+      .insertInto('candidate_profiles')
+      .values(
+        part.map(({ id, code, input, duplicateOf }) => ({
+          user_id: id,
+          candidate_code: code,
+          city: input.city ?? null,
+          state: input.state ?? null,
+          skill_areas: input.skillAreas,
+          experience_months: input.experienceMonths,
+          education: input.education ?? null,
+          languages: input.languages,
+          verification_status: 'pending' as const,
+          duplicate_of: duplicateOf,
+          source,
+          created_by: req.actor?.userId ?? null,
+        })),
+      )
+      .execute();
+    await trx
+      .insertInto('role_assignments')
+      .values(part.map(({ id }) => ({ id: newId(), user_id: id, role: 'learner' as const, granted_by: req.actor?.userId ?? null })))
+      .execute();
+    await auditMany(
+      trx,
+      auditCtx(req),
+      part.map(({ id, code, input, duplicateOf }) => ({
+        action: 'candidate.imported',
+        entityType: 'user',
+        entityId: id,
+        after: { candidate_code: code, name: input.name, city: input.city ?? null, duplicate_of: duplicateOf },
       })),
-    )
-    .execute();
-  await trx
-    .insertInto('role_assignments')
-    .values(made.map(({ id }) => ({ id: newId(), user_id: id, role: 'learner' as const, granted_by: req.actor?.userId ?? null })))
-    .execute();
-  await auditMany(
-    trx,
-    auditCtx(req),
-    made.map(({ id, code, input, duplicateOf }) => ({
-      action: 'candidate.imported',
-      entityType: 'user',
-      entityId: id,
-      after: { candidate_code: code, name: input.name, city: input.city, duplicate_of: duplicateOf },
-    })),
-  );
+    );
+  }
   return made.map(({ id, code }) => ({ id, code }));
 }
