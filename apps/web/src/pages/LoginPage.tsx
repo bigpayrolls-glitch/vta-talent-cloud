@@ -113,7 +113,7 @@ export function LoginPage() {
           </p>
 
           <div className="mt-4 [@media(max-height:820px)]:mt-3" role="tabpanel">
-            {method === 'email' ? <EmailForm onDone={afterSignIn} /> : <PhoneForm onDone={afterSignIn} />}
+            {method === 'email' ? <EmailForm onDone={afterSignIn} /> : <PhoneForm onDone={afterSignIn} next={next} />}
           </div>
 
           <div className="mt-[clamp(16px,3.5vh,32px)] space-y-1.5 border-t border-line pt-[clamp(12px,3vh,28px)] text-[15px] text-ink/80">
@@ -218,7 +218,8 @@ function SubmitButton({ busy, busyLabel, label }: { busy: boolean; busyLabel: st
   );
 }
 
-function PhoneForm({ onDone }: { onDone: () => Promise<void> }) {
+function PhoneForm({ onDone, next }: { onDone: () => Promise<void>; next: string | null }) {
+  const navigate = useNavigate();
   const requestForm = useForm(otpRequestSchema);
   const verifyForm = useForm(otpVerifySchema);
   const [phone, setPhone] = useState('');
@@ -252,7 +253,7 @@ function PhoneForm({ onDone }: { onDone: () => Promise<void> }) {
         }}
       >
         {requestForm.formError && <ErrorNote message={requestForm.formError} />}
-        <Field label="Mobile number" htmlFor="phone" error={requestForm.errors.phone} hint="We'll send a 6-digit OTP by SMS.">
+        <Field label="Mobile number" htmlFor="phone" error={requestForm.errors.phone} hint="We'll send a 6-digit OTP by SMS. New here? You can create your account right after.">
           <div className="flex">
             <span className="flex items-center gap-2 rounded-l-lg border border-r-0 border-line bg-white px-3.5 text-[15px] text-ink">
               <Smartphone className="size-5 text-ink/55" strokeWidth={1.75} aria-hidden />
@@ -273,13 +274,18 @@ function PhoneForm({ onDone }: { onDone: () => Promise<void> }) {
       onSubmit={(e) => {
         e.preventDefault();
         void verifyForm.submit({ phone: sentTo, code }, async (data) => {
-          await api.post('/auth/otp/verify', data);
+          const r = await api.post<{ needsSignup: boolean; signupToken?: string }>('/auth/otp/verify', data);
+          // A new number: go on to create the learner account, with the number already checked.
+          if (r.needsSignup && r.signupToken) {
+            navigate(`/register${next ? `?next=${encodeURIComponent(next)}` : ''}`, { state: { verified: { phone: data.phone, signupToken: r.signupToken } } });
+            return;
+          }
           await onDone();
         });
       }}
     >
       <p className="text-sm text-muted">
-        If <span className="font-semibold text-ink">{sentTo.replace('+91', '+91 ')}</span> is registered, a code is on its way. It expires in 5 minutes.
+        A code has been sent to <span className="font-semibold text-ink">{sentTo.replace('+91', '+91 ')}</span>. It expires in 5 minutes.
       </p>
       {stagingCode && <StagingCode code={stagingCode} />}
       {(verifyForm.formError || requestForm.formError) && <ErrorNote message={verifyForm.formError || requestForm.formError} />}
@@ -295,7 +301,7 @@ function PhoneForm({ onDone }: { onDone: () => Promise<void> }) {
           aria-invalid={!!verifyForm.errors.code}
         />
       </Field>
-      <SubmitButton busy={verifyForm.submitting} busyLabel="Checking…" label="Verify and sign in" />
+      <SubmitButton busy={verifyForm.submitting} busyLabel="Checking…" label="Verify and continue" />
       <div className="flex items-center justify-between text-sm">
         <button
           type="button"

@@ -70,7 +70,7 @@ export async function signInPhone(page: Page, tenDigits: string) {
   await expect(page.getByLabel('6-digit code')).toBeVisible();
   const code = await latestOtp(tenDigits.slice(-2), logSize);
   await page.getByLabel('6-digit code').fill(code);
-  await page.getByRole('button', { name: 'Verify and sign in' }).click();
+  await page.getByRole('button', { name: 'Verify and continue' }).click();
   await expect(page).not.toHaveURL(/\/login$/);
   // Let the portal finish loading, so a test's first click is not lost while the page is still settling.
   await page.waitForLoadState('networkidle');

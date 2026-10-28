@@ -151,11 +151,11 @@ describe('signing in with codes made by the SMS provider', () => {
     expect((await verify('424242')).json().error.message).toMatch(/expired/);
   });
 
-  it('numbers without an account get no SMS', async () => {
+  it('a new number also gets a code, so the person can go on to sign up', async () => {
     const before = sent.length;
     const res = await app.inject({ method: 'POST', url: '/api/v1/auth/otp/request', payload: { phone: '+919811122233' } });
     expect(res.statusCode).toBe(200);
-    expect(sent.length).toBe(before);
+    expect(sent.length).toBe(before + 1);
   });
 });
 

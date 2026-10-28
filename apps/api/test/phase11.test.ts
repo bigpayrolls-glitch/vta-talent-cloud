@@ -26,8 +26,11 @@ describe('changing the mobile number someone signs in with', () => {
     expect((await before.get('/auth/me')).status).toBe(401);
     ctx.mem.sentOtps.delete(PHONE.learner);
     const old = await ctx.app.inject({ method: 'POST', url: '/api/v1/auth/otp/request', payload: { phone: PHONE.learner }, remoteAddress: nextIp() });
-    expect(old.statusCode).toBe(200); // the same reply as for any number…
-    expect(ctx.mem.sentOtps.get(PHONE.learner)).toBeUndefined(); // …but no code goes to the old number any more
+    expect(old.statusCode).toBe(200);
+    // The old number is free now: its code only leads to signing up afresh, never into the learner's account.
+    const oldVerify = await ctx.app.inject({ method: 'POST', url: '/api/v1/auth/otp/verify', payload: { phone: PHONE.learner, code: ctx.mem.sentOtps.get(PHONE.learner)! }, remoteAddress: nextIp() });
+    expect(oldVerify.json().needsSignup).toBe(true);
+    expect(oldVerify.headers['set-cookie']).toBeUndefined();
 
     const fresh = await loginPhone(ctx, '+919845098450');
     const me = (await fresh.get('/auth/me')).body;
