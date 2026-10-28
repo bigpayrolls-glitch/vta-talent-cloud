@@ -53,3 +53,26 @@ export async function audit(
     })
     .execute();
 }
+
+type AuditEvent = Parameters<typeof audit>[2];
+
+/** Several audit events in one database call (for example one per imported candidate). */
+export async function auditMany(db: Executor, ctx: AuditContext, events: AuditEvent[]): Promise<void> {
+  if (!events.length) return;
+  await db
+    .insertInto('audit_events')
+    .values(
+      events.map((event) => ({
+        id: newId(),
+        actor_id: ctx.actorId,
+        action: event.action,
+        entity_type: event.entityType,
+        entity_id: event.entityId,
+        request_id: ctx.requestId,
+        before: clean(event.before),
+        after: clean(event.after),
+        ip: ctx.ip,
+      })),
+    )
+    .execute();
+}

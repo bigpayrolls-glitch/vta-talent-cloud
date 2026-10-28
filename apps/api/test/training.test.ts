@@ -252,6 +252,33 @@ describe('T-03 CSV import', () => {
     expect(again.body.summary.ready).toBe(0);
   });
 
+  it('imports a large file (300 rows) in one go: unique codes, duplicates within the file flagged, one audit each', async () => {
+    const header = 'name,phone,date_of_birth,city,skill_areas';
+    const rows = Array.from({ length: 300 }, (_, i) => `Bulk Learner ${i},${9700000000 + i},1999-0${(i % 9) + 1}-15,Hubballi,2W`);
+    rows.push('Bulk Learner 0,9700000999,1999-01-15,Hubballi,2W'); // same name and date of birth as the first row
+    const t0 = Date.now();
+    const res = await ops.post('/admin/candidates/import', { csv: [header, ...rows].join('\n'), commit: true });
+    expect(res.status).toBe(200);
+    expect(res.body.imported).toBe(301);
+    expect(Date.now() - t0).toBeLessThan(5000);
+    const made = await ctx.db
+      .selectFrom('users as u')
+      .innerJoin('candidate_profiles as cp', 'cp.user_id', 'u.id')
+      .select(['u.id', 'u.phone', 'cp.candidate_code', 'cp.duplicate_of', 'cp.source'])
+      .where('u.phone', 'like', '+9197000%')
+      .execute();
+    expect(made).toHaveLength(301);
+    expect(new Set(made.map((m) => m.candidate_code)).size).toBe(301);
+    const first = made.find((m) => m.phone === '+919700000000')!;
+    expect(made.find((m) => m.phone === '+919700000999')!.duplicate_of).toBe(first.id);
+    expect(made.filter((m) => m.duplicate_of).length).toBe(1);
+    expect(made.every((m) => m.source === 'import')).toBe(true);
+    const audits = await ctx.db.selectFrom('audit_events').select('entity_id').where('action', '=', 'candidate.imported').where('entity_id', 'in', made.map((m) => m.id)).execute();
+    expect(audits).toHaveLength(301);
+    const roles = await ctx.db.selectFrom('role_assignments').select('user_id').where('role', '=', 'learner').where('user_id', 'in', made.map((m) => m.id)).execute();
+    expect(roles).toHaveLength(301);
+  });
+
   it('explains missing columns and empty files', async () => {
     const missing = await ops.post('/admin/candidates/import', { csv: 'name,phone\nA,9900000699' });
     expect(missing.status).toBe(400);

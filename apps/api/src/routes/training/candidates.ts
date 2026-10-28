@@ -18,7 +18,7 @@ import { csvToRecords } from '../../lib/csv.js';
 import { conflict, invalid, notFound } from '../../lib/errors.js';
 import { iso, parse } from '../../lib/validate.js';
 import { candidateReadScope, inScope } from '../../policy/index.js';
-import { createCandidate, findPossibleDuplicate, type CandidateInput } from './candidateService.js';
+import { createCandidate, createCandidates, findPossibleDuplicate, type CandidateInput } from './candidateService.js';
 import { consentRequired, consentState } from '../learner/service.js';
 
 const idParam = z.object({ id: uuidSchema });
@@ -401,10 +401,8 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
     let imported = 0;
     if (commit && importable.length) {
       await db.transaction().execute(async (trx) => {
-        for (const r of importable) {
-          await createCandidate(trx, req, r.input!, 'import');
-          imported++;
-        }
+        // All rows in a few database calls, so a large file is as quick as a small one.
+        imported = (await createCandidates(trx, req, importable.map((r) => r.input!), 'import')).length;
         await audit(trx, auditCtx(req), { action: 'candidate.import_completed', entityType: 'user', entityId: null, after: { ...summary, imported } });
       });
     }
