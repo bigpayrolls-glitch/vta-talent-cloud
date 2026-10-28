@@ -78,17 +78,60 @@ export const partnerCourseDetailsSchema = z.object({
   durationUnit: z.enum(DURATION_UNITS),
 });
 
-export const courseModuleSchema = z.object({
-  name: z.string().trim().min(2, 'Name the module').max(120),
-  hours: z.coerce.number().int('Whole hours').min(1, 'At least 1 hour').max(500),
-});
+const round2 = (h: number) => Math.round(h * 100) / 100;
+const moduleHours = z.coerce.number('Enter the time in hours or minutes').min(0, 'Cannot be negative').max(500, 'At most 500 hours').transform(round2);
+
+/**
+ * Module time is kept in hours, to two decimals (30 minutes = 0.5); partners may type hours or minutes.
+ * Hybrid courses split each module into theory and practical time; the module's hours are then their sum.
+ */
+export const courseModuleSchema = z
+  .object({
+    name: z.string().trim().min(2, 'Name the module').max(120),
+    hours: moduleHours.optional(),
+    theoryHours: moduleHours.optional(),
+    practicalHours: moduleHours.optional(),
+  })
+  .transform((m): CourseModuleTime => {
+    const split = m.theoryHours !== undefined || m.practicalHours !== undefined;
+    if (!split) return { name: m.name, hours: m.hours ?? 0 };
+    const theoryHours = m.theoryHours ?? 0;
+    const practicalHours = m.practicalHours ?? 0;
+    return { name: m.name, hours: round2(theoryHours + practicalHours), theoryHours, practicalHours };
+  })
+  .refine((m) => m.hours >= 0.05, { message: 'At least 3 minutes', path: ['hours'] })
+  .refine((m) => m.hours <= 500, { message: 'At most 500 hours', path: ['hours'] });
+
+/** A module as stored: total hours, and for hybrid courses the theory and practical parts. */
+export interface CourseModuleTime {
+  name: string;
+  hours: number;
+  theoryHours?: number;
+  practicalHours?: number;
+}
+
+/** "8 h theory + 4 h practical", when a module is split. */
+export function splitLabel(m: Pick<CourseModuleTime, 'theoryHours' | 'practicalHours'>): string | null {
+  if (m.theoryHours === undefined && m.practicalHours === undefined) return null;
+  return `${hoursLabel(m.theoryHours ?? 0)} theory + ${hoursLabel(m.practicalHours ?? 0)} practical`;
+}
+
+/** Minutes typed by a partner, as hours (two decimals). */
+export const minutesToHours = (minutes: number) => Math.round((minutes / 60) * 100) / 100;
+
+/** "6 h", or "0.5 h (30 min)" when it is not a whole number of hours. */
+export function hoursLabel(hours: number): string {
+  const h = Math.round(hours * 100) / 100;
+  if (Number.isInteger(h)) return `${h} h`;
+  return `${h} h (${Math.round(hours * 60)} min)`;
+}
 
 /** Step 2: course content. */
 export const partnerCourseContentSchema = z.object({
   modules: z.array(courseModuleSchema).max(40),
-  skills: z.array(z.string().trim().min(2).max(60)).max(20),
+  skills: z.array(z.string().trim().min(2, 'A skill needs at least 2 characters').max(200, 'Keep each skill under 200 characters')).max(30, 'At most 30 skills'),
   prerequisites: optionalText(300),
-  learningOutcomes: z.array(z.string().trim().min(3).max(200)).max(15),
+  learningOutcomes: z.array(z.string().trim().min(3, 'An outcome needs at least 3 characters').max(300, 'Keep each outcome under 300 characters')).max(20, 'At most 20 outcomes'),
 });
 
 export const firstBatchSchema = z
@@ -156,7 +199,7 @@ export interface PartnerCourse {
   durationValue: number;
   durationUnit: (typeof DURATION_UNITS)[number];
   trainingHours: number | null;
-  modules: { name: string; hours: number }[];
+  modules: CourseModuleTime[];
   skills: string[];
   prerequisites: string | null;
   learningOutcomes: string[];

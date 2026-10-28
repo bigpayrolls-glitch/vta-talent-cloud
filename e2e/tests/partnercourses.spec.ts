@@ -32,12 +32,25 @@ test('partner creates and submits a course; admin approves and publishes it; lea
 
   // Step 2: content
   await expect(partner.getByRole('heading', { name: 'Add course content' })).toBeVisible();
-  for (const [name, hours] of [['FI system basics', '20'], ['Scan tool diagnostics', '30']] as const) {
+  // A hybrid course: each module has theory and practical time; the total is added up.
+  await expect(partner.getByText('Hybrid course: enter the theory and practical time of each module.')).toBeVisible();
+  for (const [name, theory, practical] of [['FI system basics', '14', '6'], ['Scan tool diagnostics', '20', '10']] as const) {
     await partner.getByLabel('Module name').fill(name);
-    await partner.getByLabel('Hours').fill(hours);
+    await partner.getByLabel('Theory').fill(theory);
+    await partner.getByLabel('Practical').fill(practical);
     await partner.getByRole('button', { name: 'Add', exact: true }).first().click();
   }
   await expect(partner.getByText('Total 50 hours')).toBeVisible();
+  await expect(partner.getByText('34 h theory + 16 h practical')).toBeVisible();
+  await expect(partner.getByRole('cell', { name: /^20 h\s*Theory 14 h\s*Practical 6 h$/ })).toBeVisible();
+  // Time can also be typed in minutes; it is shown in hours.
+  await partner.getByLabel('Module name').fill('Workshop safety briefing');
+  await partner.getByLabel('Unit').selectOption('minutes');
+  await partner.getByLabel('Theory').fill('20');
+  await partner.getByLabel('Practical').fill('10');
+  await expect(partner.getByText('Total 0.5 h')).toBeVisible();
+  await partner.getByRole('button', { name: 'Add', exact: true }).first().click();
+  await expect(partner.getByText('Total 50.5 hours')).toBeVisible();
   await partner.getByRole('button', { name: 'FI System', exact: true }).click();
   await partner.getByRole('button', { name: 'Electrical Diagnostics', exact: true }).click();
   await partner.getByLabel('Prerequisites').fill('10th pass');

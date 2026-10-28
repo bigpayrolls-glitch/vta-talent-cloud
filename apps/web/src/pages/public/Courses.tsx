@@ -16,6 +16,8 @@ import {
   type CatalogueCourseDetail,
   type PayMethod,
   type SkillArea,
+  hoursLabel,
+  splitLabel,
 } from '@vta/shared';
 import { ArrowLeft, ArrowRight, Award, Building2, CalendarDays, Check, CircleCheck, Clock, CreditCard, Landmark, MapPin, Printer, School, ShieldCheck, SlidersHorizontal, Smartphone, X } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
@@ -350,7 +352,10 @@ export function CourseDetailPage() {
                       <li key={m.name} className="flex gap-3">
                         <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand-tint text-sm font-semibold text-[#C8101A]">{i + 1}</span>
                         <span className="flex-1 pt-0.5">{m.name}</span>
-                        <span className="pt-0.5 text-sm text-muted">{m.hours} h</span>
+                        <span className="pt-0.5 text-right text-sm text-muted">
+                          {hoursLabel(m.hours)}
+                          {splitLabel(m) && <span className="block text-xs">{splitLabel(m)}</span>}
+                        </span>
                       </li>
                     ))}
                   </ol>

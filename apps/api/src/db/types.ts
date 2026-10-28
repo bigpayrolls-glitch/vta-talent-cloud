@@ -165,7 +165,7 @@ export interface CoursesTable {
 }
 
 export type CourseApprovalStatus = 'draft' | 'submitted' | 'changes_requested' | 'rejected' | 'published';
-export interface CourseModule { name: string; hours: number }
+export interface CourseModule { name: string; hours: number; theoryHours?: number; practicalHours?: number }
 export interface FirstBatchPlan { name: string; centreId: string; trainerId: string; startDate: string; endDate: string; capacity: number; classTimings: string | null }
 
 export interface CourseReviewEventsTable {

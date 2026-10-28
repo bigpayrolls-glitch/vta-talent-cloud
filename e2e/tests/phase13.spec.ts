@@ -15,8 +15,14 @@ test('a visitor finds a course, creates an account while enrolling, pays and see
   await expect(page.getByRole('heading', { name: 'EV Technician', exact: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: '2W Service Technician', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Clear filters' }).click();
+  // Wait until the filter is really cleared and the full list is back before sorting and clicking a card.
+  await expect(page.getByLabel('Electric vehicle')).not.toBeChecked();
+  await expect(page.getByRole('heading', { name: '2W Service Technician', exact: true })).toBeVisible();
   await page.getByLabel('Sort by').selectOption('fee_asc');
-  await page.getByRole('link', { name: 'View details: 2W Service Technician', exact: true }).click();
+  await expect(page).toHaveURL(/sort=fee_asc/);
+  const details = page.getByRole('link', { name: 'View details: 2W Service Technician', exact: true });
+  await expect(details).toBeVisible();
+  await details.click();
 
   await expect(page.getByRole('heading', { level: 1 })).toContainText('2W Service Technician');
   await expect(page.getByText('₹4,999').first()).toBeVisible();

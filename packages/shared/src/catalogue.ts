@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { uuidSchema } from './schemas.js';
 import { DELIVERY_MODES, SKILL_AREAS } from './training.js';
+import type { CourseModuleTime } from './partnerCourses.js';
 
 // ---------------------------------------------------------------------------
 // Phase 13: public course catalogue and learner self-enrolment (brand design of 26 Oct 2026).
@@ -94,7 +95,7 @@ export interface CatalogueCourseDetail extends CatalogueCourse {
   passMarkPct: number;
   /** The skills the trainer assesses: "What you will learn" and the syllabus. */
   skills: { label: string; required: boolean }[];
-  modules: { name: string; hours: number }[];
+  modules: CourseModuleTime[];
   learningOutcomes: string[];
   certificateType: string | null;
   batches: CatalogueBatch[];
