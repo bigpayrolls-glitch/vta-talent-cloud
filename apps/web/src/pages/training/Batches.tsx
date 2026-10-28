@@ -145,13 +145,14 @@ function CapacityBar({ enrolled, capacity }: { enrolled: number; capacity: numbe
   );
 }
 
-function CreateBatchModal({ base, onClose }: { base: string; onClose: () => void }) {
+export function CreateBatchModal({ base, onClose, presetCourseId, onCreated }: { base: string; onClose: () => void; presetCourseId?: string; onCreated?: (id: string) => void | Promise<void> }) {
   const qc = useQueryClient();
   const toast = useToast();
   const navigate = useNavigate();
   const f = useForm(batchSchema);
-  const [v, setV] = useState({ name: '', courseId: '', centreId: '', trainerId: '', startDate: '', endDate: '', capacity: '20' });
-  const courses = useQuery({ queryKey: ['course-options'], queryFn: () => api.get<Page<{ id: string; title: string; code: string | null }>>(`/courses${qs({ status: 'active', pageSize: 100 })}`) });
+  const [v, setV] = useState({ name: '', courseId: presetCourseId ?? '', centreId: '', trainerId: '', startDate: '', endDate: '', capacity: '20', classTimings: '' });
+  // Only published, active courses can have batches (partner courses wait for AutoTalent Grid's approval).
+  const courses = useQuery({ queryKey: ['course-options', 'bookable'], queryFn: () => api.get<Page<{ id: string; title: string; code: string | null }>>(`/courses${qs({ bookable: 'true', pageSize: 100 })}`) });
   const centres = useQuery({ queryKey: ['centre-options'], queryFn: () => api.get<Page<{ id: string; name: string; city: string | null; organisationName: string | null }>>(`/centres${qs({ status: 'active', pageSize: 100 })}`) });
   const trainers = useQuery({
     queryKey: ['trainer-options', v.centreId],
@@ -183,7 +184,8 @@ function CreateBatchModal({ base, onClose }: { base: string; onClose: () => void
             await qc.invalidateQueries({ queryKey: ['batches'] });
             await qc.invalidateQueries({ queryKey: ['dashboard'] });
             toast('success', 'Batch created');
-            navigate(`${base}/${r.id}`);
+            if (onCreated) await onCreated(r.id);
+            else navigate(`${base}/${r.id}`);
           });
         }}
       >
@@ -192,7 +194,7 @@ function CreateBatchModal({ base, onClose }: { base: string; onClose: () => void
           <input id="bf-name" autoFocus className="field-input" placeholder="For example, 2W Peenya January 2027" value={v.name} onChange={upd('name')} />
         </Field>
         <Field label="Course" htmlFor="bf-course" error={f.errors.courseId}>
-          <select id="bf-course" className="field-input" value={v.courseId} onChange={upd('courseId')}>
+          <select id="bf-course" className="field-input" value={v.courseId} onChange={upd('courseId')} disabled={!!presetCourseId}>
             <option value="">Choose a course</option>
             {courses.data?.items.map((c) => <option key={c.id} value={c.id}>{c.title}{c.code ? ` (${c.code})` : ''}</option>)}
           </select>
@@ -225,6 +227,9 @@ function CreateBatchModal({ base, onClose }: { base: string; onClose: () => void
         </div>
         <Field label="Capacity" htmlFor="bf-cap" error={f.errors.capacity}>
           <input id="bf-cap" type="number" min={1} max={500} className="field-input" value={v.capacity} onChange={upd('capacity')} />
+        </Field>
+        <Field label="Class timings (optional)" htmlFor="bf-time" error={f.errors.classTimings}>
+          <input id="bf-time" className="field-input" placeholder="For example, Mon–Sat, 10:00 AM – 1:00 PM" value={v.classTimings} onChange={upd('classTimings')} />
         </Field>
       </form>
     </Modal>

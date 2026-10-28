@@ -42,6 +42,28 @@ export function organisationScope(actor: Actor): Scope {
   return unique(actor.assignments.map((a) => a.organisationId));
 }
 
+/** Training partner organisations the actor administers (a partner login belongs to one organisation). */
+export function partnerOrgs(actor: Actor): string[] {
+  return unique(actor.assignments.filter((a) => a.role === 'partner_admin').map((a) => a.organisationId));
+}
+
+/**
+ * Courses the actor may READ:
+ * - admins: every course except partners' unsent drafts
+ * - training partners: published courses, plus every course their own organisation wrote
+ * - everyone else: published courses
+ */
+export type CourseScope = 'admin' | { ownOrgIds: string[] };
+export function courseReadScope(actor: Actor): CourseScope {
+  if (isPlatformAdmin(actor)) return 'admin';
+  return { ownOrgIds: partnerOrgs(actor) };
+}
+
+export function courseVisible(scope: CourseScope, c: { approval_status: string; owner_organisation_id: string | null }): boolean {
+  if (scope === 'admin') return c.approval_status !== 'draft' || c.owner_organisation_id === null;
+  return c.approval_status === 'published' || (!!c.owner_organisation_id && scope.ownOrgIds.includes(c.owner_organisation_id));
+}
+
 /** Centres run by the training partner(s) the actor administers. */
 export async function partnerCentres(db: DB, actor: Actor): Promise<string[]> {
   const orgs = unique(actor.assignments.filter((a) => a.role === 'partner_admin').map((a) => a.organisationId));

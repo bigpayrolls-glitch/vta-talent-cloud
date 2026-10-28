@@ -1,4 +1,4 @@
-import { COURSE_LEVELS, courseSchema, criteriaListSchema, criterionSchema, listQuerySchema, SKILL_AREAS, uuidSchema, type Page } from '@vta/shared';
+import { COURSE_APPROVAL_STATUSES, COURSE_LEVELS, courseSchema, feeWithGst, criteriaListSchema, criterionSchema, listQuerySchema, SKILL_AREAS, uuidSchema, type Page } from '@vta/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
 import { z } from 'zod';
@@ -9,10 +9,19 @@ import type { Course } from '../../db/types.js';
 import { newId } from '../../lib/crypto.js';
 import { conflict, invalid, notFound } from '../../lib/errors.js';
 import { iso, parse } from '../../lib/validate.js';
+import { courseReadScope, courseVisible, type CourseScope } from '../../policy/index.js';
 
 const idParam = z.object({ id: uuidSchema });
 
-export function courseDto(c: Course & { criteria_count?: string | number; batch_count?: string | number }) {
+/** Where the browser loads a course picture from (cache-busted by the last change). */
+export function courseImageUrl(c: Pick<Course, 'id' | 'image_key' | 'updated_at'>, publicRoute = false): string | null {
+  if (!c.image_key) return null;
+  const v = new Date(c.updated_at).getTime().toString(36);
+  return publicRoute ? `/api/v1/public/courses/${c.id}/image?v=${v}` : `/api/v1/courses/${c.id}/image?v=${v}`;
+}
+
+export function courseDto(c: Course & { criteria_count?: string | number; batch_count?: string | number; owner_name?: string | null }) {
+  const fee = Math.round(c.fee_paise / 100);
   return {
     id: c.id,
     code: c.code,
@@ -27,8 +36,19 @@ export function courseDto(c: Course & { criteria_count?: string | number; batch_
     description: c.description,
     attendanceThresholdPct: c.attendance_threshold_pct,
     passMarkPct: c.pass_mark_pct,
-    feeRupees: Math.round(c.fee_paise / 100),
+    feeRupees: fee,
+    gstPct: c.gst_pct,
+    totalFeeRupees: feeWithGst(fee, c.gst_pct).totalRupees,
     status: c.status,
+    approvalStatus: c.approval_status,
+    owner: c.owner_organisation_id ? { id: c.owner_organisation_id, name: c.owner_name ?? '' } : null,
+    courseType: c.course_type,
+    city: c.city,
+    certificateType: c.certificate_type,
+    modules: c.modules,
+    skills: c.skills,
+    learningOutcomes: c.learning_outcomes,
+    imageUrl: courseImageUrl(c),
     criteriaCount: c.criteria_count !== undefined ? Number(c.criteria_count) : undefined,
     batchCount: c.batch_count !== undefined ? Number(c.batch_count) : undefined,
     createdAt: iso(c.created_at),
@@ -39,7 +59,18 @@ const courseFilter = listQuerySchema.extend({
   skillArea: z.enum(SKILL_AREAS).optional(),
   level: z.enum(COURSE_LEVELS).optional(),
   status: z.enum(['active', 'inactive']).optional(),
+  approvalStatus: z.enum(COURSE_APPROVAL_STATUSES).optional(),
+  /** Only courses a batch can be created for right now: published and active. */
+  bookable: z.coerce.boolean().optional(),
 });
+
+/** Applies the actor's course read scope to a query on `courses as c`. */
+function scopedCourses<Q extends { where: (...args: any[]) => Q }>(q: Q, scope: CourseScope): Q {
+  if (scope === 'admin') return q.where((eb: any) => eb.or([eb('c.approval_status', '<>', 'draft'), eb('c.owner_organisation_id', 'is', null)]));
+  return q.where((eb: any) =>
+    eb.or([eb('c.approval_status', '=', 'published'), ...(scope.ownOrgIds.length ? [eb('c.owner_organisation_id', 'in', scope.ownOrgIds)] : [])]),
+  );
+}
 
 const createSchema = courseSchema.extend({ criteria: z.array(criterionSchema).min(1, 'Add at least one assessment criterion').max(40) });
 
@@ -83,7 +114,9 @@ export const courseRoutes: FastifyPluginAsync = async (app) => {
   /** Course catalogue, visible to all training staff. */
   app.get('/courses', { config: { permission: 'course.read' } }, async (req): Promise<Page<ReturnType<typeof courseDto>>> => {
     const f = parse(courseFilter, req.query);
-    let q = db.selectFrom('courses as c');
+    let q = scopedCourses(db.selectFrom('courses as c').leftJoin('organisations as o', 'o.id', 'c.owner_organisation_id'), courseReadScope(req.actor!));
+    if (f.approvalStatus) q = q.where('c.approval_status', '=', f.approvalStatus);
+    if (f.bookable) q = q.where('c.approval_status', '=', 'published').where('c.status', '=', 'active');
     if (f.skillArea) q = q.where('c.skill_area', '=', f.skillArea);
     if (f.level) q = q.where('c.level', '=', f.level);
     if (f.status) q = q.where('c.status', '=', f.status);
@@ -95,6 +128,7 @@ export const courseRoutes: FastifyPluginAsync = async (app) => {
     const rows = await q
       .selectAll('c')
       .select([
+        'o.legal_name as owner_name',
         sql<string>`(select count(*) from assessment_criteria a where a.course_id = c.id)`.as('criteria_count'),
         sql<string>`(select count(*) from batches b where b.course_id = c.id and b.status <> 'cancelled')`.as('batch_count'),
       ])
@@ -108,9 +142,24 @@ export const courseRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/courses/:id', { config: { permission: 'course.read' } }, async (req) => {
     const { id } = parse(idParam, req.params);
-    const c = await db.selectFrom('courses').selectAll().where('id', '=', id).executeTakeFirst();
-    if (!c) throw notFound('Course');
+    const c = await db
+      .selectFrom('courses as c')
+      .leftJoin('organisations as o', 'o.id', 'c.owner_organisation_id')
+      .selectAll('c')
+      .select('o.legal_name as owner_name')
+      .where('c.id', '=', id)
+      .executeTakeFirst();
+    if (!c || !courseVisible(courseReadScope(req.actor!), c)) throw notFound('Course');
     return { ...courseDto(c), criteria: await loadCriteria(db, id), criteriaLocked: await criteriaLocked(db, id) };
+  });
+
+  /** The course picture, for anyone who may read the course. */
+  app.get('/courses/:id/image', { config: { permission: 'course.read' } }, async (req, reply) => {
+    const { id } = parse(idParam, req.params);
+    const c = await db.selectFrom('courses').select(['image_key', 'image_mime', 'approval_status', 'owner_organisation_id']).where('id', '=', id).executeTakeFirst();
+    if (!c || !c.image_key || !courseVisible(courseReadScope(req.actor!), c)) throw notFound('Image');
+    const data = await app.storage.get(c.image_key);
+    return reply.header('content-type', c.image_mime ?? 'image/jpeg').header('cache-control', 'private, max-age=86400').header('x-content-type-options', 'nosniff').send(data);
   });
 
   /** T-01: create a course with its assessment criteria in one step. */

@@ -3,6 +3,7 @@ import { batchRoutes } from './batches.js';
 import { candidateRoutes } from './candidates.js';
 import { courseRoutes } from './courses.js';
 import { fileRoutes } from './files.js';
+import { partnerCourseRoutes } from './partnerCourses.js';
 import { trainerRoutes } from './trainers.js';
 
 /** Phase 2: training master data. Management routes live under /admin/*, scoped reads at the top level. */
@@ -12,4 +13,5 @@ export const trainingRoutes: FastifyPluginAsync = async (app) => {
   await app.register(candidateRoutes);
   await app.register(batchRoutes);
   await app.register(fileRoutes);
+  await app.register(partnerCourseRoutes);
 };

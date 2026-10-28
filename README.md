@@ -8,6 +8,20 @@ A role-based automotive skills and workforce platform. One backend and one datab
 
 The product is now **AutoTalent Grid** ("Train. Connect. Employ."), replacing "VTA Talent Cloud" and "VTA" everywhere people see it: screens, notifications, notices, certificates' default issuer (`CREDENTIAL_ISSUER_NAME`), the installed app's name and icons. The "Road A" symbol was traced from the brand artwork into `apps/web/public/brand-mark.svg` (used by the `LogoMark` and `Wordmark` components and by `e2e/scripts/make-icons.mjs`); replace it with the designer's original vector when available. New candidate codes start with **ATG** (for example ATG2600042); codes already issued keep their VTA prefix. Internal names (database, packages, demo email addresses, environment variables) are unchanged.
 
+## Training partner courses and approval (28 Oct 2026)
+
+Follows the wireframe "Training Partner Portal: course creation and approval journey". **A course is not visible to learners until AutoTalent Grid has reviewed, approved and published it.**
+
+| Area | What you can do |
+| --- | --- |
+| Partner dashboard (`/partner`) | Courses, batches, enrolments and total revenue (course fees paid online, incl. GST), recent activities and a Create course button. |
+| Courses list (`/partner/courses`) | The partner's own courses with search, category and status filters. Statuses: Draft, Submitted for review, Changes requested, Rejected, Published. |
+| Create course (4 steps) | 1 Basic details (title, category, course type, level, 500-character description, city, delivery mode, duration, JPG/PNG image up to 2 MB). 2 Content (modules with hours, skills chips, prerequisites, learning outcomes). 3 Fee & batch (fee, GST 0/5/12/18/28 %, total incl. GST, certificate type, the first batch with centre, trainer, dates, seats and class timings). 4 Review & submit. Each step saves a draft; submitting checks everything is filled in. |
+| Course approvals (`/admin/course-approvals`) | Admins see a Pending review count in the menu, open a course on tabs (Course details, Content, Fee & batch, Partner details, History) and **Reject**, **Request changes** (with a note; the partner edits and resubmits) or **Approve & publish**. Publishing turns the modules into assessment criteria and the planned first batch into a real batch open for enrolment. A published course can be hidden from learners and shown again. Partners are notified of every decision; admins are notified of every submission. |
+| Learners | The catalogue shows only published, active courses. Cards show the partner's image, provider, duration, mode, city, skill chips, fee incl. GST and seats left, with Enrol now. Learners pay the fee plus GST. |
+| Course management (`/partner/courses/:id`) | Batches for the course (Upcoming, Ongoing, or Draft until publication) with enrolled counts and Create batch; course details and review history. |
+| Rules | A partner can change a course only while it is a draft or sent back. Batches can be created only for published courses, and a partner's course runs only at that partner's centres. Existing AutoTalent Grid courses were marked published (migration `0017_partner_courses`). |
+
 ## Phase 11: account administration
 
 | Area | What you can do |

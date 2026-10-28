@@ -144,6 +144,37 @@ export interface CoursesTable {
   status: 'active' | 'inactive';
   created_at: Timestamp;
   updated_at: Timestamp;
+  owner_organisation_id: string | null;
+  approval_status: Generated<CourseApprovalStatus>;
+  course_type: string | null;
+  city: string | null;
+  gst_pct: Generated<number>;
+  certificate_type: string | null;
+  image_key: string | null;
+  image_mime: string | null;
+  modules: ColumnType<CourseModule[], string | undefined, string>;
+  skills: ColumnType<string[], string[] | undefined, string[]>;
+  learning_outcomes: ColumnType<string[], string[] | undefined, string[]>;
+  first_batch: ColumnType<FirstBatchPlan | null, string | null | undefined, string | null>;
+  review_note: string | null;
+  submitted_at: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  reviewed_at: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  reviewed_by: string | null;
+  published_at: ColumnType<Date | null, Date | null | undefined, Date | null>;
+  created_by: string | null;
+}
+
+export type CourseApprovalStatus = 'draft' | 'submitted' | 'changes_requested' | 'rejected' | 'published';
+export interface CourseModule { name: string; hours: number }
+export interface FirstBatchPlan { name: string; centreId: string; trainerId: string; startDate: string; endDate: string; capacity: number; classTimings: string | null }
+
+export interface CourseReviewEventsTable {
+  id: string;
+  course_id: string;
+  action: 'created' | 'submitted' | 'changes_requested' | 'rejected' | 'published' | 'unpublished' | 'republished';
+  note: string | null;
+  actor_id: string | null;
+  created_at: Generated<Date>;
 }
 
 export interface AssessmentCriteriaTable {
@@ -208,6 +239,7 @@ export interface BatchesTable {
   capacity: number;
   status: BatchStatus;
   cancel_reason: string | null;
+  class_timings: string | null;
   created_by: string | null;
   created_at: Timestamp;
   updated_at: Timestamp;
@@ -577,6 +609,7 @@ export interface Database {
   role_assignments: RoleAssignmentsTable;
   audit_events: AuditEventsTable;
   courses: CoursesTable;
+  course_review_events: CourseReviewEventsTable;
   assessment_criteria: AssessmentCriteriaTable;
   trainer_profiles: TrainerProfilesTable;
   candidate_profiles: CandidateProfilesTable;

@@ -107,6 +107,10 @@ const STATUS_STYLE: Record<string, string> = {
   revoked: 'bg-brand-tint text-brand',
   replaced: 'bg-surface text-muted',
   draft: 'bg-surface text-ink',
+  submitted: 'bg-warning-tint text-warning',
+  changes_requested: 'bg-brand-tint text-brand',
+  upcoming: 'bg-info-tint text-info',
+  ongoing: 'bg-success-tint text-success',
   pending_review: 'bg-warning-tint text-warning',
   published: 'bg-success-tint text-success',
   paused: 'bg-surface text-muted',
@@ -128,6 +132,8 @@ const STATUS_LABEL: Record<string, string> = {
   not_scanned: 'Not scanned',
   pending_review: 'Waiting for review',
   not_joined: 'Did not join',
+  submitted: 'Submitted for review',
+  changes_requested: 'Changes requested',
 };
 
 /** Status chip: colour is always paired with the word (never colour alone, §16). */
