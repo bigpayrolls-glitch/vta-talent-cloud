@@ -30,6 +30,10 @@ export const PERMISSIONS = {
   // Phase 2: training master data
   'course.read': ['super_admin', 'partner_admin', 'trainer'],
   'course.manage': ['super_admin'],
+  /** Training partners write their own courses and send them for review. Only their organisation's courses (checked per record). */
+  'course.author': ['partner_admin'],
+  /** Approving, returning or rejecting courses that training partners submitted. */
+  'course.review': ['super_admin'],
   'trainer.read': ['super_admin', 'partner_admin'],
   /** Adding trainers and assigning them to centres. Training partners only at their own centres (checked per record). */
   'trainer.manage': ['super_admin', 'partner_admin'],

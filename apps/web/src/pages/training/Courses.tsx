@@ -37,6 +37,8 @@ export interface CourseRow {
   passMarkPct: number;
   feeRupees: number;
   status: 'active' | 'inactive';
+  approvalStatus?: 'draft' | 'submitted' | 'changes_requested' | 'rejected' | 'published';
+  owner?: { id: string; name: string } | null;
   criteriaCount?: number;
   batchCount?: number;
 }
@@ -102,13 +104,13 @@ export function CoursesPage() {
                         <SkillTags areas={[c.skillArea]} />
                       </span>
                       <span className="mt-0.5 block text-sm text-muted">
-                        {[c.code, durationText(c.durationValue, c.durationUnit), COURSE_LEVEL_LABEL[c.level], MODE_LABEL[c.deliveryMode]].filter(Boolean).join(' | ')}
+                        {[c.code, durationText(c.durationValue, c.durationUnit), COURSE_LEVEL_LABEL[c.level], MODE_LABEL[c.deliveryMode], c.owner && `by ${c.owner.name}`].filter(Boolean).join(' | ')}
                       </span>
                     </span>
                     <span className="text-sm text-muted">
                       {c.criteriaCount} criteria, {c.batchCount} {c.batchCount === 1 ? 'batch' : 'batches'}
                     </span>
-                    <StatusBadge status={c.status} />
+                    {c.approvalStatus && c.approvalStatus !== 'published' ? <StatusBadge status={c.approvalStatus} /> : <StatusBadge status={c.status} />}
                   </Link>
                 </li>
               ))}

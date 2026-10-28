@@ -13,11 +13,12 @@ export const SKILL_AREA_LABEL: Record<SkillArea, string> = {
   other: 'Other',
 };
 
-export const COURSE_LEVELS = ['beginner', 'intermediate', 'advanced', 'beginner_to_advanced'] as const;
+export const COURSE_LEVELS = ['beginner', 'intermediate', 'advanced', 'beginner_to_intermediate', 'beginner_to_advanced'] as const;
 export const COURSE_LEVEL_LABEL: Record<(typeof COURSE_LEVELS)[number], string> = {
   beginner: 'Beginner',
   intermediate: 'Intermediate',
   advanced: 'Advanced',
+  beginner_to_intermediate: 'Basic to intermediate',
   beginner_to_advanced: 'Beginner to advanced',
 };
 
@@ -110,6 +111,8 @@ export const batchSchema = z
     startDate: z.iso.date('Choose a start date'),
     endDate: z.iso.date('Choose an end date'),
     capacity: z.coerce.number().int().min(1, 'At least 1').max(500, 'At most 500'),
+    /** Free text, for example "Mon–Sat, 10:00 AM – 1:00 PM". */
+    classTimings: z.string().trim().max(120).optional(),
   })
   .refine((v) => v.endDate >= v.startDate, { message: 'End date must be on or after the start date', path: ['endDate'] });
 

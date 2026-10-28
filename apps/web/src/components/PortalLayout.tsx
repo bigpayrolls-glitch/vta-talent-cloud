@@ -15,6 +15,13 @@ export interface NavItem {
   /** Shown in the mobile bottom bar (max 5). Others live in the menu. */
   bottom?: boolean;
   end?: boolean;
+  /** A count shown next to the label (for example courses waiting for review). Hidden when 0. */
+  badge?: number;
+}
+
+function NavBadge({ n }: { n?: number }) {
+  if (!n) return null;
+  return <span className="ml-auto rounded-full bg-brand px-2 py-0.5 text-[11px] font-bold leading-none text-white" aria-label={`${n} waiting`}>{n}</span>;
 }
 
 function initials(name: string) {
@@ -203,6 +210,7 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
                 <NavLink to={n.to} end={n.end} className={navClass}>
                   <n.icon className="size-[18px]" aria-hidden />
                   {n.label}
+                  <NavBadge n={n.badge} />
                 </NavLink>
               </li>
             ))}
@@ -251,6 +259,7 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
                   <NavLink to={n.to} end={n.end} className={navClass}>
                     <n.icon className="size-[18px]" aria-hidden />
                     {n.label}
+                    <NavBadge n={n.badge} />
                   </NavLink>
                 </li>
               ))}

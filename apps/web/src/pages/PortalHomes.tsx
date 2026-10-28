@@ -2,6 +2,7 @@ import { ROLE_LABEL } from '@vta/shared';
 import {
   ArrowRight,
   BarChart3,
+  BookOpen,
   Building2,
   CalendarCheck,
   LayoutDashboard,
@@ -40,7 +41,8 @@ export function PartnerLayout() {
   // Five logins (27 Oct 2026): a training partner runs everything for its own centres, including trainers.
   const nav: NavItem[] = [
     PLANS.partner.nav[0]!,
-    ...(isPartner ? [{ to: '/partner/programmes', label: 'Programmes', icon: BarChart3, bottom: true }] : []),
+    ...(isPartner ? [{ to: '/partner/courses', label: 'Courses', icon: BookOpen, bottom: true }] : []),
+    ...(isPartner ? [{ to: '/partner/programmes', label: 'Programmes', icon: BarChart3 }] : []),
     PLANS.partner.nav[1]!,
     ...(isPartner ? [{ to: '/partner/trainers', label: 'Trainers', icon: UserCog, bottom: true }] : []),
     ...(isTrainer ? [{ to: '/partner/sync', label: 'Sync', icon: RefreshCw, bottom: true }] : []),

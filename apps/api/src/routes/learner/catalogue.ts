@@ -22,6 +22,7 @@ import { conflict, invalid, notFound } from '../../lib/errors.js';
 import { notify, orgMembers, vtaReviewers } from '../../lib/notify.js';
 import { iso, parse } from '../../lib/validate.js';
 import { consentRequired } from './service.js';
+import { courseImageUrl } from '../training/courses.js';
 
 /**
  * Phase 13: the public course catalogue and learner self-enrolment.
@@ -32,6 +33,10 @@ import { consentRequired } from './service.js';
 const idParam = z.object({ id: uuidSchema });
 const rupees = (paise: number) => Math.round(paise / 100);
 const money = (paise: number) => `₹${rupees(paise).toLocaleString('en-IN')}`;
+/** What a learner pays: the course fee plus GST, rounded to whole rupees. */
+const totalPaise = (c: Pick<Course, 'fee_paise' | 'gst_pct'>) => c.fee_paise + Math.round((c.fee_paise * c.gst_pct) / 100 / 100) * 100;
+/** Learners see only courses AutoTalent Grid published and that are switched on. */
+const listed = (c: Pick<Course, 'status' | 'approval_status'>) => c.status === 'active' && c.approval_status === 'published';
 
 /** Batches open for enrolment: planned or active, not started yet (India time). */
 function openBatches(db: DB) {
@@ -99,11 +104,17 @@ function courseDto(c: Course, batches: CatalogueBatch[]): CatalogueCourse {
     durationValue: c.duration_value,
     durationUnit: c.duration_unit,
     trainingHours: c.training_hours,
-    feeRupees: rupees(c.fee_paise),
+    feeRupees: rupees(totalPaise(c)),
+    gstPct: c.gst_pct,
+    courseType: c.course_type,
+    imageUrl: courseImageUrl(c, true),
+    skillTags: c.skills.slice(0, 6),
     providers: [...new Set(sorted.map((b) => b.provider))],
     cities: [...new Set(sorted.map((b) => b.city).filter((x): x is string => !!x))],
     nextStart: sorted[0]?.startDate ?? '',
     batchCount: sorted.length,
+    seatsLeft: sorted.reduce((n, b) => n + b.seatsLeft, 0),
+    nextBatchId: sorted.find((b) => b.seatsLeft > 0)?.id ?? null,
   };
 }
 
@@ -148,8 +159,9 @@ export const batchSummary = (trx: DB, batchId: string) =>
       'co.delivery_mode',
       'co.duration_value',
       'co.duration_unit',
-      'co.fee_paise',
-      'co.status as course_status',
+      sql<number>`co.fee_paise + round(co.fee_paise * co.gst_pct / 100.0 / 100.0)::int * 100`.as('fee_paise'),
+      // A course that is not both published and active cannot be enrolled in.
+      sql<'active' | 'inactive'>`case when co.status = 'active' and co.approval_status = 'published' then 'active' else 'inactive' end`.as('course_status'),
       'c.name as centre',
       'c.city',
       'o.legal_name as org',
@@ -217,7 +229,7 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/public/courses', { config: publicCfg }, async (req) => {
     const f = parse(catalogueQuerySchema, req.query);
-    const courses = await db.selectFrom('courses').selectAll().where('status', '=', 'active').execute();
+    const courses = await db.selectFrom('courses').selectAll().where('status', '=', 'active').where('approval_status', '=', 'published').execute();
     const batches = (await openBatches(db).execute()).map((b) => ({ courseId: b.course_id, dto: batchDto(b) }));
     const cities = [...new Set(batches.map((b) => b.dto.city).filter((x): x is string => !!x))].sort();
     let items = courses
@@ -229,21 +241,21 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
     if (f.skill.length) items = items.filter((i) => (f.skill as string[]).includes(i.c.skill_area));
     if (f.mode.length) items = items.filter((i) => (f.mode as string[]).includes(i.c.delivery_mode));
     if (f.duration.length) items = items.filter((i) => f.duration.includes(durationBucket(i.c)));
-    if (f.fee.length) items = items.filter((i) => f.fee.includes(feeBucket(i.c.fee_paise)));
+    if (f.fee.length) items = items.filter((i) => f.fee.includes(feeBucket(totalPaise(i.c))));
     if (f.q) {
       const q = f.q.toLowerCase();
-      items = items.filter((i) => i.c.title.toLowerCase().includes(q) || (i.c.code ?? '').toLowerCase().includes(q));
+      items = items.filter((i) => i.c.title.toLowerCase().includes(q) || (i.c.code ?? '').toLowerCase().includes(q) || i.c.skills.some((s) => s.toLowerCase().includes(q)));
     }
     items.sort((a, b) =>
-      f.sort === 'fee_asc' ? a.c.fee_paise - b.c.fee_paise : f.sort === 'fee_desc' ? b.c.fee_paise - a.c.fee_paise : a.dto.nextStart.localeCompare(b.dto.nextStart) || a.c.title.localeCompare(b.c.title),
+      f.sort === 'fee_asc' ? totalPaise(a.c) - totalPaise(b.c) : f.sort === 'fee_desc' ? totalPaise(b.c) - totalPaise(a.c) : a.dto.nextStart.localeCompare(b.dto.nextStart) || a.c.title.localeCompare(b.c.title),
     );
     return { items: items.map((i) => i.dto), total: items.length, cities };
   });
 
   app.get('/public/courses/:id', { config: publicCfg }, async (req): Promise<CatalogueCourseDetail> => {
     const { id } = parse(idParam, req.params);
-    const c = await db.selectFrom('courses').selectAll().where('id', '=', id).where('status', '=', 'active').executeTakeFirst();
-    if (!c) throw notFound('Course');
+    const c = await db.selectFrom('courses').selectAll().where('id', '=', id).executeTakeFirst();
+    if (!c || !listed(c)) throw notFound('Course');
     const batches = (await openBatches(db).where('b.course_id', '=', id).orderBy('b.start_date').execute()).map(batchDto);
     const skills = await db.selectFrom('assessment_criteria').select(['label', 'required']).where('course_id', '=', id).orderBy('sort_order').execute();
     return {
@@ -252,9 +264,22 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
       prerequisites: c.prerequisites,
       attendanceThresholdPct: c.attendance_threshold_pct,
       passMarkPct: c.pass_mark_pct,
-      skills: skills.map((s) => ({ label: s.label, required: s.required })),
+      // A partner's course lists the skills it chose; AutoTalent Grid's courses list what the trainer assesses.
+      skills: c.skills.length ? c.skills.map((label) => ({ label, required: false })) : skills.map((s) => ({ label: s.label, required: s.required })),
+      modules: c.modules,
+      learningOutcomes: c.learning_outcomes,
+      certificateType: c.certificate_type,
       batches,
     };
+  });
+
+  /** A published course's picture. */
+  app.get('/public/courses/:id/image', { config: publicCfg }, async (req, reply) => {
+    const { id } = parse(idParam, req.params);
+    const c = await db.selectFrom('courses').select(['image_key', 'image_mime', 'status', 'approval_status']).where('id', '=', id).executeTakeFirst();
+    if (!c || !c.image_key || !listed(c)) throw notFound('Image');
+    const data = await app.storage.get(c.image_key);
+    return reply.header('content-type', c.image_mime ?? 'image/jpeg').header('cache-control', 'public, max-age=86400').header('x-content-type-options', 'nosniff').send(data);
   });
 
   // ---------------------------------------------------------------- learner self-enrolment

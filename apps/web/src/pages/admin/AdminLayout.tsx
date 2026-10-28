@@ -1,10 +1,19 @@
-import { Award, BarChart3, FolderKanban, BookOpen, Briefcase, Building2, ClipboardCheck, GraduationCap, Handshake, History, LayoutDashboard, MapPin, UserCog, Users, UsersRound } from 'lucide-react';
+import { Award, BadgeCheck, BarChart3, FolderKanban, BookOpen, Briefcase, Building2, ClipboardCheck, GraduationCap, Handshake, History, LayoutDashboard, MapPin, UserCog, Users, UsersRound } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { Outlet } from 'react-router';
+import { api } from '../../lib/api';
 import { PortalLayout, type NavItem } from '../../components/PortalLayout';
 import { useAuth } from '../../lib/auth';
 
 export function AdminLayout() {
   const { can } = useAuth();
+  // Courses from training partners waiting for review: shown as a count next to "Course approvals".
+  const pending = useQuery({
+    queryKey: ['course-reviews', 'pending-count'],
+    enabled: can('course.review'),
+    queryFn: () => api.get<{ counts: Record<string, number> }>('/admin/course-reviews?pageSize=1'),
+    refetchInterval: 120_000,
+  });
   // Order follows the design: training work first, platform administration after.
   const nav: NavItem[] = [
     { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, bottom: true, end: true },
@@ -17,6 +26,7 @@ export function AdminLayout() {
     ...(can('programme.manage') ? [{ to: '/admin/programmes', label: 'Programmes', icon: FolderKanban }] : []),
     ...(can('report.read') ? [{ to: '/admin/reports', label: 'Reports', icon: BarChart3 }] : []),
     ...(can('course.read') ? [{ to: '/admin/courses', label: 'Courses', icon: BookOpen, bottom: true }] : []),
+    ...(can('course.review') ? [{ to: '/admin/course-approvals', label: 'Course approvals', icon: BadgeCheck, badge: pending.data?.counts.submitted ?? 0 }] : []),
     ...(can('trainer.read') ? [{ to: '/admin/trainers', label: 'Trainers', icon: UserCog }] : []),
     { to: '/admin/centres', label: 'Centres', icon: MapPin },
     ...(can('organisation.manage') ? [{ to: '/admin/organisations', label: 'Organisations', icon: Building2 }] : []),

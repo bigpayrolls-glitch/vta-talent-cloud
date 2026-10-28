@@ -53,9 +53,13 @@ export const NOTIFICATION_TEMPLATES = {
   org_verified: { title: (p) => `${p.org} is verified`, body: (p) => (p.type === 'employer' ? 'You can now post jobs and search candidates.' : 'AutoTalent Grid can now link you to programmes.') },
   org_more_info: { title: () => 'AutoTalent Grid needs more information', body: (p) => `AutoTalent Grid's note: ${p.reason}` },
   org_rejected: { title: (p) => `AutoTalent Grid could not verify ${p.org}`, body: (p) => `AutoTalent Grid's note: ${p.reason}` },
+  course_published: { title: (p) => `${p.course} is live`, body: () => 'AutoTalent Grid approved and published it. Learners can now find it and enrol.' },
+  course_changes_requested: { title: (p) => `Changes requested on ${p.course}`, body: (p) => `AutoTalent Grid's note: ${p.reason}` },
+  course_rejected: { title: (p) => `AutoTalent Grid could not publish ${p.course}`, body: (p) => `AutoTalent Grid's note: ${p.reason}` },
   programme_assigned: { title: (p) => `You're a partner on ${p.programme}`, body: () => 'Open it to see the dashboard, beneficiaries and documents.' },
   // VTA staff
   org_submitted: { title: (p) => `${p.org} sent for verification`, body: (p) => (p.type === 'employer' ? 'An employer is waiting to be verified.' : 'A training partner is waiting to be verified.') },
+  course_submitted: { title: (p) => `Course waiting for review: ${p.course}`, body: (p) => `From ${p.partner}.` },
   job_submitted: { title: (p) => `Job waiting for review: ${p.job}`, body: (p) => `From ${p.company}.` },
   joining_reported: { title: (p) => `Joining to verify: ${p.job}`, body: (p) => `${p.company} recorded a joining.` },
   plan_requested: { title: (p) => `${p.org} asked about the ${p.plan} plan`, body: (p) => (p.note ? `Their note: ${p.note}` : 'Contact them to set it up.') },

@@ -9,7 +9,7 @@ import { UpdatePrompt } from './components/UpdatePrompt';
 import { AuthProvider } from './lib/auth';
 import { AcceptInvitation, ChoosePortal, NoAccess, NotFound, RequirePortal } from './pages/AccessPages';
 import { LoginPage } from './pages/LoginPage';
-import { PartnerLayout, PortalHomeContent } from './pages/PortalHomes';
+import { PartnerLayout } from './pages/PortalHomes';
 import './styles.css';
 
 const queryClient = new QueryClient({
@@ -68,6 +68,8 @@ const router = createBrowserRouter([
       { path: 'assessments', lazy: () => import('./pages/operations/ReviewQueue').then((m) => ({ Component: m.ReviewQueuePage })) },
       { path: 'credentials', lazy: () => import('./pages/operations/Credentials').then((m) => ({ Component: m.CredentialsPage })) },
       { path: 'credentials/:id', lazy: () => import('./pages/operations/Credentials').then((m) => ({ Component: m.CredentialDetailPage })) },
+      { path: 'course-approvals', lazy: () => import('./pages/admin/CourseApprovals').then((m) => ({ Component: m.CourseApprovalsPage })) },
+      { path: 'course-approvals/:id', lazy: () => import('./pages/admin/CourseApprovals').then((m) => ({ Component: m.CourseReviewPage })) },
       { path: 'jobs', lazy: () => import('./pages/admin/Hiring').then((m) => ({ Component: m.JobModerationPage })) },
       { path: 'jobs/:id', lazy: () => import('./pages/admin/Hiring').then((m) => ({ Component: m.JobModerationDetailPage })) },
       { path: 'outcomes', lazy: () => import('./pages/admin/Hiring').then((m) => ({ Component: m.HiringOutcomesPage })) },
@@ -152,7 +154,12 @@ const router = createBrowserRouter([
       </RequirePortal>
     ),
     children: [
-      { index: true, element: <PortalHomeContent portal="partner" /> },
+      // Training partners get the course dashboard (wireframe screen 1); trainers keep their Today screen.
+      { index: true, lazy: () => import('./pages/partner/Home').then((m) => ({ Component: m.PartnerHome })) },
+      { path: 'courses', lazy: () => import('./pages/partner/Courses').then((m) => ({ Component: m.PartnerCoursesPage })) },
+      { path: 'courses/new', lazy: () => import('./pages/partner/Courses').then((m) => ({ Component: m.CourseWizardPage })) },
+      { path: 'courses/:id', lazy: () => import('./pages/partner/Courses').then((m) => ({ Component: m.PartnerCourseDetailPage })) },
+      { path: 'courses/:id/edit', lazy: () => import('./pages/partner/Courses').then((m) => ({ Component: m.CourseWizardPage })) },
       { path: 'batches', lazy: () => import('./pages/training/Batches').then((m) => ({ Component: () => <m.BatchesPage base="/partner/batches" /> })) },
       { path: 'batches/:id', lazy: () => import('./pages/training/Batches').then((m) => ({ Component: () => <m.BatchDetailPage base="/partner/batches" /> })) },
       // Phase 7: programmes and the partner's organisation.

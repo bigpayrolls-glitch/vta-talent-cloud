@@ -59,7 +59,7 @@ async function loadManagedBatch(db: Executor, req: FastifyRequest, id: string, f
  * independent (freelance) trainer, who is then given the trainer role at that centre with the batch.
  * Returns true when that centre role still has to be granted.
  */
-async function assertTrainerFits(db: Executor, trainerId: string, centreId: string): Promise<boolean> {
+export async function assertTrainerFits(db: Executor, trainerId: string, centreId: string): Promise<boolean> {
   const t = await db
     .selectFrom('users as u')
     .leftJoin('trainer_profiles as tp', 'tp.user_id', 'u.id')
@@ -88,7 +88,7 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
   const dto = (r: {
     id: string; name: string; status: string; start_date: string; end_date: string; capacity: number; enrolled: string;
     course_id: string; course_title: string; skill_area: string; centre_id: string; centre_name: string; centre_city: string | null;
-    trainer_id: string; trainer_name: string;
+    trainer_id: string; trainer_name: string; class_timings: string | null;
   }) => ({
     id: r.id,
     name: r.name,
@@ -96,6 +96,7 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
     startDate: r.start_date,
     endDate: r.end_date,
     capacity: r.capacity,
+    classTimings: r.class_timings,
     enrolled: Number(r.enrolled),
     course: { id: r.course_id, title: r.course_title, skillArea: r.skill_area },
     centre: { id: r.centre_id, name: r.centre_name, city: r.centre_city },
@@ -104,7 +105,7 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
 
   const columns = [
     'b.id', 'b.name', 'b.status', 'b.start_date', 'b.end_date', 'b.capacity', 'b.course_id', 'c.title as course_title', 'c.skill_area',
-    'b.centre_id', 'ce.name as centre_name', 'ce.city as centre_city', 'b.trainer_id', 't.name as trainer_name',
+    'b.centre_id', 'ce.name as centre_name', 'ce.city as centre_city', 'b.trainer_id', 't.name as trainer_name', 'b.class_timings',
   ] as const;
 
   /** Scoped batch list: same URL, different rows per user (TR-01, T-05). */
@@ -198,12 +199,17 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
   app.post('/admin/batches', { config: { permission: 'batch.manage' } }, async (req, reply) => {
     const b = parse(batchSchema, req.body);
     if (!inScope(await batchManageScope(db, req.actor!), b.centreId)) throw invalid('Centre not found', { centreId: 'Not found' });
-    const course = await db.selectFrom('courses').select(['status']).where('id', '=', b.courseId).executeTakeFirst();
+    const course = await db.selectFrom('courses').select(['status', 'approval_status', 'owner_organisation_id']).where('id', '=', b.courseId).executeTakeFirst();
     if (!course) throw invalid('Course not found', { courseId: 'Not found' });
+    if (course.approval_status !== 'published') throw invalid('This course is not published yet. AutoTalent Grid must approve it first.', { courseId: 'Not published yet' });
     if (course.status !== 'active') throw invalid('This course is inactive', { courseId: 'Course is inactive' });
-    const centre = await db.selectFrom('centres').select(['status']).where('id', '=', b.centreId).executeTakeFirst();
+    const centre = await db.selectFrom('centres').select(['status', 'organisation_id']).where('id', '=', b.centreId).executeTakeFirst();
     if (!centre) throw invalid('Centre not found', { centreId: 'Not found' });
     if (centre.status !== 'active') throw invalid('This centre is inactive', { centreId: 'Centre is inactive' });
+    // A training partner's own course runs only at that partner's centres.
+    if (course.owner_organisation_id && centre.organisation_id !== course.owner_organisation_id) {
+      throw invalid('This course belongs to another training partner', { courseId: 'Runs only at its partner’s centres' });
+    }
     const grantCentre = await assertTrainerFits(db, b.trainerId, b.centreId);
     const row = {
       id: newId(),
@@ -214,6 +220,7 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
       start_date: b.startDate,
       end_date: b.endDate,
       capacity: b.capacity,
+      class_timings: b.classTimings || null,
       status: 'planned' as const,
       created_by: req.actor!.userId,
     };

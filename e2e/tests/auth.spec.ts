@@ -6,7 +6,7 @@ test.describe('sign-in and portal routing', () => {
     const cases: [string, RegExp, string][] = [
       [EMAIL.superAdmin, /\/admin$/, 'Welcome, Asha!'],
       [EMAIL.employerAdminA, /\/employer$/, 'Hello, Rahul!'],
-      [EMAIL.partnerAdminA, /\/partner$/, 'Hello, Farah!'],
+      [EMAIL.partnerAdminA, /\/partner$/, 'Welcome back, Farah'],
     ];
     for (const [email, url, heading] of cases) {
       await page.context().clearCookies();

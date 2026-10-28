@@ -238,6 +238,68 @@ export async function seed(db: DB): Promise<SeedResult> {
   }
   await batch('batchOpen2w', '2W Peenya November 2026', 'course2w', 'centrePartnerA', 'trainerA', '2026-11-10', '2027-02-10', 'planned', []);
 
+  // ---- Training partner courses: one waiting for AutoTalent Grid's review, one still a draft (all invented) ----
+  const partnerCourse = async (key: string, title: string, status: 'submitted' | 'draft', extra: Partial<Record<string, unknown>> = {}) => {
+    ids[key] = newId();
+    await db
+      .insertInto('courses')
+      .values({
+        id: ids[key],
+        title,
+        skill_area: '2W',
+        level: 'beginner_to_intermediate',
+        delivery_mode: 'classroom',
+        duration_value: 6,
+        duration_unit: 'weeks',
+        training_hours: 120,
+        prerequisites: '10th pass',
+        description: 'Hands-on two-wheeler service training: periodic maintenance, engine and brake service, and diagnosing fuel-injection and electrical faults on current models.',
+        attendance_threshold_pct: 75,
+        pass_mark_pct: 50,
+        status: 'active',
+        owner_organisation_id: ids.partnerA!,
+        approval_status: status,
+        course_type: 'certification',
+        city: 'Bengaluru',
+        gst_pct: 18,
+        fee_paise: 4999_00,
+        certificate_type: 'Partner Certificate',
+        modules: JSON.stringify([
+          { name: 'Introduction to 2W systems', hours: 16 },
+          { name: 'Engine service and repair', hours: 32 },
+          { name: 'Brake and suspension service', hours: 24 },
+          { name: 'Electrical diagnostics and FI system', hours: 32 },
+          { name: 'Workshop practice and troubleshooting', hours: 16 },
+        ]),
+        skills: ['Engine Service', 'Brake Service', 'Electrical Diagnostics', 'FI System', 'Periodic Maintenance', 'Troubleshooting'],
+        learning_outcomes: ['Carry out periodic maintenance to the maker’s schedule', 'Diagnose and fix common engine and brake faults', 'Use a scan tool to read fuel-injection fault codes'],
+        first_batch: JSON.stringify({ name: '2W Service Peenya December 2026', centreId: ids.centrePartnerA!, trainerId: ids.trainerA!, startDate: '2026-12-07', endDate: '2027-01-16', capacity: 25, classTimings: 'Mon–Sat, 10:00 AM – 1:00 PM' }),
+        submitted_at: status === 'submitted' ? new Date() : null,
+        created_by: ids.partnerAdminA!,
+        published_at: null,
+        ...extra,
+      })
+      .execute();
+    await db.insertInto('course_review_events').values({ id: newId(), course_id: ids[key]!, action: 'created', actor_id: ids.partnerAdminA! }).execute();
+    if (status === 'submitted') await db.insertInto('course_review_events').values({ id: newId(), course_id: ids[key]!, action: 'submitted', actor_id: ids.partnerAdminA! }).execute();
+  };
+  await partnerCourse('partnerCourseSubmitted', '2W Service Technician Advanced', 'submitted');
+  await partnerCourse('partnerCourseDraft', 'EV Battery Basics', 'draft', {
+    skill_area: 'EV',
+    description: 'A short introduction to electric-vehicle batteries: safe handling, the battery management system and charging.',
+    course_type: 'short_term',
+    level: 'beginner',
+    duration_value: 2,
+    training_hours: 24,
+    modules: JSON.stringify([{ name: 'Battery chemistry and safety', hours: 12 }, { name: 'BMS and charging', hours: 12 }]),
+    skills: ['Battery & BMS'],
+    learning_outcomes: [],
+    first_batch: null,
+    certificate_type: null,
+    gst_pct: 0,
+    fee_paise: 0,
+  });
+
   // ---- Phase 3: attendance, assessments, a credential (all invented) ----
   const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
   const markSessions = async (batchKey: string, start: string, days: number[], marks: Record<string, ('present' | 'absent' | 'late' | 'excused')[]>, by: string) => {

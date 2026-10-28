@@ -20,6 +20,7 @@ import * as m0013 from './migrations/0013_course_enrolment.js';
 import * as m0014 from './migrations/0014_five_logins.js';
 import * as m0015 from './migrations/0015_sms_provider.js';
 import * as m0016 from './migrations/0016_razorpay.js';
+import * as m0017 from './migrations/0017_partner_courses.js';
 
 /** Explicit list: add each new migration here in order. Works the same from source and from the bundled build. */
 const MIGRATIONS: Record<string, Migration> = {
@@ -39,6 +40,7 @@ const MIGRATIONS: Record<string, Migration> = {
   '0014_five_logins': m0014,
   '0015_sms_provider': m0015,
   '0016_razorpay': m0016,
+  '0017_partner_courses': m0017,
 };
 
 const provider: MigrationProvider = { getMigrations: async () => MIGRATIONS };

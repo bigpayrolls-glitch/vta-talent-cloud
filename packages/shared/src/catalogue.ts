@@ -4,7 +4,8 @@ import { DELIVERY_MODES, SKILL_AREAS } from './training.js';
 
 // ---------------------------------------------------------------------------
 // Phase 13: public course catalogue and learner self-enrolment (brand design of 26 Oct 2026).
-// Fees are set per course by AutoTalent Grid; no GST is added for now. Payment follows PAYMENT_MODE
+// Fees are set per course (by AutoTalent Grid, or by the training partner that wrote it); feeRupees includes
+// GST when the course charges it (gstPct). Payment follows PAYMENT_MODE
 // (a marked test payment on staging). Seats are confirmed at once while the batch has room.
 // ---------------------------------------------------------------------------
 
@@ -70,11 +71,20 @@ export interface CatalogueCourse {
   durationValue: number;
   durationUnit: string;
   trainingHours: number | null;
+  /** What the learner pays, including GST. */
   feeRupees: number;
+  gstPct: number;
+  courseType: string | null;
+  imageUrl: string | null;
+  /** Skill chips on the course card. */
+  skillTags: string[];
   providers: string[];
   cities: string[];
   nextStart: string;
   batchCount: number;
+  /** Seats left across the open batches, and the soonest batch that still has a seat (for "Enrol now"). */
+  seatsLeft: number;
+  nextBatchId: string | null;
 }
 
 export interface CatalogueCourseDetail extends CatalogueCourse {
@@ -84,5 +94,8 @@ export interface CatalogueCourseDetail extends CatalogueCourse {
   passMarkPct: number;
   /** The skills the trainer assesses: "What you will learn" and the syllabus. */
   skills: { label: string; required: boolean }[];
+  modules: { name: string; hours: number }[];
+  learningOutcomes: string[];
+  certificateType: string | null;
   batches: CatalogueBatch[];
 }

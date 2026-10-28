@@ -160,7 +160,7 @@ export function CoursesPage() {
             <ul className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {q.data!.items.map((c) => (
                 <li key={c.id} className="card flex flex-col overflow-hidden">
-                  <img src={courseImage(c.skillArea)} alt="" className="aspect-[16/10] w-full object-cover" loading="lazy" />
+                  <img src={c.imageUrl ?? courseImage(c.skillArea)} alt="" className="aspect-[16/10] w-full object-cover" loading="lazy" />
                   <div className="flex flex-1 flex-col px-4 py-4">
                     <h2 className="font-bold leading-snug">{c.title}</h2>
                     <p className="text-sm text-muted">{COURSE_LEVEL_LABEL[c.level as keyof typeof COURSE_LEVEL_LABEL] ?? c.level}</p>
@@ -175,10 +175,33 @@ export function CoursesPage() {
                         <Meta icon={CalendarDays}>Starts {day(c.nextStart)}</Meta>
                       </div>
                     </div>
-                    <p className="mt-3 text-xl font-extrabold">{rupees(c.feeRupees)}</p>
-                    <Link to={`/courses/${c.id}`} className="btn-primary mt-3 h-10 bg-[#C8101A] hover:bg-brand-hover" aria-label={`View details: ${c.title}`}>
-                      View details
-                    </Link>
+                    {c.skillTags.length > 0 && (
+                      <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Skills">
+                        {c.skillTags.slice(0, 4).map((t) => (
+                          <li key={t} className="rounded-full bg-brand-tint px-2.5 py-0.5 text-[11px] font-semibold text-[#C8101A]">{t}</li>
+                        ))}
+                        {c.skillTags.length > 4 && <li className="rounded-full bg-surface px-2.5 py-0.5 text-[11px] font-semibold text-muted">+{c.skillTags.length - 4}</li>}
+                      </ul>
+                    )}
+                    <div className="mt-auto flex items-end justify-between gap-2 pt-3">
+                      <p className="text-xl font-extrabold">
+                        {rupees(c.feeRupees)}
+                        {c.feeRupees > 0 && c.gstPct > 0 && <span className="ml-1 text-xs font-medium text-muted">incl. GST</span>}
+                      </p>
+                      <p className={`text-xs font-semibold ${c.seatsLeft <= 5 ? 'text-[#C8101A]' : 'text-success'}`}>{c.seatsLeft} {c.seatsLeft === 1 ? 'seat' : 'seats'} left</p>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <Link to={`/courses/${c.id}`} className="btn-secondary h-10" aria-label={`View details: ${c.title}`}>
+                        Details
+                      </Link>
+                      {c.nextBatchId ? (
+                        <Link to={`/enrol/${c.nextBatchId}`} className="btn-primary h-10 bg-[#C8101A] hover:bg-brand-hover" aria-label={`Enrol now: ${c.title}`}>
+                          Enrol now
+                        </Link>
+                      ) : (
+                        <span className="btn-secondary h-10 cursor-default opacity-60">Full</span>
+                      )}
+                    </div>
                   </div>
                 </li>
               ))}
@@ -239,7 +262,7 @@ export function CourseDetailPage() {
           Back to courses
         </Link>
         <section className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,420px)_1fr]">
-          <img src={courseImage(c.skillArea)} alt="" className="aspect-[16/10] w-full rounded-2xl object-cover" />
+          <img src={c.imageUrl ?? courseImage(c.skillArea)} alt="" className="aspect-[16/10] w-full rounded-2xl object-cover" />
           <div>
             <p className="text-[13px] font-semibold tracking-wide text-[#C8101A] uppercase">{SKILL_AREA_LABEL[c.skillArea as SkillArea] ?? c.skillArea}</p>
             <h1 className="mt-1 text-[28px] leading-tight font-bold tracking-tight sm:text-[32px]">
@@ -253,7 +276,10 @@ export function CourseDetailPage() {
               <Meta icon={Award}>Certificate</Meta>
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-4">
-              <p className="text-[32px] font-extrabold tracking-tight">{rupees(c.feeRupees)}</p>
+              <p className="text-[32px] font-extrabold tracking-tight">
+                {rupees(c.feeRupees)}
+                {c.feeRupees > 0 && c.gstPct > 0 && <span className="ml-1.5 text-sm font-medium text-muted">incl. {c.gstPct}% GST</span>}
+              </p>
               {first ? (
                 <Link to={`/enrol/${first.id}`} className="btn-primary h-12 min-w-[220px] bg-[#C8101A] px-8 text-base hover:bg-brand-hover">
                   Enrol now
@@ -300,6 +326,14 @@ export function CourseDetailPage() {
                       </ul>
                     </>
                   )}
+                  {c.learningOutcomes.length > 0 && (
+                    <>
+                      <h2 className="mt-6 font-bold">By the end you will be able to</h2>
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-ink/80">
+                        {c.learningOutcomes.map((o) => <li key={o}>{o}</li>)}
+                      </ul>
+                    </>
+                  )}
                   {c.prerequisites && (
                     <>
                       <h2 className="mt-6 font-bold">Before you join</h2>
@@ -308,7 +342,22 @@ export function CourseDetailPage() {
                   )}
                 </>
               )}
-              {tab === 'Syllabus' && (
+              {tab === 'Syllabus' && c.modules.length > 0 && (
+                <>
+                  <h2 className="font-bold">Course modules</h2>
+                  <ol className="mt-3 space-y-2">
+                    {c.modules.map((m, i) => (
+                      <li key={m.name} className="flex gap-3">
+                        <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand-tint text-sm font-semibold text-[#C8101A]">{i + 1}</span>
+                        <span className="flex-1 pt-0.5">{m.name}</span>
+                        <span className="pt-0.5 text-sm text-muted">{m.hours} h</span>
+                      </li>
+                    ))}
+                  </ol>
+                  {c.trainingHours && <p className="mt-4 text-sm text-muted">{c.trainingHours} training hours in all.</p>}
+                </>
+              )}
+              {tab === 'Syllabus' && c.modules.length === 0 && (
                 <>
                   <h2 className="font-bold">Skills taught and assessed</h2>
                   <ol className="mt-3 space-y-2">
@@ -328,6 +377,7 @@ export function CourseDetailPage() {
               {tab === 'Certification' && (
                 <>
                   <h2 className="font-bold">How you earn the certificate</h2>
+                  {c.certificateType && c.certificateType !== 'No certificate' && <p className="mt-1 text-sm text-muted">Certificate: {c.certificateType}</p>}
                   <ul className="mt-3 space-y-2">
                     <li className="flex gap-2">
                       <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
