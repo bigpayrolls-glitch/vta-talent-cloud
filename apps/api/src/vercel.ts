@@ -9,6 +9,9 @@ import { createDb } from './db/index.js';
 
 // A hosted function always runs as production (secure cookies, trusted proxy for client IPs).
 process.env.NODE_ENV = 'production';
+// A stray error must not stop the instance and fail the requests it is serving: log it with its stack instead.
+process.on('unhandledRejection', (err) => console.error('Unhandled rejection', err));
+process.on('uncaughtException', (err) => console.error('Uncaught exception', err));
 const config = loadConfig();
 // Few connections per instance: serverless instances are many and short-lived (use the pooled URL).
 const db = createDb(config.databaseUrl, 3);
