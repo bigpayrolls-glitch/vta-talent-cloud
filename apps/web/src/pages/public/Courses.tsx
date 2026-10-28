@@ -17,12 +17,13 @@ import {
   type PayMethod,
   type SkillArea,
 } from '@vta/shared';
-import { ArrowLeft, ArrowRight, Award, Building2, CalendarDays, Check, CircleCheck, Clock, CreditCard, Landmark, MapPin, Printer, School, SlidersHorizontal, Smartphone, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Award, Building2, CalendarDays, Check, CircleCheck, Clock, CreditCard, Landmark, MapPin, Printer, School, ShieldCheck, SlidersHorizontal, Smartphone, X } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { durationText } from '../../components/form';
 import { EmptyState, ErrorNote, Spinner, Wordmark } from '../../components/ui';
 import { api, ApiError } from '../../lib/api';
+import { PaymentCancelled, payWithRazorpay, type RazorpayStart } from '../../lib/razorpay';
 import { useAuth } from '../../lib/auth';
 import { PublicShell } from './Home';
 
@@ -394,7 +395,7 @@ interface Quote {
   batch: { id: string; name: string; startDate: string; endDate: string; centre: string; city: string | null; provider: string; seatsLeft: number };
   course: { id: string; title: string; skillArea: string; deliveryMode: string; durationValue: number; durationUnit: string; feeRupees: number };
   blocker: string | null;
-  paymentMode: 'test' | 'none';
+  paymentMode: 'test' | 'none' | 'razorpay';
 }
 
 function Stepper({ step }: { step: 1 | 2 | 3 }) {
@@ -427,9 +428,35 @@ export function EnrolPage() {
   const [terms, setTerms] = useState(false);
   const isLearner = !!me && can('learner.self');
   const q = useQuery({ queryKey: ['enrol', batchId], queryFn: () => api.get<Quote>(`/me/enrol/${batchId}`), enabled: isLearner });
+  const [stage, setStage] = useState<'idle' | 'paying' | 'verifying'>('idle');
+  const [note, setNote] = useState<string | null>(null);
   const pay = useMutation({
-    mutationFn: () => api.post<{ enrolmentId: string }>('/me/enrolments', { batchId, method: q.data?.course.feeRupees ? method : undefined, acceptTerms: terms }),
-    onSuccess: (r) => navigate(`/enrol/done/${r.enrolmentId}`, { replace: true }),
+    mutationFn: async (): Promise<{ enrolmentId: string } | null> => {
+      setNote(null);
+      const live = q.data?.paymentMode === 'razorpay';
+      const r = await api.post<{ enrolmentId: string } | RazorpayStart>('/me/enrolments', { batchId, method: q.data?.course.feeRupees && !live ? method : undefined, acceptTerms: terms });
+      if (!('razorpay' in r)) return r;
+      setStage('paying');
+      try {
+        const out = await payWithRazorpay(r, () => setStage('verifying'));
+        if (out.status === 'needs_refund') {
+          setNote(out.message);
+          return null;
+        }
+        return out.purpose === 'course' ? { enrolmentId: out.enrolmentId } : null;
+      } catch (e) {
+        if (e instanceof PaymentCancelled) {
+          setNote(e.message);
+          return null;
+        }
+        throw e;
+      } finally {
+        setStage('idle');
+      }
+    },
+    onSuccess: (r) => {
+      if (r) navigate(`/enrol/done/${r.enrolmentId}`, { replace: true });
+    },
   });
   if (loading) return <Spinner />;
   if (!me) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname)}`} replace />;
@@ -522,7 +549,13 @@ export function EnrolPage() {
                     <p className="mt-4 rounded-lg bg-surface px-4 py-3 text-sm">Online payment is not switched on yet. Contact the training centre to enrol.</p>
                   ) : (
                     <>
-                      {fee > 0 && (
+                      {fee > 0 && d.paymentMode === 'razorpay' && (
+                        <p className="mt-4 flex items-start gap-2.5 rounded-lg bg-surface px-4 py-3 text-sm">
+                          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+                          <span>You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. Your seat is confirmed as soon as the payment goes through.</span>
+                        </p>
+                      )}
+                      {fee > 0 && d.paymentMode === 'test' && (
                         <fieldset className="mt-5">
                           <legend className="font-semibold">Select payment method</legend>
                           <div className="mt-2 space-y-2" role="radiogroup" aria-label="Payment method">
@@ -539,7 +572,7 @@ export function EnrolPage() {
                           </div>
                         </fieldset>
                       )}
-                      {fee > 0 && (
+                      {fee > 0 && d.paymentMode === 'test' && (
                         <p role="note" className="mt-4 rounded-lg bg-warning-tint px-4 py-3 text-sm text-warning">
                           <span className="font-semibold">Test payment.</span> This staging copy has no payment provider: no money is taken and no card or bank details are asked for.
                         </p>
@@ -564,8 +597,13 @@ export function EnrolPage() {
                           <ErrorNote message={err.message} />
                         </div>
                       )}
+                      {note && (
+                        <p role="status" className="mt-3 rounded-lg bg-warning-tint px-4 py-3 text-sm text-warning">
+                          {note}
+                        </p>
+                      )}
                       <button type="submit" className="btn-primary mt-5 h-12 w-full bg-[#C8101A] text-base hover:bg-brand-hover" disabled={pay.isPending}>
-                        {pay.isPending ? 'Please wait…' : fee > 0 ? `Pay ${rupees(fee)}` : 'Confirm enrolment'}
+                        {stage === 'verifying' ? 'Confirming your payment…' : stage === 'paying' ? 'Complete the payment in the Razorpay window…' : pay.isPending ? 'Please wait…' : fee > 0 ? `Pay ${rupees(fee)}` : 'Confirm enrolment'}
                       </button>
                     </>
                   )}
@@ -583,7 +621,7 @@ interface Receipt {
   enrolmentId: string;
   receiptNumber: string;
   amountRupees: number;
-  method: PayMethod | null;
+  method: string | null;
   test: boolean;
   free: boolean;
   paidAt: string;

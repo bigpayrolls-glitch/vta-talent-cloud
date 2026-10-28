@@ -12,12 +12,13 @@ import {
   type Plan,
   type SubscriptionDto,
 } from '@vta/shared';
-import { ArrowLeft, ArrowRight, Briefcase, CalendarDays, Check, ChevronRight, CircleCheck, CreditCard, FileText, Landmark, Lock, Printer, Smartphone, Users } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Briefcase, CalendarDays, Check, ChevronRight, CircleCheck, CreditCard, FileText, Landmark, Lock, Printer, ShieldCheck, Smartphone, Users } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ErrorNote, Field, Modal, Spinner, Wordmark } from '../../components/ui';
 import { useToast } from '../../components/toast';
 import { api, ApiError } from '../../lib/api';
+import { PaymentCancelled, payWithRazorpay, type RazorpayStart } from '../../lib/razorpay';
 import { useAuth } from '../../lib/auth';
 
 /**
@@ -31,7 +32,8 @@ interface Payment {
   plan: PaidPlan;
   cycle: BillingCycle;
   amountPaise: number;
-  method: PaymentMethod;
+  /** As reported by the payment provider: card, upi, netbanking, wallet or other. */
+  method: string;
   test: boolean;
   invoiceNumber: string;
   periodStart: string;
@@ -42,7 +44,7 @@ interface Payment {
 const day = (iso: string) => new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }).format(new Date(iso));
 const daysLeft = (iso: string) => Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000));
 const per = (c: BillingCycle) => (c === 'monthly' ? 'month' : 'year');
-const METHOD_LABEL: Record<PaymentMethod, string> = { card: 'Card', upi: 'UPI', netbanking: 'Net banking' };
+const METHOD_LABEL: Record<string, string> = { card: 'Card', upi: 'UPI', netbanking: 'Net banking', wallet: 'Wallet', other: 'Online payment' };
 
 export function PlanBadge({ plan }: { plan: Plan }) {
   const tone = plan === 'free' ? 'bg-surface text-ink/75' : 'bg-success-tint text-success';
@@ -458,9 +460,34 @@ export function CheckoutPage() {
   const [method, setMethod] = useState<PaymentMethod>('card');
   const [terms, setTerms] = useState(false);
   const [asking, setAsking] = useState(false);
+  const [stage, setStage] = useState<'idle' | 'paying' | 'verifying'>('idle');
+  const [note, setNote] = useState<string | null>(null);
   const pay = useMutation({
-    mutationFn: () => api.post<{ paymentId: string }>('/employer/subscription/checkout', { plan, cycle, method, acceptTerms: terms }),
+    mutationFn: async (): Promise<{ paymentId: string } | null> => {
+      setNote(null);
+      const live = sub.data?.paymentMode === 'razorpay';
+      const r = await api.post<{ paymentId: string } | RazorpayStart>('/employer/subscription/checkout', { plan, cycle, method: live ? undefined : method, acceptTerms: terms });
+      if (!('razorpay' in r)) return r;
+      setStage('paying');
+      try {
+        const out = await payWithRazorpay(r, () => setStage('verifying'));
+        if (out.status === 'needs_refund') {
+          setNote(out.message);
+          return null;
+        }
+        return out.purpose === 'plan' ? { paymentId: out.paymentId } : null;
+      } catch (e) {
+        if (e instanceof PaymentCancelled) {
+          setNote(e.message);
+          return null;
+        }
+        throw e;
+      } finally {
+        setStage('idle');
+      }
+    },
     onSuccess: async (r) => {
+      if (!r) return;
       await qc.invalidateQueries({ queryKey: ['employer'] });
       navigate(`/employer/subscription/invoices/${r.paymentId}?paid=1`, { replace: true });
     },
@@ -511,6 +538,13 @@ export function CheckoutPage() {
             pay.mutate();
           }}
         >
+          {s.paymentMode === 'razorpay' ? (
+            <p className="flex items-start gap-2.5 rounded-lg bg-surface px-4 py-3 text-sm">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+              <span>You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. AutoTalent Grid never sees your card or bank details.</span>
+            </p>
+          ) : (
+          <>
           <fieldset>
             <legend className="font-semibold">Select payment method</legend>
             <div className="mt-2 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Payment method">
@@ -533,6 +567,8 @@ export function CheckoutPage() {
             <span className="font-semibold">Test payment.</span> This staging copy has no payment provider, so no money is taken and no card or bank details are asked for. Your plan starts as if you had paid by{' '}
             {METHOD_LABEL[method]}.
           </p>
+          </>
+          )}
           <label className="mt-4 flex items-start gap-2.5 text-sm">
             <input type="checkbox" className="mt-0.5 size-4 accent-[#D7141C]" checked={terms} onChange={(e) => setTerms(e.target.checked)} aria-describedby={err?.fields.acceptTerms ? 'terms-error' : undefined} />
             <span>
@@ -553,8 +589,13 @@ export function CheckoutPage() {
               <ErrorNote message={err.message} />
             </div>
           )}
+          {note && (
+            <p role="status" className="mt-3 rounded-lg bg-warning-tint px-4 py-3 text-sm text-warning">
+              {note}
+            </p>
+          )}
           <button type="submit" className="btn-primary mt-5 h-12 w-full bg-[#C8101A] text-base" disabled={pay.isPending}>
-            {pay.isPending ? 'Paying…' : `Pay ${formatRupees(amount)}`}
+            {stage === 'verifying' ? 'Confirming your payment…' : stage === 'paying' ? 'Complete the payment in the Razorpay window…' : pay.isPending ? 'Please wait…' : `Pay ${formatRupees(amount)}`}
           </button>
         </form>
       )}

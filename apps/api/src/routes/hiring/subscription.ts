@@ -3,9 +3,11 @@ import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
 import { z } from 'zod';
 import { auditCtx } from '../../app.js';
-import { audit } from '../../audit/service.js';
+import { audit, type AuditContext } from '../../audit/service.js';
+import type { DB } from '../../db/index.js';
+import { startRazorpayOrder } from '../../lib/payments.js';
 import { newId } from '../../lib/crypto.js';
-import { conflict, notFound } from '../../lib/errors.js';
+import { conflict, invalid, notFound } from '../../lib/errors.js';
 import { EMPLOYER_TEAM, notify, orgMembers, vtaReviewers } from '../../lib/notify.js';
 import { addPeriod, currentSubscription, subscriptionDto } from '../../lib/subscriptions.js';
 import { iso, parse } from '../../lib/validate.js';
@@ -15,6 +17,56 @@ const idParam = z.object({ id: uuidSchema });
 
 /** "30 Nov 2026" in India time. */
 const istDay = (d: Date) => new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' }).format(d);
+
+/**
+ * Starts or extends a paid plan and records the payment with its invoice number, inside the caller's transaction.
+ * Paying for the plan you already have extends it from its end date; a different plan starts now (no refund or
+ * credit for the old one: shown before paying). Used by test payments and verified Razorpay payments.
+ */
+export async function activatePlan(
+  trx: DB,
+  ctx: AuditContext,
+  p: { organisationId: string; plan: 'starter' | 'growth'; cycle: 'monthly' | 'yearly'; amountPaise: number; method: 'card' | 'upi' | 'netbanking' | 'wallet' | 'other'; provider: 'test' | 'razorpay'; providerPaymentId?: string; paidBy: string },
+): Promise<{ paymentId: string; invoiceNumber: string }> {
+  // Lock the subscription row so two payments for one employer are applied one after the other.
+  await sql`SELECT 1 FROM employer_subscriptions WHERE organisation_id = ${p.organisationId} FOR UPDATE`.execute(trx);
+  const now = new Date();
+  const { plan: current, row } = await currentSubscription(trx, p.organisationId, now);
+  const start = current === p.plan && row && row.billing_cycle === p.cycle ? row.period_end : now;
+  const end = addPeriod(start, p.cycle);
+  const id = newId();
+  const seq = (await sql<{ n: string }>`SELECT nextval('invoice_number_seq') AS n`.execute(trx)).rows[0]!.n;
+  const day = new Date(now.getTime() + 5.5 * 3600_000).toISOString().slice(0, 10).replaceAll('-', '');
+  const invoice = `INV-${day}-${String(seq).padStart(4, '0')}`;
+  await trx
+    .insertInto('subscription_payments')
+    .values({ id, organisation_id: p.organisationId, plan: p.plan, billing_cycle: p.cycle, amount_paise: p.amountPaise, method: p.method, provider: p.provider, provider_payment_id: p.providerPaymentId ?? null, status: 'succeeded', invoice_number: invoice, period_start: start, period_end: end, paid_by: p.paidBy })
+    .execute();
+  await trx
+    .insertInto('employer_subscriptions')
+    .values({ organisation_id: p.organisationId, plan: p.plan, billing_cycle: p.cycle, period_start: start, period_end: end, source: 'payment', updated_by: p.paidBy })
+    .onConflict((oc) =>
+      oc.column('organisation_id').doUpdateSet({
+        plan: p.plan,
+        billing_cycle: p.cycle,
+        period_start: start === now ? now : sql`employer_subscriptions.period_start`,
+        period_end: end,
+        source: 'payment',
+        updated_by: p.paidBy,
+        updated_at: now,
+      }),
+    )
+    .execute();
+  await audit(trx, ctx, {
+    action: 'subscription.paid',
+    entityType: 'organisation',
+    entityId: p.organisationId,
+    before: { plan: current, period_end: row ? iso(row.period_end) : null },
+    after: { plan: p.plan, cycle: p.cycle, amount_paise: p.amountPaise, invoice, period_end: iso(end), provider: p.provider, ...(p.providerPaymentId ? { razorpay_payment_id: p.providerPaymentId } : {}) },
+  });
+  await notify(trx, await orgMembers(trx, p.organisationId, ['employer_admin']), 'plan_activated', { plan: PLAN_INFO[p.plan].name, until: istDay(end), invoice }, '/employer/subscription', { except: ctx.actorId ?? undefined });
+  return { paymentId: id, invoiceNumber: invoice };
+}
 
 /**
  * Phase 12: employer plans, payments and invoices.
@@ -66,51 +118,32 @@ export const subscriptionRoutes: FastifyPluginAsync = async (app) => {
    */
   app.post('/employer/subscription/checkout', { config: { permission: 'employer.subscription' } }, async (req, reply) => {
     const b = parse(checkoutSchema, req.body);
-    if (mode !== 'test') throw conflict('Online payment is not set up yet. Ask AutoTalent Grid to set up your plan.');
+    if (mode === 'none') throw conflict('Online payment is not set up yet. Ask AutoTalent Grid to set up your plan.');
+    if (mode === 'test' && !b.method) throw invalid('Choose how to pay', { method: 'Choose how to pay' });
     const org = await employerOrg(db, req);
     assertVerified(org);
-    const now = new Date();
-    const { plan: current, row } = await currentSubscription(db, org.id, now);
+    const { plan: current } = await currentSubscription(db, org.id);
     if (current === 'enterprise') throw conflict('Your Enterprise plan is managed by AutoTalent Grid. Contact them to change it.');
-    const start = current === b.plan && row && row.billing_cycle === b.cycle ? row.period_end : now;
-    const end = addPeriod(start, b.cycle);
     const amount = PLAN_INFO[b.plan].price![b.cycle];
-    const id = newId();
-    let invoice = '';
-    await db.transaction().execute(async (trx) => {
-      const seq = (await sql<{ n: string }>`SELECT nextval('invoice_number_seq') AS n`.execute(trx)).rows[0]!.n;
-      const day = new Date(now.getTime() + 5.5 * 3600_000).toISOString().slice(0, 10).replaceAll('-', '');
-      invoice = `INV-${day}-${String(seq).padStart(4, '0')}`;
-      await trx
-        .insertInto('subscription_payments')
-        .values({ id, organisation_id: org.id, plan: b.plan, billing_cycle: b.cycle, amount_paise: amount, method: b.method, provider: 'test', status: 'succeeded', invoice_number: invoice, period_start: start, period_end: end, paid_by: req.actor!.userId })
-        .execute();
-      await trx
-        .insertInto('employer_subscriptions')
-        .values({ organisation_id: org.id, plan: b.plan, billing_cycle: b.cycle, period_start: start, period_end: end, source: 'payment', updated_by: req.actor!.userId })
-        .onConflict((oc) =>
-          oc.column('organisation_id').doUpdateSet({
-            plan: b.plan,
-            billing_cycle: b.cycle,
-            period_start: start === now ? now : sql`employer_subscriptions.period_start`,
-            period_end: end,
-            source: 'payment',
-            updated_by: req.actor!.userId,
-            updated_at: now,
-          }),
-        )
-        .execute();
-      await audit(trx, auditCtx(req), {
-        action: 'subscription.paid',
-        entityType: 'organisation',
-        entityId: org.id,
-        before: { plan: current, period_end: row ? iso(row.period_end) : null },
-        after: { plan: b.plan, cycle: b.cycle, amount_paise: amount, invoice, period_end: iso(end), test: true },
-      });
-      await notify(trx, await orgMembers(trx, org.id, ['employer_admin']), 'plan_activated', { plan: PLAN_INFO[b.plan].name, until: istDay(end), invoice }, '/employer/subscription', { except: req.actor!.userId });
-    });
     reply.code(201);
-    return { paymentId: id, invoiceNumber: invoice };
+    // Razorpay: the plan starts when the payment is verified (POST /payments/:id/verify, or the webhook).
+    if (mode === 'razorpay') {
+      const payer = await db.selectFrom('users').select(['name', 'email', 'phone']).where('id', '=', req.actor!.userId).executeTakeFirstOrThrow();
+      return startRazorpayOrder(app, {
+        purpose: 'plan',
+        amountPaise: amount,
+        payerId: req.actor!.userId,
+        organisationId: org.id,
+        plan: b.plan,
+        cycle: b.cycle,
+        description: `${PLAN_INFO[b.plan].name} plan, ${b.cycle}`,
+        prefill: { name: payer.name, email: payer.email ?? undefined, contact: payer.phone ?? undefined },
+        ctx: auditCtx(req),
+      });
+    }
+    return db.transaction().execute((trx) =>
+      activatePlan(trx, auditCtx(req), { organisationId: org.id, plan: b.plan, cycle: b.cycle, amountPaise: amount, method: b.method!, provider: 'test', paidBy: req.actor!.userId }),
+    );
   });
 
   /** Enterprise, or any plan while online payment is off: AutoTalent Grid staff are told and follow up. */

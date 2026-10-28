@@ -91,7 +91,8 @@ export function yearlySaving(plan: PaidPlan): number {
 export const checkoutSchema = z.object({
   plan: z.enum(PAID_PLANS, { error: 'Choose a plan' }),
   cycle: z.enum(BILLING_CYCLES, { error: 'Choose monthly or yearly' }),
-  method: z.enum(PAYMENT_METHODS, { error: 'Choose how to pay' }),
+  /** Chosen on our page for test payments only; with Razorpay the payer chooses in Razorpay's own window. */
+  method: z.enum(PAYMENT_METHODS, { error: 'Choose how to pay' }).optional(),
   acceptTerms: z.literal(true, { error: 'Accept the terms to continue' }),
 });
 export type CheckoutInput = z.input<typeof checkoutSchema>;
@@ -129,5 +130,5 @@ export interface SubscriptionDto {
     resetsOn: string;
   };
   /** How payments are taken: 'test' (staging: no money moves) or 'none' (ask AutoTalent Grid). */
-  paymentMode: 'test' | 'none';
+  paymentMode: 'test' | 'none' | 'razorpay';
 }

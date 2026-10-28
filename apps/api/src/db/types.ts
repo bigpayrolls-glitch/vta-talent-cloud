@@ -236,8 +236,9 @@ export interface CoursePaymentsTable {
   batch_id: string;
   amount_paise: number;
   currency: Generated<string>;
-  method: 'upi' | 'card' | 'netbanking' | null;
-  provider: 'test' | 'free';
+  method: 'upi' | 'card' | 'netbanking' | 'wallet' | 'other' | null;
+  provider: 'test' | 'free' | 'razorpay';
+  provider_payment_id: Generated<string | null>;
   status: 'succeeded';
   receipt_number: string;
   created_at: Timestamp;
@@ -324,14 +325,41 @@ export interface SubscriptionPaymentsTable {
   billing_cycle: 'monthly' | 'yearly';
   amount_paise: number;
   currency: Generated<string>;
-  method: 'card' | 'upi' | 'netbanking';
-  provider: 'test';
+  method: 'card' | 'upi' | 'netbanking' | 'wallet' | 'other';
+  provider: 'test' | 'razorpay';
+  provider_payment_id: Generated<string | null>;
   status: 'succeeded';
   invoice_number: string;
   period_start: Date;
   period_end: Date;
   paid_by: string;
   created_at: Timestamp;
+}
+
+export interface PaymentOrdersTable {
+  id: string;
+  purpose: 'plan' | 'course';
+  provider_order_id: string;
+  amount_paise: number;
+  status: Generated<'created' | 'paid' | 'failed' | 'needs_refund'>;
+  payer_id: string;
+  organisation_id: string | null;
+  plan: 'starter' | 'growth' | null;
+  billing_cycle: 'monthly' | 'yearly' | null;
+  batch_id: string | null;
+  provider_payment_id: string | null;
+  result_id: string | null;
+  failure: string | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+  paid_at: Date | null;
+}
+
+export interface PaymentWebhookEventsTable {
+  event_id: string;
+  event_type: string;
+  outcome: string;
+  received_at: Timestamp;
 }
 
 export interface PasswordResetsTable {
@@ -541,6 +569,8 @@ export interface Database {
   users: UsersTable;
   sessions: SessionsTable;
   otp_challenges: OtpChallengesTable;
+  payment_orders: PaymentOrdersTable;
+  payment_webhook_events: PaymentWebhookEventsTable;
   invitations: InvitationsTable;
   organisations: OrganisationsTable;
   centres: CentresTable;
