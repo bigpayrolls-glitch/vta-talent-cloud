@@ -29,9 +29,13 @@ export const CONSENT_LABEL: Record<ConsentPurpose, string> = {
 const accepted = (what: string) => z.literal(true, `Accept the ${what} to continue`);
 
 /** EE-01: self-registration. The phone is proved with a code; the rest of the profile can be finished later. */
-export const registerSchema = z.object({
+/** EE-01 sign-up fields; registerSchema adds the rule that a code or a sign-up token is given. */
+export const registerFields = z.object({
   phone: phoneSchema,
-  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
+  /** The code sent for registering, or… */
+  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code').optional(),
+  /** …the token from signing in with a new number (the number was already checked). */
+  signupToken: z.string().max(200).optional(),
   name: nameSchema,
   dateOfBirth: dateOfBirthSchema,
   city: z.string().trim().min(2, 'Enter a city').max(80),
@@ -39,6 +43,7 @@ export const registerSchema = z.object({
   acceptTerms: accepted('terms of use'),
   noticeVersion: z.literal(NOTICE_VERSION, 'The privacy notice has changed. Reload the page and read it again.'),
 });
+export const registerSchema = registerFields.refine((v) => !!v.code || !!v.signupToken, { message: 'Enter the 6-digit code', path: ['code'] });
 
 export const PROFILE_FIELDS = ['name', 'dateOfBirth', 'email', 'city', 'state', 'preferredWorkArea', 'skillAreas', 'experienceMonths', 'education', 'languages', 'availability'] as const;
 

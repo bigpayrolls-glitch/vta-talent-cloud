@@ -1,7 +1,7 @@
-import { NOTICE_VERSION, otpRequestSchema, registerSchema, type MeDto } from '@vta/shared';
-import { ArrowLeft } from 'lucide-react';
+import { NOTICE_VERSION, otpRequestSchema, registerFields, registerSchema, type MeDto } from '@vta/shared';
+import { ArrowLeft, BadgeCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link, Navigate, useNavigate, useSearchParams } from 'react-router';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import { useToast } from '../components/toast';
 import { ErrorNote, Field, Wordmark } from '../components/ui';
@@ -11,7 +11,13 @@ import { useForm } from '../lib/useForm';
 import { StagingCode } from './LoginPage';
 
 /** Step one is checked in the browser with the same rules as the server, minus the code. */
-const detailsSchema = registerSchema.omit({ code: true });
+const detailsSchema = registerFields.omit({ code: true, signupToken: true });
+
+/** Set by the login page when a new number passed its code check: no second code is needed. */
+export interface VerifiedNumber {
+  phone: string;
+  signupToken: string;
+}
 
 /** EE-01: a learner creates their own account with a mobile number, then finishes the profile later. */
 export function RegisterPage() {
@@ -22,10 +28,11 @@ export function RegisterPage() {
   const raw = params.get('next') ?? '';
   const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : null;
   const toast = useToast();
+  const verified = (useLocation().state as { verified?: VerifiedNumber } | null)?.verified ?? null;
   const details = useForm(detailsSchema);
   const request = useForm(otpRequestSchema);
   const verify = useForm(registerSchema);
-  const [v, setV] = useState({ phone: '', name: '', dateOfBirth: '', city: '', acceptPrivacy: false, acceptTerms: false });
+  const [v, setV] = useState({ phone: verified?.phone.replace('+91', '') ?? '', name: '', dateOfBirth: '', city: '', acceptPrivacy: false, acceptTerms: false });
   const [sent, setSent] = useState<null | z.output<typeof detailsSchema>>(null);
   const [code, setCode] = useState('');
   const [cooldown, setCooldown] = useState(0);
@@ -47,6 +54,15 @@ export function RegisterPage() {
       setCooldown(60);
     });
 
+  const finish = async (data: z.input<typeof registerSchema>) => {
+    const res = await api.post<{ existing: boolean }>('/auth/register', data);
+    await refresh();
+    const fresh = await api.get<MeDto>('/auth/me');
+    setCsrfToken(fresh.csrfToken);
+    if (res.existing) toast('success', 'This number already had an account, so you are signed in to it.');
+    navigate(next ?? (res.existing ? homePathFor(fresh) : '/learn'), { replace: true });
+  };
+
   const set = (k: keyof typeof v) => (e: React.ChangeEvent<HTMLInputElement>) => setV({ ...v, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
 
   return (
@@ -62,7 +78,9 @@ export function RegisterPage() {
           Sign in instead
         </Link>
         <h1 className="mt-4 text-[28px] font-bold tracking-tight">Create your account</h1>
-        <p className="mt-1 text-muted">For learners and technicians. You can add your skills and experience after this.</p>
+        <p className="mt-1 text-muted">
+          {verified ? 'This number is new to AutoTalent Grid. Tell us a little about yourself to finish.' : 'For learners and technicians. You can add your skills and experience after this.'}
+        </p>
         <p className="mt-2 text-sm text-muted">
           Are you a trainer?{' '}
           <Link to="/join/trainer" className="font-semibold text-brand underline">
@@ -76,16 +94,27 @@ export function RegisterPage() {
             className="mt-6 space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              void details.submit({ ...v, noticeVersion: NOTICE_VERSION }, sendCode);
+              void details.submit({ ...v, noticeVersion: NOTICE_VERSION }, (data) =>
+                verified ? verify.submit({ ...data, phone: verified.phone, signupToken: verified.signupToken }, finish) : sendCode(data),
+              );
             }}
           >
-            {(details.formError || request.formError) && <ErrorNote message={details.formError || request.formError} />}
+            {(details.formError || request.formError || verify.formError) && <ErrorNote message={details.formError || request.formError || verify.formError} />}
+            {verified ? (
+              <p className="flex items-center gap-2 rounded-lg bg-success-tint px-3.5 py-2.5 text-sm">
+                <BadgeCheck className="size-5 text-success" aria-hidden />
+                <span>
+                  Mobile number <span className="font-semibold">{verified.phone.replace('+91', '+91 ')}</span> verified
+                </span>
+              </p>
+            ) : (
             <Field label="Mobile number" htmlFor="phone" error={details.errors.phone || request.errors.phone} hint="We'll send a 6-digit code to check it is yours.">
               <div className="flex">
                 <span className="grid place-items-center rounded-l-lg border border-r-0 border-line bg-surface px-3 text-[15px] text-muted">+91</span>
                 <input id="phone" type="tel" autoComplete="tel-national" inputMode="numeric" className="field-input rounded-l-none" value={v.phone} onChange={set('phone')} aria-invalid={!!details.errors.phone} />
               </div>
             </Field>
+            )}
             <Field label="Full name" htmlFor="name" error={details.errors.name} hint="As on your ID card.">
               <input id="name" autoComplete="name" className="field-input" value={v.name} onChange={set('name')} aria-invalid={!!details.errors.name} />
             </Field>
@@ -118,8 +147,8 @@ export function RegisterPage() {
               </label>
               {details.errors.acceptTerms && <p className="field-error" role="alert">{details.errors.acceptTerms}</p>}
             </fieldset>
-            <button type="submit" className="btn-primary h-11 w-full" disabled={details.submitting || request.submitting}>
-              {request.submitting ? 'Sending…' : 'Send code'}
+            <button type="submit" className="btn-primary h-11 w-full" disabled={details.submitting || request.submitting || verify.submitting}>
+              {verified ? (verify.submitting ? 'Creating…' : 'Create account') : request.submitting ? 'Sending…' : 'Send code'}
             </button>
           </form>
         ) : (
@@ -128,14 +157,7 @@ export function RegisterPage() {
             className="mt-6 space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              void verify.submit({ ...sent, code }, async (data) => {
-                const res = await api.post<{ existing: boolean }>('/auth/register', data);
-                await refresh();
-                const fresh = await api.get<MeDto>('/auth/me');
-                setCsrfToken(fresh.csrfToken);
-                if (res.existing) toast('success', 'This number already had an account, so you are signed in to it.');
-                navigate(next ?? (res.existing ? homePathFor(fresh) : '/learn'), { replace: true });
-              });
+              void verify.submit({ ...sent, code }, finish);
             }}
           >
             <p className="text-sm text-muted">

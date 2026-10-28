@@ -9,6 +9,7 @@ import {
   trainerSignupSchema,
   type MeDto,
 } from '@vta/shared';
+import { createHmac } from 'node:crypto';
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { auditCtx } from '../app.js';
@@ -38,10 +39,26 @@ const OTP_MAX_PER_HOUR = 5;
 
 const otpHash = (challengeId: string, code: string) => sha256(`${challengeId}:${code}`);
 
+const SIGNUP_TOKEN_MINUTES = 30;
+
 export const authRoutes: FastifyPluginAsync = async (app) => {
   const db = app.db;
   const secure = app.config.COOKIE_SECURE;
   const ipLimit = (max: number) => ({ rateLimit: { max, timeWindow: '1 minute' } });
+
+  /** "phone.expiry.signature": proof that this number passed a code check, for finishing sign-up. */
+  const tokenSig = (phone: string, exp: number) => createHmac('sha256', app.config.fileSigningSecret).update(`signup:${phone}:${exp}`).digest('base64url');
+  const signupToken = (phone: string) => {
+    const exp = Date.now() + SIGNUP_TOKEN_MINUTES * 60_000;
+    return `${Buffer.from(phone).toString('base64url')}.${exp}.${tokenSig(phone, exp)}`;
+  };
+  const signupTokenOk = (token: string, phone: string) => {
+    const [p, e, sig] = token.split('.');
+    const exp = Number(e);
+    if (!p || !sig || !Number.isFinite(exp) || exp < Date.now()) return false;
+    if (Buffer.from(p, 'base64url').toString() !== phone) return false;
+    return safeEqual(sig, tokenSig(phone, exp));
+  };
 
   /**
    * Checks a phone code and uses it up. Wrong codes count towards the 5 attempts; any failure looks the same
@@ -158,25 +175,18 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     if (recent.length >= OTP_MAX_PER_HOUR) {
       throw new ApiError('RATE_LIMITED', 'Too many codes requested. Try again in an hour.');
     }
-    const user = await db
-      .selectFrom('users')
-      .select(['id'])
-      .where('phone', '=', phone)
-      .where('status', 'in', ['active', 'invited'])
-      .executeTakeFirst();
     const id = newId();
     const code = sixDigitCode();
-    // Registration (EE-01) sends a code to any number: the answer is the same whether or not it is registered,
-    // so numbers cannot be checked here. Sign-in sends a code only to registered numbers.
-    const send = purpose === 'register' || !!user;
-    const sent = send ? await app.providers.sms.sendOtp(phone, code) : undefined;
+    // A code goes to any number (28 Oct 2026): a learner signs in, or, if the number is new, is taken on to
+    // create an account with the number already checked. The answer is the same either way.
+    const sent = await app.providers.sms.sendOtp(phone, code);
     await db
       .insertInto('otp_challenges')
       .values({
         id,
         phone,
         // Unregistered numbers still get a challenge row (keeps the resend limit honest) but no SMS.
-        code_hash: !send ? 'unregistered' : sent ? 'provider' : otpHash(id, code),
+        code_hash: sent ? 'provider' : otpHash(id, code),
         provider_ref: sent ? sent.ref : null,
         purpose,
         expires_at: new Date(Date.now() + OTP_TTL_SECONDS * 1000),
@@ -185,10 +195,10 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       .execute();
     return {
       ok: true,
-      message: purpose === 'register' ? 'A code has been sent to this number.' : 'If this number is registered, a code has been sent.',
+      message: 'A code has been sent to this number.',
       expiresInSeconds: OTP_TTL_SECONDS,
       // Staging only (demo data, no SMS provider yet): the code is shown on screen instead of sent.
-      ...(app.config.showCodes && send ? { stagingCode: code } : {}),
+      ...(app.config.showCodes ? { stagingCode: code } : {}),
     };
   });
 
@@ -196,9 +206,14 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post('/otp/verify', { config: { public: true, ...ipLimit(20) } }, async (req, reply) => {
     const { phone, code } = parse(otpVerifySchema, req.body);
     await checkCode(phone, code);
-
+    const known = await db.selectFrom('users').select('id').where('phone', '=', phone).executeTakeFirst();
+    if (!known) {
+      // A new number: nothing is signed in. The person goes on to create a learner account; this token says the
+      // number was checked, so they are not asked for another code (30 minutes).
+      return { ok: true, needsSignup: true, signupToken: signupToken(phone) };
+    }
     await signInByPhone(req, reply, phone);
-    return { ok: true };
+    return { ok: true, needsSignup: false };
   });
 
   /**
@@ -207,7 +222,9 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
    */
   app.post('/register', { config: { public: true, ...ipLimit(10) } }, async (req, reply) => {
     const input = parse(registerSchema, req.body);
-    await checkCode(input.phone, input.code, 'register');
+    if (input.signupToken) {
+      if (!signupTokenOk(input.signupToken, input.phone)) throw invalid('Your mobile check has expired. Sign in again with your number.', { code: 'Code expired' });
+    } else await checkCode(input.phone, input.code!, 'register');
     const existing = await db.selectFrom('users').select(['id']).where('phone', '=', input.phone).executeTakeFirst();
     if (existing) {
       await signInByPhone(req, reply, input.phone);

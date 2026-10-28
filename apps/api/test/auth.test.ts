@@ -158,12 +158,14 @@ describe('Phase 1 test 5: phone OTP expiry, attempts and resend gap', () => {
     expect((await post('/auth/otp/verify', { phone, code })).statusCode).toBe(400);
   });
 
-  it('gives the same answer for an unregistered number and sends no SMS', async () => {
+  it('a new number gets a code too, but verifying it signs nobody in', async () => {
     const unknown = '+919811112222';
     const res = await post('/auth/otp/request', { phone: unknown });
     expect(res.statusCode).toBe(200);
-    expect(res.json().message).toMatch(/If this number is registered/);
-    expect(ctx.mem.sentOtps.has(unknown)).toBe(false);
+    expect(res.json().message).toBe('A code has been sent to this number.');
+    const v = await post('/auth/otp/verify', { phone: unknown, code: ctx.mem.sentOtps.get(unknown)! });
+    expect(v.json()).toMatchObject({ ok: true, needsSignup: true, signupToken: expect.any(String) });
+    expect(v.headers['set-cookie']).toBeUndefined();
   });
 
   it('caps codes at 5 an hour per number', async () => {

@@ -92,10 +92,30 @@ describe('EE-01 self-registration', () => {
     expect((await me.get('/me/profile')).body.name).toBe('Venkatesh Learner');
   });
 
-  it('sign-in codes still go only to registered numbers', async () => {
-    const r = await requestCode('+919811114444');
-    expect(r.json().message).toBe('If this number is registered, a code has been sent.');
-    expect(ctx.mem.sentOtps.get('+919811114444')).toBeUndefined();
+  it('signing in with a new number checks it, signs nothing in, and hands a token to finish signing up', async () => {
+    const phone2 = '+919811114444';
+    const r = await requestCode(phone2);
+    expect(r.json().message).toBe('A code has been sent to this number.');
+    const code = ctx.mem.sentOtps.get(phone2)!;
+    const v = await ctx.app.inject({ method: 'POST', url: '/api/v1/auth/otp/verify', payload: { phone: phone2, code }, remoteAddress: nextIp() });
+    expect(v.statusCode).toBe(200);
+    expect(v.headers['set-cookie']).toBeUndefined();
+    const { needsSignup, signupToken } = v.json();
+    expect(needsSignup).toBe(true);
+    const { code: _unused, ...withoutCode } = registration(phone2, '');
+    // The token is for this number only, and cannot be altered.
+    expect((await register({ ...withoutCode, phone: '+919811119999', signupToken })).statusCode).toBe(400);
+    expect((await register({ ...withoutCode, signupToken: signupToken.slice(0, -2) + 'xx' })).statusCode).toBe(400);
+    expect((await register({ ...withoutCode })).json().error.fields.code).toBe('Enter the 6-digit code');
+    const ok = await register({ ...withoutCode, signupToken });
+    expect(ok.statusCode).toBe(201);
+    expect(ok.json()).toMatchObject({ existing: false });
+    // Next time the same number simply signs in.
+    ctx.mem.sentOtps.delete(phone2);
+    await requestCode(phone2);
+    const again = await ctx.app.inject({ method: 'POST', url: '/api/v1/auth/otp/verify', payload: { phone: phone2, code: ctx.mem.sentOtps.get(phone2)! }, remoteAddress: nextIp() });
+    expect(again.json()).toEqual({ ok: true, needsSignup: false });
+    expect(again.headers['set-cookie']).toBeTruthy();
   });
 
   it('a possible duplicate (same name and date of birth) is flagged for AutoTalent Grid to review', async () => {
