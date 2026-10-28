@@ -260,3 +260,32 @@ describe('centres', () => {
     expect(used.body.error.message).toMatch(/Deactivate it instead/);
   });
 });
+
+describe('partners add their own centres, with a map location', () => {
+  it('a partner adds a centre for its own organisation; Admins are told; others cannot see it', async () => {
+    const bad = await c.partnerA!.post('/partner/centres', { name: 'VOC Bengaluru', mapUrl: 'https://example.com/x', latitude: 12.9 });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.fields).toMatchObject({ city: 'Enter the city', mapUrl: expect.stringMatching(/Google Maps link/) });
+    const r = await c.partnerA!.post('/partner/centres', { name: 'VOC Bengaluru', city: 'Bengaluru', address: 'Peenya 2nd Stage', latitude: 13.0285, longitude: 77.5197, mapUrl: 'https://maps.app.goo.gl/AbCdEf123' });
+    expect(r.status).toBe(201);
+    const mine = (await c.partnerA!.get('/centres')).body.items.find((x: { id: string }) => x.id === r.body.id);
+    expect(mine).toMatchObject({ name: 'VOC Bengaluru', organisationId: ctx.ids.partnerA, latitude: 13.0285, longitude: 77.5197, mapLink: 'https://maps.app.goo.gl/AbCdEf123' });
+    expect((await c.partnerB!.get('/centres')).body.items.map((x: { id: string }) => x.id)).not.toContain(r.body.id);
+    expect((await c.employer!.post('/partner/centres', { name: 'Not mine', city: 'Pune' })).status).toBe(403);
+    expect((await c.trainer!.post('/partner/centres', { name: 'Not mine', city: 'Pune' })).status).toBe(403);
+    const n = (await c.admin!.get('/notifications')).body.items.find((x: { title: string }) => x.title === 'New centre: VOC Bengaluru');
+    expect(n).toBeDefined();
+    // Without a pasted link, the GPS position gives the map link.
+    const gps = await c.partnerA!.post('/partner/centres', { name: 'VOC Hosur Road', city: 'Bengaluru', latitude: 12.8456, longitude: 77.6603 });
+    const g = (await c.partnerA!.get('/centres')).body.items.find((x: { id: string }) => x.id === gps.body.id);
+    expect(g.mapLink).toBe('https://www.google.com/maps?q=12.845600,77.660300');
+  });
+
+  it('an Admin can pin or change a centre\'s location', async () => {
+    const r = await c.admin!.patch(`/admin/centres/${ctx.ids.centrePartnerA}`, { latitude: 13.03, longitude: 77.52 });
+    expect(r.status).toBe(200);
+    const one = (await c.admin!.get(`/centres/${ctx.ids.centrePartnerA}`)).body;
+    expect(one.mapLink).toBe('https://www.google.com/maps?q=13.030000,77.520000');
+    expect((await c.admin!.patch(`/admin/centres/${ctx.ids.centrePartnerA}`, { latitude: 13.03 })).status).toBe(400);
+  });
+});

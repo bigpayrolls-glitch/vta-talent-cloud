@@ -73,13 +73,35 @@ export const createOrganisationSchema = z
     path: ['partnerSubtype'],
   });
 
-export const centreSchema = z.object({
-  name: z.string().trim().min(2).max(160),
-  organisationId: uuidSchema.optional(), // empty = AutoTalent Grid-run centre
-  address: z.string().trim().max(500).optional(),
-  city: z.string().trim().max(80).optional(),
-  contactPhone: phoneSchema.optional(),
-});
+/** A Google Maps link pasted for a centre (google.com/maps, maps.google.com, maps.app.goo.gl or goo.gl/maps). */
+export const mapUrlSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((v) => /^https:\/\/((www\.)?google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|maps\.app\.goo\.gl|goo\.gl\/maps)(\/|\?|$)/i.test(v), 'Paste a Google Maps link (https://maps.app.goo.gl/… or https://www.google.com/maps/…)');
+
+export const centreSchema = z
+  .object({
+    name: z.string('Enter the centre name').trim().min(2, 'Enter the centre name').max(160),
+    organisationId: uuidSchema.optional(), // empty = AutoTalent Grid-run centre
+    address: z.string().trim().max(500).optional(),
+    city: z.string().trim().max(80).optional(),
+    contactPhone: phoneSchema.optional(),
+    /** GPS position, from the person's phone with their permission. Both or neither. */
+    latitude: z.coerce.number().min(-90).max(90).nullable().optional(),
+    longitude: z.coerce.number().min(-180).max(180).nullable().optional(),
+    mapUrl: mapUrlSchema.or(z.literal('')).nullable().optional(),
+  });
+
+/** A training partner adds a centre for its own organisation: the city is needed so learners can find it. */
+export const partnerCentreSchema = centreSchema.omit({ organisationId: true }).extend({ city: z.string('Enter the city').trim().min(2, 'Enter the city').max(80) });
+
+/** Where a centre is on Google Maps: its pasted link, or a link to its GPS position. Needs no Google key. */
+export function centreMapLink(c: { latitude: number | null; longitude: number | null; mapUrl: string | null }): string | null {
+  if (c.mapUrl) return c.mapUrl;
+  if (c.latitude != null && c.longitude != null) return `https://www.google.com/maps?q=${c.latitude.toFixed(6)},${c.longitude.toFixed(6)}`;
+  return null;
+}
 
 export const listQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

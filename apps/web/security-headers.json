@@ -1,9 +1,9 @@
 {
-  "//": "Security headers for the web app (Phase 10). Used by `vite preview` (so browser tests run under them) and by the Vercel build. Copy them to any other host. style-src needs 'unsafe-inline' for React style attributes; no inline scripts are used. Razorpay Checkout (payments) is allowed: its script from checkout.razorpay.com, its payment window (an iframe and, for some banks, a popup) and calls on *.razorpay.com; COOP allows that popup.",
+  "//": "Security headers for the web app (Phase 10). Used by `vite preview` (so browser tests run under them) and by the Vercel build. Copy them to any other host. style-src needs 'unsafe-inline' for React style attributes; no inline scripts are used. Razorpay Checkout (payments) is allowed: its script from checkout.razorpay.com, its payment window (an iframe and, for some banks, a popup) and calls on *.razorpay.com; COOP allows that popup. geolocation=(self) lets staff pin a centre's location from their phone (the browser still asks them first).",
   "Content-Security-Policy": "default-src 'self'; script-src 'self' https://checkout.razorpay.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.razorpay.com; font-src 'self'; connect-src 'self' https://*.razorpay.com; frame-src https://api.razorpay.com https://checkout.razorpay.com; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'",
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(self \"https://api.razorpay.com\" \"https://checkout.razorpay.com\"), usb=()",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=(self), payment=(self \"https://api.razorpay.com\" \"https://checkout.razorpay.com\"), usb=()",
   "Cross-Origin-Opener-Policy": "same-origin-allow-popups"
 }

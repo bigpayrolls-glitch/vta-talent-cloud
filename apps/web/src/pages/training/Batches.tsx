@@ -10,6 +10,7 @@ import { useToast } from '../../components/toast';
 import { EmptyState, ErrorNote, Field, formatDate, formatPhone, Modal, PageHeader, Pagination, Spinner, StatusBadge } from '../../components/ui';
 import { api, ApiError, qs } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
+import { ADD_CENTRE, AddCentreModal } from '../../components/centre';
 import { useForm } from '../../lib/useForm';
 import { useListParams } from '../../lib/useListParams';
 import { ReasonModal } from './Trainers';
@@ -159,9 +160,12 @@ export function CreateBatchModal({ base, onClose, presetCourseId, onCreated }: {
     enabled: !!v.centreId,
     queryFn: () => api.get<Page<{ id: string; name: string; specialisations: string[]; centres: unknown[] }>>(`/trainers${qs({ centreId: v.centreId, includeIndependent: 'true', verificationStatus: 'verified', pageSize: 100 })}`),
   });
+  const { can } = useAuth();
+  const [adding, setAdding] = useState(false);
   const upd = (k: keyof typeof v) => (e: { target: { value: string } }) => setV({ ...v, [k]: e.target.value, ...(k === 'centreId' && { trainerId: '' }) });
 
   return (
+    <>
     <Modal
       open
       onClose={onClose}
@@ -199,10 +203,11 @@ export function CreateBatchModal({ base, onClose, presetCourseId, onCreated }: {
             {courses.data?.items.map((c) => <option key={c.id} value={c.id}>{c.title}{c.code ? ` (${c.code})` : ''}</option>)}
           </select>
         </Field>
-        <Field label="Centre" htmlFor="bf-centre" error={f.errors.centreId} hint={centres.data && centres.data.items.length === 0 ? 'No centre yet. AutoTalent Grid adds centres (Admin → Centres).' : undefined}>
-          <select id="bf-centre" className="field-input" value={v.centreId} onChange={upd('centreId')}>
+        <Field label="Centre" htmlFor="bf-centre" error={f.errors.centreId} hint={centres.data && centres.data.items.length === 0 ? (can('centre.add_own') ? 'No centre yet. Choose “+ Add a new centre”.' : 'No centre yet. Add one in Centres.') : undefined}>
+          <select id="bf-centre" className="field-input" value={v.centreId} onChange={(e) => (e.target.value === ADD_CENTRE ? setAdding(true) : upd('centreId')(e))}>
             <option value="">{centres.data && centres.data.items.length === 0 ? 'No centres yet' : 'Choose a centre'}</option>
             {centres.data?.items.map((c) => <option key={c.id} value={c.id}>{c.name}{c.city ? `, ${c.city}` : ''} ({c.organisationName ?? 'AutoTalent Grid'})</option>)}
+            {can('centre.add_own') && <option value={ADD_CENTRE}>+ Add a new centre</option>}
           </select>
         </Field>
         <Field label="Trainer" htmlFor="bf-trainer" error={f.errors.trainerId} hint={v.centreId ? 'Verified trainers at this centre, and verified independent trainers.' : 'Choose a centre first.'}>
@@ -233,6 +238,16 @@ export function CreateBatchModal({ base, onClose, presetCourseId, onCreated }: {
         </Field>
       </form>
     </Modal>
+    {adding && (
+      <AddCentreModal
+        onClose={() => setAdding(false)}
+        onAdded={(newId) => {
+          setAdding(false);
+          setV({ ...v, centreId: newId, trainerId: '' });
+        }}
+      />
+    )}
+    </>
   );
 }
 

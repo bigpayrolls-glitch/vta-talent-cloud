@@ -64,6 +64,7 @@ export const NOTIFICATION_TEMPLATES = {
   joining_reported: { title: (p) => `Joining to verify: ${p.job}`, body: (p) => `${p.company} recorded a joining.` },
   plan_requested: { title: (p) => `${p.org} asked about the ${p.plan} plan`, body: (p) => (p.note ? `Their note: ${p.note}` : 'Contact them to set it up.') },
   self_enrolled: { title: (p) => `${p.learner} enrolled in ${p.batch}`, body: (p) => (p.amount ? `They enrolled online and paid ${p.amount}.` : 'They enrolled online.') },
+  centre_added: { title: (p) => `New centre: ${p.name}`, body: (p) => `${p.org} added a centre in ${p.city}. Check it in Centres; you can edit or delete it.` },
   trainer_signed_up: { title: (p) => `New trainer to verify: ${p.name}`, body: (p) => `An independent trainer from ${p.city} signed up. Verify them before they can be given a batch.` },
   payment_needs_refund: { title: (p) => `Refund needed: ${p.amount} from ${p.payer}`, body: (p) => `The payment (${p.payment}) arrived but could not be used: ${p.reason} Refund it in the Razorpay dashboard.` },
   account_closure_requested: { title: () => 'A learner asked to close their account', body: () => 'Open Users to review the request.' },

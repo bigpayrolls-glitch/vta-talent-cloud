@@ -8,6 +8,7 @@ import { useToast } from '../../components/toast';
 import { api, qs } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useForm } from '../../lib/useForm';
+import { LocationPicker, type CentreLocation } from '../../components/centre';
 
 interface CentreRow {
   id: string;
@@ -18,6 +19,10 @@ interface CentreRow {
   city: string | null;
   contactPhone: string | null;
   status: 'active' | 'inactive';
+  latitude: number | null;
+  longitude: number | null;
+  mapUrl: string | null;
+  mapLink: string | null;
 }
 
 export function CentresPage() {
@@ -86,6 +91,11 @@ export function CentresPage() {
                     <p className="text-sm text-muted">
                       {[c.city, c.organisationName ?? 'Run by AutoTalent Grid'].filter(Boolean).join(', ')}
                     </p>
+                    {c.mapLink && (
+                      <a href={c.mapLink} target="_blank" rel="noreferrer" className="text-sm font-medium text-brand underline">
+                        View on Google Maps
+                      </a>
+                    )}
                   </div>
                   <StatusBadge status={c.status} />
                   {manage && (
@@ -116,6 +126,7 @@ function CentreModal({ centre, onClose }: { centre: CentreRow | null; onClose: (
     address: centre?.address ?? '',
     contactPhone: centre?.contactPhone ?? '',
   });
+  const [loc, setLoc] = useState<CentreLocation>({ latitude: centre?.latitude ?? null, longitude: centre?.longitude ?? null, mapUrl: centre?.mapUrl ?? '' });
   const partners = useQuery({
     queryKey: ['partners-all'],
     queryFn: () => api.get<Page<{ id: string; legalName: string }>>(`/admin/organisations${qs({ type: 'partner', pageSize: 100 })}`),
@@ -180,7 +191,7 @@ function CentreModal({ centre, onClose }: { centre: CentreRow | null; onClose: (
         className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
-          const body = Object.fromEntries(Object.entries(v).filter(([, x]) => x !== ''));
+          const body = { ...Object.fromEntries(Object.entries(v).filter(([, x]) => x !== '')), latitude: loc.latitude, longitude: loc.longitude, mapUrl: loc.mapUrl || null };
           void f.submit(body, async (data) => {
             if (centre) await api.patch(`/admin/centres/${centre.id}`, data);
             else await api.post('/admin/centres', data);
@@ -210,6 +221,7 @@ function CentreModal({ centre, onClose }: { centre: CentreRow | null; onClose: (
         <Field label="Address" htmlFor="c-addr" error={f.errors.address}>
           <input id="c-addr" className="field-input" value={v.address} onChange={upd('address')} />
         </Field>
+        <LocationPicker value={loc} onChange={setLoc} error={f.errors.mapUrl} />
       </form>
     </Modal>
   );
