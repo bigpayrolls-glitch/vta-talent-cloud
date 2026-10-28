@@ -280,9 +280,10 @@ describe('T-03 CSV import', () => {
   });
 
   it('explains missing columns and empty files', async () => {
-    const missing = await ops.post('/admin/candidates/import', { csv: 'name,phone\nA,9900000699' });
+    // Only name and phone are needed (29 Oct 2026); without them the file is refused.
+    const missing = await ops.post('/admin/candidates/import', { csv: 'full_name,mobile\nA,9900000699' });
     expect(missing.status).toBe(400);
-    expect(missing.body.error.message).toMatch(/date_of_birth, city/);
+    expect(missing.body.error.message).toMatch(/missing these columns: name, phone/);
     const empty = await ops.post('/admin/candidates/import', { csv: 'name,phone,date_of_birth,city\n' });
     expect(empty.body.error.message).toMatch(/no candidate rows/);
   });

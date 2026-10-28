@@ -28,7 +28,7 @@ import {
 import { ApiError, invalid, unauthenticated } from '../lib/errors.js';
 import { iso, parse } from '../lib/validate.js';
 import { notify, vtaReviewers } from '../lib/notify.js';
-import { createSelfRegisteredCandidate, consentRequired, recordConsent } from './learner/service.js';
+import { basicsRequired, createSelfRegisteredCandidate, consentRequired, recordConsent } from './learner/service.js';
 
 const MAX_FAILED_LOGINS = 5;
 const LOCK_MINUTES = 15;
@@ -310,6 +310,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       hasPassword: !!user.password_hash,
       // Learners must accept the current privacy notice and terms before using the Learner portal (SH-05).
       consentRequired: actor.roles.includes('learner') ? await consentRequired(db, actor.userId) : false,
+      basicsRequired: actor.roles.includes('learner') ? await basicsRequired(db, actor.userId) : false,
     };
   });
 

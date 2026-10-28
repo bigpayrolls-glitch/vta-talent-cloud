@@ -1,6 +1,7 @@
 import {
   consentChangeSchema,
   CREDENTIAL_TYPE_LABEL,
+  learnerBasicsSchema,
   learnerProfileSchema,
   learnerUploadQuery,
   NOTICE_VERSION,
@@ -16,7 +17,7 @@ import { z } from 'zod';
 import { auditCtx } from '../../app.js';
 import { audit } from '../../audit/service.js';
 import { newId } from '../../lib/crypto.js';
-import { ApiError, invalid, notFound } from '../../lib/errors.js';
+import { ApiError, conflict, invalid, notFound } from '../../lib/errors.js';
 import { LINK_TTL_SECONDS, safeFileName, signLink, sniffMime } from '../../lib/storage.js';
 import { iso, parse } from '../../lib/validate.js';
 import { findPossibleDuplicate } from '../training/candidateService.js';
@@ -99,6 +100,41 @@ export const learnerRoutes: FastifyPluginAsync = async (app) => {
   // ---------------------------------------------------------------- profile (EE-02)
 
   app.get('/me/profile', { config: { permission: 'learner.self' } }, async (req) => profileDto(me(req)));
+
+  /**
+   * 29 Oct 2026: a learner imported without a date of birth or city adds them once, at first sign-in.
+   * Only the missing ones are saved; after that, changes go through the profile as usual.
+   */
+  app.post('/me/basics', { config: { permission: 'learner.self' } }, async (req) => {
+    await requireConsent(req);
+    const input = parse(learnerBasicsSchema, req.body);
+    const userId = me(req);
+    const before = await loadProfile(userId);
+    if (!before) throw notFound('Profile');
+    if (before.date_of_birth && before.city) throw conflict('Your date of birth and city are already saved. Change them in Profile.');
+    await db.transaction().execute(async (trx) => {
+      const dob = before.date_of_birth ?? input.dateOfBirth;
+      if (!before.date_of_birth) await trx.updateTable('users').set({ date_of_birth: input.dateOfBirth, updated_at: new Date() }).where('id', '=', userId).execute();
+      await trx
+        .updateTable('candidate_profiles')
+        .set({
+          ...(!before.city && { city: input.city }),
+          // Now that the date of birth is known, look for a possible duplicate (same name and date of birth).
+          ...(!before.date_of_birth && { duplicate_of: await findPossibleDuplicate(trx, before.name, dob, userId) }),
+          updated_at: new Date(),
+        })
+        .where('user_id', '=', userId)
+        .execute();
+      await audit(trx, auditCtx(req), {
+        action: 'candidate.basics_added',
+        entityType: 'user',
+        entityId: userId,
+        before: { date_of_birth: before.date_of_birth, city: before.city },
+        after: { date_of_birth: dob, city: before.city ?? input.city },
+      });
+    });
+    return profileDto(userId);
+  });
 
   app.patch('/me/profile', { config: { permission: 'learner.self' } }, async (req) => {
     await requireConsent(req);

@@ -28,6 +28,17 @@ export async function consentState(db: Executor, userId: string): Promise<Map<Co
 }
 
 /** True until the person has accepted the current version of both the privacy notice and the terms. */
+/** Imported learners without a date of birth or city add them before using the portal (29 Oct 2026). */
+export async function basicsRequired(db: Executor, userId: string): Promise<boolean> {
+  const r = await db
+    .selectFrom('users as u')
+    .innerJoin('candidate_profiles as cp', 'cp.user_id', 'u.id')
+    .select(['u.date_of_birth', 'cp.city'])
+    .where('u.id', '=', userId)
+    .executeTakeFirst();
+  return !!r && (!r.date_of_birth || !r.city);
+}
+
 export async function consentRequired(db: Executor, userId: string): Promise<boolean> {
   const s = await consentState(db, userId);
   return !(['privacy_notice', 'terms'] as const).every((p) => s.get(p)?.granted && s.get(p)?.noticeVersion === NOTICE_VERSION);

@@ -1,7 +1,9 @@
 import {
   ageOn,
   CANDIDATE_STATUSES,
+  candidateImportSchema,
   candidateSchema,
+  type CandidateImportInput,
   candidateUpdateSchema,
   listQuerySchema,
   reasonSchema,
@@ -18,7 +20,7 @@ import { csvToRecords } from '../../lib/csv.js';
 import { conflict, invalid, notFound } from '../../lib/errors.js';
 import { iso, parse } from '../../lib/validate.js';
 import { candidateReadScope, inScope } from '../../policy/index.js';
-import { createCandidate, createCandidates, findPossibleDuplicate, type CandidateInput } from './candidateService.js';
+import { createCandidate, createCandidates, findPossibleDuplicate } from './candidateService.js';
 import { consentRequired, consentState } from '../learner/service.js';
 
 const idParam = z.object({ id: uuidSchema });
@@ -30,9 +32,10 @@ const filterSchema = listQuerySchema.extend({
   duplicates: z.enum(['true']).optional(),
 });
 
-export const IMPORT_MAX_ROWS = 500;
+export const IMPORT_MAX_ROWS = 10_000;
 const IMPORT_COLUMNS = ['name', 'phone', 'date_of_birth', 'city', 'state', 'skill_areas', 'experience_months', 'email', 'education', 'languages'] as const;
-const REQUIRED_COLUMNS = ['name', 'phone', 'date_of_birth', 'city'];
+// Older lists may lack date of birth or city: those candidates add them when they first sign in.
+const REQUIRED_COLUMNS = ['name', 'phone'];
 
 const splitList = (v: string | undefined) =>
   (v ?? '')
@@ -268,6 +271,10 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
       if (!cp) throw notFound('Candidate');
       if (cp.verification_status === d.to) throw invalid(`This candidate is already ${d.to.replace(/_/g, ' ')}.`);
       if (d.to === 'verified' && cp.duplicate_of) throw invalid('Review the possible duplicate before verifying this candidate.');
+      if (d.to === 'verified') {
+        const u = await db.selectFrom('users').select('date_of_birth').where('id', '=', id).executeTakeFirstOrThrow();
+        if (!u.date_of_birth || !cp.city) throw invalid('This candidate has no date of birth or city yet. They add it when they first sign in, or you can add it with Edit.');
+      }
       const now = new Date();
       await db.transaction().execute(async (trx) => {
         await trx
@@ -312,15 +319,15 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
    * T-03: CSV import in two steps. `commit: false` checks every row and reports problems;
    * `commit: true` imports the valid rows in one transaction. Rows with errors are never imported.
    */
-  app.post('/admin/candidates/import', { config: { permission: 'candidate.manage' } }, async (req) => {
-    const { csv, commit } = parse(z.object({ csv: z.string().min(1, 'Choose a CSV file').max(600_000, 'The file is too large'), commit: z.boolean().default(false) }), req.body);
+  app.post('/admin/candidates/import', { config: { permission: 'candidate.manage' }, bodyLimit: 4_000_000 }, async (req) => {
+    const { csv, commit } = parse(z.object({ csv: z.string().min(1, 'Choose a CSV file').max(3_500_000, 'The file is too large (at most about 3.5 MB)'), commit: z.boolean().default(false) }), req.body);
     const { headers, records } = csvToRecords(csv);
     const missing = REQUIRED_COLUMNS.filter((c) => !headers.includes(c));
     if (missing.length) throw invalid(`The file is missing these columns: ${missing.join(', ')}`, { csv: `Expected columns: ${IMPORT_COLUMNS.join(', ')}` });
     if (records.length === 0) throw invalid('The file has no candidate rows.', { csv: 'No rows' });
     if (records.length > IMPORT_MAX_ROWS) throw invalid(`Import at most ${IMPORT_MAX_ROWS} candidates at a time.`, { csv: `${records.length} rows` });
 
-    type Row = { row: number; name: string; phone: string; status: 'ready' | 'possible_duplicate' | 'error'; messages: string[]; input?: CandidateInput };
+    type Row = { row: number; name: string; phone: string; status: 'ready' | 'possible_duplicate' | 'error'; messages: string[]; input?: CandidateImportInput };
     const t0 = Date.now();
     req.log.info({ rows: records.length, commit }, 'candidate import: checking rows');
 
@@ -338,7 +345,7 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
         skillAreas: splitList(r.skill_areas).map((s) => (s.toLowerCase() === 'other' ? 'other' : s.toUpperCase())),
         languages: splitList(r.languages),
       };
-      return { rowNo: i + 2, r, parsed: candidateSchema.safeParse(raw) }; // header is row 1
+      return { rowNo: i + 2, r, parsed: candidateImportSchema.safeParse(raw) }; // header is row 1
     });
     const valid = parsedRows.flatMap((p) => (p.parsed.success ? [p.parsed.data] : []));
 
@@ -348,7 +355,7 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
     const takenPhones = new Set(phones.length ? (await db.selectFrom('users').select('phone').where('phone', 'in', phones).execute()).map((u) => u.phone) : []);
     const takenEmails = new Set(emails.length ? (await db.selectFrom('users').select('email').where('email', 'in', emails).execute()).map((u) => u.email) : []);
     const normName = (n: string) => n.trim().replace(/\s+/g, ' ').toLowerCase();
-    const dobs = [...new Set(valid.map((v) => v.dateOfBirth))];
+    const dobs = [...new Set(valid.flatMap((v) => (v.dateOfBirth ? [v.dateOfBirth] : [])))];
     const sameDob = dobs.length
       ? await db
           .selectFrom('users as u')
@@ -363,6 +370,7 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
 
     const results: Row[] = [];
     const seenPhones = new Map<string, number>();
+    const seenEmails = new Map<string, number>();
     for (const { rowNo, r, parsed } of parsedRows) {
       if (!parsed.success) {
         const msgs = [...new Set(parsed.error.issues.map((x) => `${String(x.path[0] ?? 'row')}: ${x.message}`))];
@@ -374,21 +382,21 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
       const firstRow = seenPhones.get(input.phone);
       if (firstRow) messages.push(`phone: Same number as row ${firstRow}`);
       else seenPhones.set(input.phone, rowNo);
+      const emailRow = input.email ? seenEmails.get(input.email) : undefined;
+      if (emailRow) messages.push(`email: Same email as row ${emailRow}`);
+      else if (input.email) seenEmails.set(input.email, rowNo);
       if (takenPhones.has(input.phone)) messages.push('phone: Already registered');
       if (input.email && takenEmails.has(input.email)) messages.push('email: Already in use');
       if (messages.length) {
         results.push({ row: rowNo, name: input.name, phone: input.phone, status: 'error', messages });
         continue;
       }
-      const dup = existingPeople.has(`${normName(input.name)}|${input.dateOfBirth}`);
-      results.push({
-        row: rowNo,
-        name: input.name,
-        phone: input.phone,
-        status: dup ? 'possible_duplicate' : 'ready',
-        messages: dup ? ['Same name and date of birth as an existing candidate. Imported and flagged for review.'] : [],
-        input,
-      });
+      const dup = !!input.dateOfBirth && existingPeople.has(`${normName(input.name)}|${input.dateOfBirth}`);
+      const notes = [
+        ...(dup ? ['Same name and date of birth as an existing candidate. Imported and flagged for review.'] : []),
+        ...(!input.dateOfBirth || !input.city ? [`No ${[!input.dateOfBirth && 'date of birth', !input.city && 'city'].filter(Boolean).join(' or ')}: they add it when they first sign in.`] : []),
+      ];
+      results.push({ row: rowNo, name: input.name, phone: input.phone, status: dup ? 'possible_duplicate' : 'ready', messages: notes, input });
     }
 
     const importable = results.filter((r) => r.status !== 'error');

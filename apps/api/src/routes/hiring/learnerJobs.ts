@@ -8,7 +8,7 @@ import { newId } from '../../lib/crypto.js';
 import { ApiError, conflict, invalid, notFound } from '../../lib/errors.js';
 import { EMPLOYER_TEAM, notify, orgMembers } from '../../lib/notify.js';
 import { iso, parse } from '../../lib/validate.js';
-import { consentRequired } from '../learner/service.js';
+import { basicsRequired, consentRequired } from '../learner/service.js';
 import { certificatesOf, likeEscape, openJobsQuery, sharedDocumentsOf } from './common.js';
 
 const idParam = z.object({ id: uuidSchema });
@@ -19,6 +19,7 @@ export const learnerJobRoutes: FastifyPluginAsync = async (app) => {
   const me = (req: FastifyRequest) => req.actor!.userId;
   const requireConsent = async (req: FastifyRequest) => {
     if (await consentRequired(db, me(req))) throw new ApiError('FORBIDDEN', 'Accept the privacy notice and terms of use first.');
+    if (await basicsRequired(db, me(req))) throw new ApiError('FORBIDDEN', 'Add your date of birth and city first.');
   };
 
   const jobSelect = [

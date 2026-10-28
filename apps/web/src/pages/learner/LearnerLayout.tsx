@@ -1,9 +1,10 @@
-import { NOTICE_VERSION } from '@vta/shared';
+import { learnerBasicsSchema, NOTICE_VERSION } from '@vta/shared';
 import { Award, BookOpen, Briefcase, ClipboardList, FileText, Home, Search, ShieldCheck, User } from 'lucide-react';
 import { useState } from 'react';
 import { Outlet } from 'react-router';
 import { PortalLayout, type NavItem } from '../../components/PortalLayout';
-import { ErrorNote } from '../../components/ui';
+import { ErrorNote, Field } from '../../components/ui';
+import { useForm } from '../../lib/useForm';
 import { api, ApiError } from '../../lib/api';
 import { firstName, useAuth } from '../../lib/auth';
 import { PrivacyNotice, TermsOfUse } from '../public/NoticePages';
@@ -20,10 +21,49 @@ export const LEARNER_NAV: NavItem[] = [
   { to: '/learn/privacy', label: 'Privacy', icon: ShieldCheck },
 ];
 
-/** Learner portal (mobile-first). Nothing opens until the current privacy notice and terms are accepted (SH-05). */
+/**
+ * Learner portal (mobile-first). Nothing opens until the current privacy notice and terms are accepted (SH-05),
+ * and, for someone imported from an older list, until they have added their date of birth and city.
+ */
 export function LearnerLayout() {
   const { me } = useAuth();
-  return <PortalLayout portal="learn" nav={me?.consentRequired ? [LEARNER_NAV[0]!] : LEARNER_NAV}>{me?.consentRequired ? <ConsentGate /> : <Outlet />}</PortalLayout>;
+  const gate = me?.consentRequired ? <ConsentGate /> : me?.basicsRequired ? <BasicsGate /> : null;
+  return <PortalLayout portal="learn" nav={gate ? [LEARNER_NAV[0]!] : LEARNER_NAV}>{gate ?? <Outlet />}</PortalLayout>;
+}
+
+/** An imported learner adds the date of birth and city their training centre did not have. */
+function BasicsGate() {
+  const { me, refresh } = useAuth();
+  const f = useForm(learnerBasicsSchema);
+  const [v, setV] = useState({ dateOfBirth: '', city: '' });
+  return (
+    <section className="mx-auto max-w-xl">
+      <h1 className="text-[26px] font-bold tracking-tight">One more step, {firstName(me?.name ?? '')}</h1>
+      <p className="mt-2 text-muted">Your training centre did not give us your date of birth or city. Add them to finish setting up your account.</p>
+      <form
+        noValidate
+        className="card mt-6 space-y-4 px-5 py-5"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void f.submit(v, async (data) => {
+            await api.post('/me/basics', data);
+            await refresh();
+          });
+        }}
+      >
+        {f.formError && <ErrorNote message={f.formError} />}
+        <Field label="Date of birth" htmlFor="b-dob" error={f.errors.dateOfBirth} hint="You must be 18 or older.">
+          <input id="b-dob" type="date" autoComplete="bday" className="field-input" value={v.dateOfBirth} onChange={(e) => setV({ ...v, dateOfBirth: e.target.value })} />
+        </Field>
+        <Field label="City or town" htmlFor="b-city" error={f.errors.city}>
+          <input id="b-city" autoComplete="address-level2" className="field-input" value={v.city} onChange={(e) => setV({ ...v, city: e.target.value })} />
+        </Field>
+        <button type="submit" className="btn-primary h-11 w-full sm:w-auto" disabled={f.submitting}>
+          {f.submitting ? 'Saving…' : 'Save and continue'}
+        </button>
+      </form>
+    </section>
+  );
 }
 
 function ConsentGate() {

@@ -210,7 +210,7 @@ export type CandidateStatus = 'pending' | 'verified' | 'rejected' | 'needs_corre
 export interface CandidateProfilesTable {
   user_id: string;
   candidate_code: string;
-  city: string;
+  city: string | null;
   state: string | null;
   skill_areas: TextArray<SkillArea>;
   experience_months: number;
