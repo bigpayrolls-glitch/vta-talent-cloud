@@ -321,10 +321,11 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
     if (records.length > IMPORT_MAX_ROWS) throw invalid(`Import at most ${IMPORT_MAX_ROWS} candidates at a time.`, { csv: `${records.length} rows` });
 
     type Row = { row: number; name: string; phone: string; status: 'ready' | 'possible_duplicate' | 'error'; messages: string[]; input?: CandidateInput };
-    const results: Row[] = [];
-    const seenPhones = new Map<string, number>();
-    for (const [i, r] of records.entries()) {
-      const rowNo = i + 2; // header is row 1
+    const t0 = Date.now();
+    req.log.info({ rows: records.length, commit }, 'candidate import: checking rows');
+
+    // 1. Check each row on its own (no database).
+    const parsedRows = records.map((r, i) => {
       const raw = {
         name: r.name,
         phone: r.phone,
@@ -337,7 +338,32 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
         skillAreas: splitList(r.skill_areas).map((s) => (s.toLowerCase() === 'other' ? 'other' : s.toUpperCase())),
         languages: splitList(r.languages),
       };
-      const parsed = candidateSchema.safeParse(raw);
+      return { rowNo: i + 2, r, parsed: candidateSchema.safeParse(raw) }; // header is row 1
+    });
+    const valid = parsedRows.flatMap((p) => (p.parsed.success ? [p.parsed.data] : []));
+
+    // 2. Three database lookups for the whole file, whatever its size (not three per row).
+    const phones = [...new Set(valid.map((v) => v.phone))];
+    const emails = [...new Set(valid.flatMap((v) => (v.email ? [v.email] : [])))];
+    const takenPhones = new Set(phones.length ? (await db.selectFrom('users').select('phone').where('phone', 'in', phones).execute()).map((u) => u.phone) : []);
+    const takenEmails = new Set(emails.length ? (await db.selectFrom('users').select('email').where('email', 'in', emails).execute()).map((u) => u.email) : []);
+    const normName = (n: string) => n.trim().replace(/\s+/g, ' ').toLowerCase();
+    const dobs = [...new Set(valid.map((v) => v.dateOfBirth))];
+    const sameDob = dobs.length
+      ? await db
+          .selectFrom('users as u')
+          .innerJoin('candidate_profiles as cp', 'cp.user_id', 'u.id')
+          .select(['u.name', 'u.date_of_birth'])
+          .where('u.date_of_birth', 'in', dobs)
+          .where('u.status', '!=', 'deactivated')
+          .execute()
+      : [];
+    const existingPeople = new Set(sameDob.map((u) => `${normName(u.name)}|${u.date_of_birth}`));
+    req.log.info({ ms: Date.now() - t0 }, 'candidate import: database checks done');
+
+    const results: Row[] = [];
+    const seenPhones = new Map<string, number>();
+    for (const { rowNo, r, parsed } of parsedRows) {
       if (!parsed.success) {
         const msgs = [...new Set(parsed.error.issues.map((x) => `${String(x.path[0] ?? 'row')}: ${x.message}`))];
         results.push({ row: rowNo, name: r.name ?? '', phone: r.phone ?? '', status: 'error', messages: msgs });
@@ -348,13 +374,13 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
       const firstRow = seenPhones.get(input.phone);
       if (firstRow) messages.push(`phone: Same number as row ${firstRow}`);
       else seenPhones.set(input.phone, rowNo);
-      if (await db.selectFrom('users').select('id').where('phone', '=', input.phone).executeTakeFirst()) messages.push('phone: Already registered');
-      if (input.email && (await db.selectFrom('users').select('id').where('email', '=', input.email).executeTakeFirst())) messages.push('email: Already in use');
+      if (takenPhones.has(input.phone)) messages.push('phone: Already registered');
+      if (input.email && takenEmails.has(input.email)) messages.push('email: Already in use');
       if (messages.length) {
         results.push({ row: rowNo, name: input.name, phone: input.phone, status: 'error', messages });
         continue;
       }
-      const dup = await findPossibleDuplicate(db, input.name, input.dateOfBirth);
+      const dup = existingPeople.has(`${normName(input.name)}|${input.dateOfBirth}`);
       results.push({
         row: rowNo,
         name: input.name,
@@ -382,6 +408,7 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
         await audit(trx, auditCtx(req), { action: 'candidate.import_completed', entityType: 'user', entityId: null, after: { ...summary, imported } });
       });
     }
+    req.log.info({ ms: Date.now() - t0, ...summary, imported }, 'candidate import: finished');
     return {
       committed: commit,
       imported,

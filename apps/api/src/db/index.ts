@@ -39,6 +39,9 @@ export function createPool(connectionString: string, max = 10, log: (msg: string
     idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 10_000,
     keepAlive: true,
+    // A request must never hang until the host cuts it off: a query that waits this long fails with a clear error.
+    // (Client-side, so it works through any pooler.)
+    query_timeout: 15_000,
   });
   pool.on('error', (err) => log('Database connection dropped while idle; it was discarded', err));
   return pool;
