@@ -1,4 +1,4 @@
-import { listQuerySchema, uuidSchema, type Page } from '@vta/shared';
+import { centreMapLink, listQuerySchema, uuidSchema, type Page } from '@vta/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import type { Centre } from '../db/types.js';
@@ -19,6 +19,10 @@ function centreDto(c: Centre & { organisation_name?: string | null }) {
     city: c.city,
     contactPhone: c.contact_phone,
     status: c.status,
+    latitude: c.latitude,
+    longitude: c.longitude,
+    mapUrl: c.map_url,
+    mapLink: centreMapLink({ latitude: c.latitude, longitude: c.longitude, mapUrl: c.map_url }),
     createdAt: iso(c.created_at),
   };
 }

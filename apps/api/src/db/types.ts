@@ -93,6 +93,10 @@ export interface CentresTable {
   city: string | null;
   contact_phone: string | null;
   status: 'active' | 'inactive';
+  latitude: Generated<number | null>;
+  longitude: Generated<number | null>;
+  map_url: Generated<string | null>;
+  created_by: Generated<string | null>;
   created_at: Timestamp;
   updated_at: Timestamp;
 }

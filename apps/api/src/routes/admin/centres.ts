@@ -10,6 +10,13 @@ import { parse } from '../../lib/validate.js';
 
 const idParam = z.object({ id: uuidSchema });
 
+/** GPS position (both or neither) and a pasted Google Maps link, as stored. */
+export function locationOf(b: { latitude?: number | null; longitude?: number | null; mapUrl?: string | null }) {
+  const both = b.latitude != null && b.longitude != null;
+  if ((b.latitude != null) !== (b.longitude != null)) throw invalid('Location needs both latitude and longitude', { latitude: 'Use your current location again' });
+  return { latitude: both ? b.latitude! : null, longitude: both ? b.longitude! : null, map_url: b.mapUrl || null };
+}
+
 async function assertOwnerIsPartner(db: DB, organisationId: string | undefined) {
   if (!organisationId) return;
   const org = await db.selectFrom('organisations').select(['type']).where('id', '=', organisationId).executeTakeFirst();
@@ -31,6 +38,8 @@ export const centreRoutes: FastifyPluginAsync = async (app) => {
       city: b.city ?? null,
       contact_phone: b.contactPhone ?? null,
       status: 'active' as const,
+      ...locationOf(b),
+      created_by: req.actor!.userId,
     };
     await db.transaction().execute(async (trx) => {
       await trx.insertInto('centres').values(row).execute();
@@ -52,6 +61,7 @@ export const centreRoutes: FastifyPluginAsync = async (app) => {
       ...(b.address !== undefined && { address: b.address }),
       ...(b.city !== undefined && { city: b.city }),
       ...(b.contactPhone !== undefined && { contact_phone: b.contactPhone }),
+      ...(b.latitude !== undefined || b.longitude !== undefined || b.mapUrl !== undefined ? locationOf(b) : {}),
     };
     if (!Object.keys(changes).length) throw invalid('Nothing to change');
     await db.transaction().execute(async (trx) => {

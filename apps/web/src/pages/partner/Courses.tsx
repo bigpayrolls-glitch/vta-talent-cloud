@@ -47,6 +47,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import { SearchBox, Select } from '../../components/form';
 import { useToast } from '../../components/toast';
+import { ADD_CENTRE, AddCentreModal } from '../../components/centre';
 import { EmptyState, ErrorNote, Field, Modal, PageHeader, Pagination, Spinner, formatDate } from '../../components/ui';
 import { api, ApiError, qs, uploadFile } from '../../lib/api';
 import { firstName, useAuth } from '../../lib/auth';
@@ -894,6 +895,7 @@ function StepFee({ v, set, errors }: StepProps) {
   const { gstRupees, totalRupees } = feeWithGst(fee, Number(v.gstPct));
   const b = v.batch;
   const setB = (k: keyof WizardValues['batch'], val: string) => set('batch', { ...b, [k]: val, ...(k === 'centreId' && { trainerId: '' }) });
+  const [adding, setAdding] = useState(false);
   const centres = useQuery({ queryKey: ['centre-options'], queryFn: () => api.get<Page<{ id: string; name: string; city: string | null }>>(`/centres${qs({ status: 'active', pageSize: 100 })}`) });
   const trainers = useQuery({
     queryKey: ['trainer-options', b.centreId],
@@ -937,10 +939,11 @@ function StepFee({ v, set, errors }: StepProps) {
           <Field label="Batch name" htmlFor="w-b-name" error={e('name')}>
             <input id="w-b-name" className="field-input" placeholder="For example, 2W Service Peenya December 2026" value={b.name} onChange={(ev) => setB('name', ev.target.value)} />
           </Field>
-          <Field label="Location (centre)" htmlFor="w-b-centre" error={e('centreId')} hint={centres.data && centres.data.items.length === 0 ? 'Your organisation has no centre yet. AutoTalent Grid adds centres: ask them to add yours, then choose it here.' : undefined}>
-            <select id="w-b-centre" className="field-input" value={b.centreId} onChange={(ev) => setB('centreId', ev.target.value)}>
+          <Field label="Location (centre)" htmlFor="w-b-centre" error={e('centreId')} hint={centres.data && centres.data.items.length === 0 ? 'Your organisation has no centre yet. Choose “+ Add a new centre” to add one.' : undefined}>
+            <select id="w-b-centre" className="field-input" value={b.centreId} onChange={(ev) => (ev.target.value === ADD_CENTRE ? setAdding(true) : setB('centreId', ev.target.value))}>
               <option value="">{centres.data && centres.data.items.length === 0 ? 'No centres yet' : 'Choose a centre'}</option>
               {centres.data?.items.map((c) => <option key={c.id} value={c.id}>{c.name}{c.city ? `, ${c.city}` : ''}</option>)}
+              <option value={ADD_CENTRE}>+ Add a new centre</option>
             </select>
           </Field>
           <Field label="Start date" htmlFor="w-b-start" error={e('startDate')}>
@@ -965,6 +968,15 @@ function StepFee({ v, set, errors }: StepProps) {
           </div>
         </div>
       </section>
+      {adding && (
+        <AddCentreModal
+          onClose={() => setAdding(false)}
+          onAdded={(newId) => {
+            setAdding(false);
+            setB('centreId', newId);
+          }}
+        />
+      )}
     </div>
   );
 }

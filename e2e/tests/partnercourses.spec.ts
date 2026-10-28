@@ -11,7 +11,9 @@ const TITLE = 'Two-Wheeler FI Diagnostics (browser test)';
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
 test('partner creates and submits a course; admin approves and publishes it; learners see it', async ({ browser }) => {
-  const partner = await browser.newPage();
+  // The partner's phone shares its location when asked (VOC Bengaluru, Peenya).
+  const partnerContext = await browser.newContext({ permissions: ['geolocation'], geolocation: { latitude: 13.0285, longitude: 77.5197 } });
+  const partner = await partnerContext.newPage();
   await signInEmail(partner, 'partner-a@demo.vta.local');
   await expect(partner.getByRole('heading', { name: /Welcome back/ })).toBeVisible();
   await expect(partner.getByText('Recent activities')).toBeVisible();
@@ -65,6 +67,19 @@ test('partner creates and submits a course; admin approves and publishes it; lea
   await expect(partner.getByText('₹5,900')).toBeVisible();
   await partner.getByLabel('Certificate type').selectOption('Partner Certificate');
   await partner.getByLabel('Batch name').fill('FI Peenya December 2026');
+  // A centre missing from the list is added on the spot, with its map location from the phone.
+  await partner.getByLabel('Location (centre)').selectOption({ label: '+ Add a new centre' });
+  const add = partner.getByRole('dialog', { name: 'Add a new centre' });
+  await add.getByLabel('Centre name').fill('VOC Bengaluru');
+  await add.getByLabel('City').fill('Bengaluru');
+  await add.getByRole('button', { name: 'Use my current location' }).click();
+  await expect(add.getByText('Pinned 13.02850, 77.51970')).toBeVisible();
+  await expect(add.getByRole('link', { name: 'View on Google Maps' })).toHaveAttribute('href', 'https://www.google.com/maps?q=13.028500,77.519700');
+  await add.getByRole('button', { name: 'Add centre' }).click();
+  await expect(add).toBeHidden();
+  await expect(partner.getByLabel('Location (centre)')).toHaveValue(/[0-9a-f-]{36}/);
+  await expect(partner.getByLabel('Location (centre)').locator('option:checked')).toHaveText('VOC Bengaluru, Bengaluru');
+  // This batch runs at Peenya, where the trainer is.
   await partner.getByLabel('Location (centre)').selectOption({ label: 'Skill Bridge Peenya Centre, Bengaluru' });
   await partner.getByLabel('Start date').fill('2026-12-01');
   await partner.getByLabel('End date').fill('2026-12-31');

@@ -20,6 +20,8 @@ export const PERMISSIONS = {
   'organisation.manage': ['super_admin'],
   'organisation.verify': ['super_admin'],
   'centre.manage': ['super_admin'],
+  /** Training partners add centres for their own organisation (28 Oct 2026). */
+  'centre.add_own': ['partner_admin'],
   'audit.read': ['super_admin'],
 
   // Scoped reads used by every portal (results are filtered by policy scope)

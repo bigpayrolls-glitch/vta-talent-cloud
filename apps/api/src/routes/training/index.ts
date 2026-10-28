@@ -3,6 +3,7 @@ import { batchRoutes } from './batches.js';
 import { candidateRoutes } from './candidates.js';
 import { courseRoutes } from './courses.js';
 import { fileRoutes } from './files.js';
+import { partnerCentreRoutes } from './partnerCentres.js';
 import { partnerCourseRoutes } from './partnerCourses.js';
 import { trainerRoutes } from './trainers.js';
 
@@ -14,4 +15,5 @@ export const trainingRoutes: FastifyPluginAsync = async (app) => {
   await app.register(batchRoutes);
   await app.register(fileRoutes);
   await app.register(partnerCourseRoutes);
+  await app.register(partnerCentreRoutes);
 };
