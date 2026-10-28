@@ -224,6 +224,29 @@ describe('fixes of 28 Oct 2026', () => {
   });
 });
 
+describe('hybrid modules', () => {
+  it('a module can be split into theory and practical time; its total is their sum', async () => {
+    const r = await c.partnerA!.post('/partner/courses', { ...details, title: 'EV Hybrid Technician', deliveryMode: 'blended' });
+    const id = r.body.id;
+    const save = await c.partnerA!.patch(`/partner/courses/${id}`, {
+      modules: [
+        { name: 'EV Fundamentals & Vehicle Architecture', theoryHours: 8, practicalHours: 4 },
+        { name: 'Safety walk-through', theoryHours: '0.5', practicalHours: 0 },
+      ],
+    });
+    expect(save.status).toBe(200);
+    const d = (await c.partnerA!.get(`/partner/courses/${id}`)).body;
+    expect(d.modules).toEqual([
+      { name: 'EV Fundamentals & Vehicle Architecture', hours: 12, theoryHours: 8, practicalHours: 4 },
+      { name: 'Safety walk-through', hours: 0.5, theoryHours: 0.5, practicalHours: 0 },
+    ]);
+    const row = await ctx.db.selectFrom('courses').select('training_hours').where('id', '=', id).executeTakeFirstOrThrow();
+    expect(row.training_hours).toBe(13);
+    const empty = await c.partnerA!.patch(`/partner/courses/${id}`, { modules: [{ name: 'Nothing yet', theoryHours: 0, practicalHours: 0 }] });
+    expect(empty.body.error.fields['modules.0.hours']).toBe('At least 3 minutes');
+  });
+});
+
 describe('centres', () => {
   it('an Admin deletes an unused centre; a centre with batches can only be deactivated; partners cannot delete', async () => {
     const add = await c.admin!.post('/admin/centres', { name: 'VOC Bengaluru', city: 'Bengaluru', organisationId: ctx.ids.partnerA });

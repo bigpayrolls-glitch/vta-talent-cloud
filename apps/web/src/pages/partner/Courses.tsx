@@ -283,7 +283,7 @@ interface WizardValues {
   deliveryMode: string;
   durationValue: string;
   durationUnit: string;
-  modules: { name: string; hours: string }[];
+  modules: { name: string; hours: string; theoryHours?: string; practicalHours?: string }[];
   skills: string[];
   prerequisites: string;
   learningOutcomes: string[];
@@ -324,7 +324,7 @@ function fromCourse(c: PartnerCourse): WizardValues {
     deliveryMode: c.deliveryMode,
     durationValue: String(c.durationValue),
     durationUnit: c.durationUnit,
-    modules: c.modules.map((m) => ({ name: m.name, hours: String(m.hours) })),
+    modules: c.modules.map((m) => ({ name: m.name, hours: String(m.hours), ...(m.theoryHours !== undefined || m.practicalHours !== undefined ? { theoryHours: String(m.theoryHours ?? 0), practicalHours: String(m.practicalHours ?? 0) } : {}) })),
     skills: c.skills,
     prerequisites: c.prerequisites ?? '',
     learningOutcomes: c.learningOutcomes,
@@ -442,7 +442,7 @@ export function CourseWizardPage() {
     }
     if (step === 2) {
       const body = {
-        modules: v.modules.filter((m) => m.name.trim() || m.hours).map((m) => ({ name: m.name, hours: m.hours })),
+        modules: v.modules.filter((m) => m.name.trim() || m.hours).map((m) => (m.theoryHours !== undefined || m.practicalHours !== undefined ? { name: m.name, theoryHours: m.theoryHours ?? '0', practicalHours: m.practicalHours ?? '0' } : { name: m.name, hours: m.hours })),
         skills: v.skills,
         prerequisites: v.prerequisites,
         learningOutcomes: v.learningOutcomes.map((o) => o.trim()).filter(Boolean),
@@ -721,21 +721,30 @@ function StepContent({ v, set, errors }: StepProps) {
   const [outcome, setOutcome] = useState('');
   const [editing, setEditing] = useState<number | null>(null);
   // Time can be typed in hours (0.5, 2) or minutes (30, 90); it is kept and shown in hours.
-  const [draft, setDraft] = useState<{ name: string; amount: string; unit: 'hours' | 'minutes' }>({ name: '', amount: '', unit: 'hours' });
+  // Hybrid courses split each module into theory and practical time; the total is their sum.
+  const hybrid = v.deliveryMode === 'blended';
+  const [draft, setDraft] = useState<{ name: string; amount: string; theory: string; practical: string; unit: 'hours' | 'minutes' }>({ name: '', amount: '', theory: '', practical: '', unit: 'hours' });
   const totalHours = Math.round(v.modules.reduce((n, m) => n + (Number(m.hours) || 0), 0) * 100) / 100;
   const toggleSkill = (s: string) => set('skills', v.skills.includes(s) ? v.skills.filter((x) => x !== s) : [...v.skills, s]);
-  const draftHours = draft.unit === 'minutes' ? minutesToHours(Number(draft.amount)) : Math.round(Number(draft.amount) * 100) / 100;
+  const toHours = (x: string) => (draft.unit === 'minutes' ? minutesToHours(Number(x) || 0) : Math.round((Number(x) || 0) * 100) / 100);
+  const draftTheory = toHours(draft.theory);
+  const draftPractical = toHours(draft.practical);
+  const draftHours = hybrid ? Math.round((draftTheory + draftPractical) * 100) / 100 : toHours(draft.amount);
   const draftOk = !!draft.name.trim() && draftHours > 0;
   const saveModule = () => {
     if (!draftOk) return;
     const list = [...v.modules];
-    const m = { name: draft.name.trim(), hours: String(draftHours) };
+    const m = hybrid
+      ? { name: draft.name.trim(), hours: String(draftHours), theoryHours: String(draftTheory), practicalHours: String(draftPractical) }
+      : { name: draft.name.trim(), hours: String(draftHours) };
     if (editing !== null && editing < list.length) list[editing] = m;
     else list.push(m);
     set('modules', list);
-    setDraft({ name: '', amount: '', unit: draft.unit });
+    setDraft({ name: '', amount: '', theory: '', practical: '', unit: draft.unit });
     setEditing(null);
   };
+  const totalTheory = Math.round(v.modules.reduce((n, m) => n + (Number(m.theoryHours) || 0), 0) * 100) / 100;
+  const totalPractical = Math.round(v.modules.reduce((n, m) => n + (Number(m.practicalHours) || 0), 0) * 100) / 100;
   /** The first message for a part of this step, from either the browser check or the server. */
   const errorFor = (key: string) => Object.entries(errors).find(([k]) => k === key || k.startsWith(`${key}.`))?.[1];
 
@@ -745,8 +754,12 @@ function StepContent({ v, set, errors }: StepProps) {
       <section>
         <div className="mb-2 flex items-end justify-between">
           <h3 className="font-semibold">Course modules</h3>
-          <span className="text-sm text-muted">Total {totalHours} hours</span>
+          <span className="text-right text-sm text-muted">
+            Total {totalHours} hours
+            {hybrid && totalHours > 0 && <span className="block text-xs">{totalTheory} h theory + {totalPractical} h practical</span>}
+          </span>
         </div>
+        {hybrid && <p className="mb-2 text-sm text-muted">Hybrid course: enter the theory and practical time of each module. The total is added up for you.</p>}
         {errorFor('modules') && <p className="field-error mb-2" role="alert">{errorFor('modules')}</p>}
         <div className="overflow-hidden rounded-xl border border-line">
           <table className="w-full text-sm">
@@ -766,9 +779,18 @@ function StepContent({ v, set, errors }: StepProps) {
                     {m.name}
                     {errorFor(`modules.${i}`) && <span className="field-error block">{errorFor(`modules.${i}`)}</span>}
                   </td>
-                  <td className="px-3 py-2.5">{Number(m.hours) > 0 ? hoursLabel(Number(m.hours)) : m.hours}</td>
+                  <td className="px-3 py-2.5">
+                    {Number(m.hours) > 0 ? hoursLabel(Number(m.hours)) : m.hours}
+                    {m.theoryHours !== undefined && (
+                      <span className="block whitespace-nowrap text-xs text-muted">
+                        Theory {hoursLabel(Number(m.theoryHours))}
+                        <br />
+                        Practical {hoursLabel(Number(m.practicalHours ?? 0))}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-3 py-2.5 text-right">
-                    <button type="button" className="rounded p-1.5 text-muted hover:bg-surface hover:text-brand" aria-label={`Edit ${m.name}`} onClick={() => { setEditing(i); setDraft({ name: m.name, amount: m.hours, unit: 'hours' }); }}>
+                    <button type="button" className="rounded p-1.5 text-muted hover:bg-surface hover:text-brand" aria-label={`Edit ${m.name}`} onClick={() => { setEditing(i); setDraft({ name: m.name, amount: m.hours, theory: m.theoryHours ?? '', practical: m.practicalHours ?? '', unit: 'hours' }); }}>
                       <Pencil className="size-4" />
                     </button>
                     <button type="button" className="rounded p-1.5 text-muted hover:bg-surface hover:text-brand" aria-label={`Delete ${m.name}`} onClick={() => set('modules', v.modules.filter((_, j) => j !== i))}>
@@ -784,14 +806,25 @@ function StepContent({ v, set, errors }: StepProps) {
                   <input id="w-mod-name" className="field-input h-9" placeholder="Module name" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), saveModule())} />
                 </td>
                 <td className="px-3 py-2">
-                  <label htmlFor="w-mod-hours" className="sr-only">Time</label>
-                  <input id="w-mod-hours" type="number" min={0} step="any" inputMode="decimal" className="field-input h-9" placeholder={draft.unit === 'minutes' ? 'Min' : 'Hrs'} value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), saveModule())} />
+                  {hybrid ? (
+                    <>
+                      <label htmlFor="w-mod-theory" className="block text-xs text-muted">Theory</label>
+                      <input id="w-mod-theory" type="number" min={0} step="any" inputMode="decimal" className="field-input h-9" placeholder={draft.unit === 'minutes' ? 'Min' : 'Hrs'} value={draft.theory} onChange={(e) => setDraft({ ...draft, theory: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), saveModule())} />
+                      <label htmlFor="w-mod-practical" className="mt-1 block text-xs text-muted">Practical</label>
+                      <input id="w-mod-practical" type="number" min={0} step="any" inputMode="decimal" className="field-input h-9" placeholder={draft.unit === 'minutes' ? 'Min' : 'Hrs'} value={draft.practical} onChange={(e) => setDraft({ ...draft, practical: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), saveModule())} />
+                    </>
+                  ) : (
+                    <>
+                      <label htmlFor="w-mod-hours" className="sr-only">Time</label>
+                      <input id="w-mod-hours" type="number" min={0} step="any" inputMode="decimal" className="field-input h-9" placeholder={draft.unit === 'minutes' ? 'Min' : 'Hrs'} value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), saveModule())} />
+                    </>
+                  )}
                   <label htmlFor="w-mod-unit" className="sr-only">Unit</label>
-                  <select id="w-mod-unit" className="field-input mt-1 h-9 py-0 text-sm" value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value as 'hours' | 'minutes' })}>
+                  <select id="w-mod-unit" className="field-input mt-1 h-9 py-0 pr-7 pl-2 text-sm" value={draft.unit} onChange={(e) => setDraft({ ...draft, unit: e.target.value as 'hours' | 'minutes' })}>
                     <option value="hours">Hrs</option>
                     <option value="minutes">Mins</option>
                   </select>
-                  {draft.unit === 'minutes' && draftHours > 0 && <span className="mt-1 block text-xs text-muted">= {draftHours} h</span>}
+                  {draftHours > 0 && (hybrid || draft.unit === 'minutes') && <span className="mt-1 block text-xs text-muted">{hybrid ? 'Total' : '='} {draftHours} h</span>}
                 </td>
                 <td className="px-3 py-2 text-right">
                   <button type="button" className="btn-quiet btn-sm" onClick={saveModule} disabled={!draftOk}>
