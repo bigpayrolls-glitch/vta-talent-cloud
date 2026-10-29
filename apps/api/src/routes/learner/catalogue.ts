@@ -24,6 +24,7 @@ import { notify, orgMembers, vtaReviewers } from '../../lib/notify.js';
 import { iso, parse } from '../../lib/validate.js';
 import { basicsRequired, consentRequired } from './service.js';
 import { courseImageUrl } from '../training/courses.js';
+import { partnerLearnerBlocker } from '../../lib/partnerSubscriptions.js';
 import { journeyOf } from './bookings.js';
 
 /**
@@ -135,6 +136,9 @@ export async function blocker(trx: DB, userId: string, batch: { id: string; capa
   if (mine) return 'You are already enrolled in this batch.';
   const { n } = await trx.selectFrom('enrolments').select(sql<string>`count(*)`.as('n')).where('batch_id', '=', batch.id).where('status', '!=', 'withdrawn').executeTakeFirstOrThrow();
   if (Number(n) >= batch.capacity) return 'This batch is full. Choose another batch.';
+  // A training partner's plan limits how many learners it can take at once.
+  const org = await trx.selectFrom('batches as b').innerJoin('centres as c', 'c.id', 'b.centre_id').leftJoin('organisations as o', 'o.id', 'c.organisation_id').select(['o.id', 'o.type']).where('b.id', '=', batch.id).executeTakeFirst();
+  if (org?.id && org.type === 'partner') return partnerLearnerBlocker(trx, org.id);
   return null;
 }
 

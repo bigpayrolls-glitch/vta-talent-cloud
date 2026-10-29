@@ -5,6 +5,7 @@ import {
   BookOpen,
   Building2,
   CalendarCheck,
+  CreditCard,
   LayoutDashboard,
   RefreshCw,
   UserCog,
@@ -47,6 +48,7 @@ export function PartnerLayout() {
     ...(isPartner ? [{ to: '/partner/trainers', label: 'Trainers', icon: UserCog, bottom: true }] : []),
     ...(isTrainer ? [{ to: '/partner/sync', label: 'Sync', icon: RefreshCw, bottom: true }] : []),
     ...(isPartner ? [{ to: '/partner/organisation', label: 'Organisation', icon: Building2 }] : []),
+    ...(isPartner ? [{ to: '/partner/subscription', label: 'Subscription & Billing', icon: CreditCard }] : []),
   ];
   return (
     <PortalLayout portal="partner" nav={nav} headerExtra={isTrainer ? <SyncIndicator /> : undefined}>

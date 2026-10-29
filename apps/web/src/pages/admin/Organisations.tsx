@@ -1,11 +1,13 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { adminSetPlanSchema, createOrganisationSchema, formatRupees, PARTNER_SUBTYPES, PLANS, reasonSchema, type Page, type Plan, type SubscriptionDto } from '@vta/shared';
+import { adminSetPlanSchema, createOrganisationSchema, formatRupees, PARTNER_PLANS, PARTNER_SUBTYPES, PLANS, reasonSchema, type Page, type PartnerSubscriptionDto, type SubscriptionDto } from '@vta/shared';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { EmptyState, ErrorNote, Field, formatDate, Modal, PageHeader, Pagination, Spinner, StatusBadge } from '../../components/ui';
 import { useToast } from '../../components/toast';
-import { usePlans } from '../../lib/plans';
+import { usePartnerPlans, usePlans } from '../../lib/plans';
+
+const of = (limit: number | null) => (limit === null ? '' : ` of ${limit}`);
 import { api, qs } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useForm } from '../../lib/useForm';
@@ -254,7 +256,7 @@ function OrgModal({ org, onClose }: { org: OrgRow; onClose: () => void }) {
         <dd>{formatDate(org.verifiedAt)}</dd>
       </dl>
       <CompanyVerificationDetails orgId={org.id} />
-      {org.type === 'employer' && can('subscription.manage') && <EmployerPlanPanel orgId={org.id} />}
+      {(org.type === 'employer' || org.type === 'partner') && can('subscription.manage') && <PlanPanel orgId={org.id} audience={org.type} />}
 
       {can('organisation.verify') && !decision && (
         <div className="mt-6 flex flex-wrap gap-2 border-t border-line pt-5">
@@ -295,17 +297,25 @@ function OrgModal({ org, onClose }: { org: OrgRow; onClose: () => void }) {
   );
 }
 
-/** Phase 12: the employer's plan; AutoTalent Grid can set one by hand (Enterprise, or paid outside the platform). */
-function EmployerPlanPanel({ orgId }: { orgId: string }) {
-  const PLAN_INFO = usePlans();
+type AdminSubscription = (SubscriptionDto | PartnerSubscriptionDto) & { audience: 'employer' | 'partner'; payments: { id: string; invoiceNumber: string; plan: string; amountPaise: number; paidAt: string; test: boolean }[] };
+
+/**
+ * The organisation's plan (employers since Phase 12, training partners since 29 Oct 2026); AutoTalent Grid can
+ * set one by hand (Enterprise, or paid outside the platform).
+ */
+function PlanPanel({ orgId, audience }: { orgId: string; audience: 'employer' | 'partner' }) {
+  const employerPlans = usePlans();
+  const partnerPlans = usePartnerPlans();
+  const names: Record<string, string> = Object.fromEntries(Object.entries(audience === 'partner' ? partnerPlans : employerPlans).map(([k, v]) => [k, v.name]));
+  const codes: readonly string[] = audience === 'partner' ? PARTNER_PLANS : PLANS;
   const qc = useQueryClient();
   const toast = useToast();
   const q = useQuery({
     queryKey: ['organisations', orgId, 'subscription'],
-    queryFn: () => api.get<SubscriptionDto & { payments: { id: string; invoiceNumber: string; plan: Plan; amountPaise: number; paidAt: string; test: boolean }[] }>(`/admin/organisations/${orgId}/subscription`),
+    queryFn: () => api.get<AdminSubscription>(`/admin/organisations/${orgId}/subscription`),
   });
   const [editing, setEditing] = useState(false);
-  const [plan, setPlan] = useState<Plan>('enterprise');
+  const [plan, setPlan] = useState<string>(audience === 'partner' ? 'institution' : 'enterprise');
   const [months, setMonths] = useState('12');
   const [reason, setReason] = useState('');
   const f = useForm(adminSetPlanSchema);
@@ -317,16 +327,18 @@ function EmployerPlanPanel({ orgId }: { orgId: string }) {
         Plan
       </h3>
       <p className="mt-1 text-sm">
-        <span className="font-semibold">{PLAN_INFO[s.plan].name}</span>
+        <span className="font-semibold">{names[s.plan] ?? s.plan}</span>
         {s.plan !== 'free' && s.periodEnd ? `, until ${formatDate(s.periodEnd)}` : ''}
-        {s.source ? ` (${s.source === 'payment' ? 'paid online' : 'set by AutoTalent Grid'})` : ''}. Active jobs {s.usage.activeJobs}
-        {s.usage.activeJobsLimit !== null ? ` of ${s.usage.activeJobsLimit}` : ''}.
+        {s.source ? ` (${s.source === 'payment' ? 'paid online' : 'set by AutoTalent Grid'})` : ''}.{' '}
+        {'activeJobs' in s.usage
+          ? `Active jobs ${s.usage.activeJobs}${s.usage.activeJobsLimit !== null ? ` of ${s.usage.activeJobsLimit}` : ''}.`
+          : `Active courses ${s.usage.activeCourses}${of(s.usage.activeCoursesLimit)}, batches ${s.usage.activeBatches}${of(s.usage.activeBatchesLimit)}, learners ${s.usage.learners}${of(s.usage.learnersLimit)}.`}
       </p>
       {s.payments.length > 0 && (
         <ul className="mt-2 text-sm text-muted">
           {s.payments.slice(0, 3).map((p) => (
             <li key={p.id}>
-              {p.invoiceNumber}: {PLAN_INFO[p.plan].name}, {formatRupees(p.amountPaise)}, {formatDate(p.paidAt)}
+              {p.invoiceNumber}: {names[p.plan] ?? p.plan}, {formatRupees(p.amountPaise)}, {formatDate(p.paidAt)}
               {p.test ? ' (test)' : ''}
             </li>
           ))}
@@ -353,10 +365,10 @@ function EmployerPlanPanel({ orgId }: { orgId: string }) {
           {f.formError && <ErrorNote message={f.formError} />}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Plan" htmlFor={`plan-sel-${orgId}`}>
-              <select id={`plan-sel-${orgId}`} className="field-input" value={plan} onChange={(e) => setPlan(e.target.value as Plan)}>
-                {PLANS.map((p) => (
+              <select id={`plan-sel-${orgId}`} className="field-input" value={plan} onChange={(e) => setPlan(e.target.value)}>
+                {codes.map((p) => (
                   <option key={p} value={p}>
-                    {PLAN_INFO[p].name}
+                    {names[p] ?? p}
                   </option>
                 ))}
               </select>

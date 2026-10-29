@@ -449,6 +449,9 @@ export async function seed(db: DB): Promise<SeedResult> {
     .values([
       { organisation_id: ids.employerA!, plan: 'growth', billing_cycle: null, period_start: new Date(), period_end: yearOn, source: 'admin', updated_by: ids.superAdmin! },
       { organisation_id: ids.employerB!, plan: 'starter', billing_cycle: null, period_start: new Date(), period_end: yearOn, source: 'admin', updated_by: ids.superAdmin! },
+      // 29 Oct 2026: the demo training partners are on Institution, so the demo is not held up by plan limits.
+      { organisation_id: ids.partnerA!, plan: 'institution', billing_cycle: null, period_start: new Date(), period_end: yearOn, source: 'admin', updated_by: ids.superAdmin! },
+      { organisation_id: ids.partnerB!, plan: 'institution', billing_cycle: null, period_start: new Date(), period_end: yearOn, source: 'admin', updated_by: ids.superAdmin! },
     ])
     .execute();
 

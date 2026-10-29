@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { employerPlanEditSchema, formatRupees, PLANS, type Plan, type PlanInfo, type PlanTable } from '@vta/shared';
+import { employerPlanEditSchema, formatRupees, PARTNER_PLANS, partnerPlanEditSchema, PLANS, type PartnerPlan, type PartnerPlanInfo, type PartnerPlanTable, type Plan, type PlanInfo, type PlanTable } from '@vta/shared';
 import { Check, Pencil, X } from 'lucide-react';
 import { useState } from 'react';
 import { useToast } from '../../components/toast';
@@ -7,13 +7,14 @@ import { ErrorNote, Field, Modal, PageHeader, Spinner, formatDate } from '../../
 import { api } from '../../lib/api';
 import { useForm } from '../../lib/useForm';
 
-/** Admin > Plans: names, prices, limits and feature lines of the employer plans. Changes apply within a minute. */
+/** Admin > Plans: names, prices, limits and feature lines of the employer and training partner plans. */
 export function PlansAdminPage() {
-  const q = useQuery({ queryKey: ['admin', 'plans'], queryFn: () => api.get<{ employer: PlanTable; changed: { audience: string; code: string; at: string; by: string | null }[] }>('/admin/plans') });
+  const q = useQuery({ queryKey: ['admin', 'plans'], queryFn: () => api.get<{ employer: PlanTable; partner: PartnerPlanTable; changed: { audience: string; code: string; at: string; by: string | null }[] }>('/admin/plans') });
   const [editing, setEditing] = useState<Plan | null>(null);
+  const [editingPartner, setEditingPartner] = useState<PartnerPlan | null>(null);
   return (
     <div>
-      <PageHeader title="Plans" description="What each plan costs and includes. Changes show on the plans pages and apply to limits within a minute. Plans already paid for keep their end date." />
+      <PageHeader title="Plans" description="What each employer and training partner plan costs and includes. Changes show on the plans pages and apply to limits within a minute. Plans already paid for keep their end date." />
       <h2 className="mb-3 font-semibold">Employer plans</h2>
       {q.isLoading ? (
         <Spinner />
@@ -75,7 +76,62 @@ export function PlansAdminPage() {
           })}
         </ul>
       )}
+      <h2 className="mb-3 mt-8 font-semibold">Training partner plans</h2>
+      {q.data && (
+        <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {PARTNER_PLANS.map((code) => {
+            const p = q.data.partner[code];
+            const changed = q.data.changed.find((c) => c.audience === 'partner' && c.code === code);
+            return (
+              <li key={code} className="card flex flex-col px-5 py-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h3 className="text-lg font-bold">
+                      {p.name}
+                      {p.recommended && <span className="ml-2 rounded-full bg-brand px-2 py-0.5 align-middle text-[11px] font-semibold text-white">Recommended</span>}
+                    </h3>
+                    <p className="text-sm text-muted">{p.tagline}</p>
+                  </div>
+                  <button className="btn-secondary btn-sm" onClick={() => setEditingPartner(code)} aria-label={`Edit ${p.name} (training partner)`}>
+                    <Pencil className="size-4" aria-hidden />
+                    Edit
+                  </button>
+                </div>
+                <p className="mt-3 text-xl font-extrabold">
+                  {formatRupees(p.price.monthly)}
+                  <span className="text-sm font-medium text-muted">
+                    {' '}
+                    / month, {formatRupees(p.price.yearly)} / year, plus {p.gstPct}% GST
+                  </span>
+                </p>
+                <dl className="mt-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+                  <dt className="text-muted">Active courses</dt>
+                  <dd>{limitText(p.activeCourses)}</dd>
+                  <dt className="text-muted">Active batches</dt>
+                  <dd>{limitText(p.activeBatches)}</dd>
+                  <dt className="text-muted">Learners</dt>
+                  <dd>{limitText(p.learners)}</dd>
+                  <dt className="text-muted">Trainer management</dt>
+                  <dd>{yesNo(p.trainerManagement)}</dd>
+                  <dt className="text-muted">Assessments</dt>
+                  <dd>{p.assessments || '—'}</dd>
+                  <dt className="text-muted">Certificates</dt>
+                  <dd>{yesNo(p.certificates)}</dd>
+                  <dt className="text-muted">Reports</dt>
+                  <dd>{p.reports || '—'}</dd>
+                  <dt className="text-muted">API access</dt>
+                  <dd>{yesNo(p.apiAccess)}</dd>
+                  <dt className="text-muted">Support</dt>
+                  <dd>{p.support || '—'}</dd>
+                </dl>
+                {changed && <p className="mt-auto pt-3 text-xs text-muted">Changed {formatDate(changed.at, true)}{changed.by ? ` by ${changed.by}` : ''}</p>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
       {editing && q.data && <EditPlanModal code={editing} plan={q.data.employer[editing]} onClose={() => setEditing(null)} />}
+      {editingPartner && q.data && <EditPartnerPlanModal code={editingPartner} plan={q.data.partner[editingPartner]} onClose={() => setEditingPartner(null)} />}
     </div>
   );
 }
@@ -226,6 +282,141 @@ function EditPlanModal({ code, plan, onClose }: { code: Plan; plan: PlanInfo; on
         </fieldset>
         <Field label="Feature lines on the plans page (one per line)" htmlFor="pl-feat" error={e.features}>
           <textarea id="pl-feat" rows={6} className="field-input h-auto py-2" value={v.features} onChange={set('features')} />
+        </Field>
+      </div>
+    </Modal>
+  );
+}
+
+function EditPartnerPlanModal({ code, plan, onClose }: { code: PartnerPlan; plan: PartnerPlanInfo; onClose: () => void }) {
+  const qc = useQueryClient();
+  const toast = useToast();
+  const f = useForm(partnerPlanEditSchema);
+  const [v, setV] = useState({
+    name: plan.name,
+    tagline: plan.tagline,
+    monthly: rupeesOf(plan.price.monthly),
+    yearly: rupeesOf(plan.price.yearly),
+    gstPct: String(plan.gstPct),
+    activeCourses: plan.activeCourses === null ? '' : String(plan.activeCourses),
+    activeBatches: plan.activeBatches === null ? '' : String(plan.activeBatches),
+    learners: plan.learners === null ? '' : String(plan.learners),
+    assessments: plan.assessments,
+    reports: plan.reports,
+    support: plan.support,
+    features: plan.features.join('\n'),
+  });
+  const [flags, setFlags] = useState({ recommended: plan.recommended, trainerManagement: plan.trainerManagement, certificates: plan.certificates, apiAccess: plan.apiAccess });
+  const set = (k: keyof typeof v) => (e: { target: { value: string } }) => setV({ ...v, [k]: e.target.value });
+  const tick = (k: keyof typeof flags) => (e: { target: { checked: boolean } }) => setFlags({ ...flags, [k]: e.target.checked });
+  const save = () =>
+    f.submit(
+      {
+        name: v.name,
+        tagline: v.tagline,
+        price: { monthly: v.monthly || '0', yearly: v.yearly || '0' },
+        gstPct: v.gstPct || '0',
+        ...flags,
+        activeCourses: numOrNull(v.activeCourses),
+        activeBatches: numOrNull(v.activeBatches),
+        learners: numOrNull(v.learners),
+        assessments: v.assessments,
+        reports: v.reports,
+        support: v.support,
+        features: v.features
+          .split('\n')
+          .map((x) => x.trim())
+          .filter(Boolean),
+      },
+      async (data) => {
+        await api.put(`/admin/plans/partner/${code}`, data);
+        await qc.invalidateQueries({ queryKey: ['admin', 'plans'] });
+        await qc.invalidateQueries({ queryKey: ['plans'] });
+        toast('success', `${v.name} plan saved`);
+        onClose();
+      },
+    );
+  const e = f.errors;
+  return (
+    <Modal
+      open
+      wide
+      onClose={onClose}
+      title={`Edit ${plan.name} plan (training partners)`}
+      footer={
+        <>
+          <button className="btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button className="btn-primary" onClick={() => void save()} disabled={f.submitting}>
+            {f.submitting ? 'Saving…' : 'Save plan'}
+          </button>
+        </>
+      }
+    >
+      <div className="max-h-[65dvh] space-y-4 overflow-y-auto pr-1">
+        {f.formError && <ErrorNote message={f.formError} />}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Name" htmlFor="pp-name" error={e.name}>
+            <input id="pp-name" className="field-input" value={v.name} onChange={set('name')} />
+          </Field>
+          <Field label="Short description" htmlFor="pp-tag" error={e.tagline}>
+            <input id="pp-tag" className="field-input" value={v.tagline} onChange={set('tagline')} />
+          </Field>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Monthly price (₹, before GST)" htmlFor="pp-month" error={e['price.monthly'] ?? e.price}>
+            <input id="pp-month" type="number" min={0} className="field-input" value={v.monthly} onChange={set('monthly')} disabled={code === 'free'} />
+          </Field>
+          <Field label="Yearly price (₹, before GST)" htmlFor="pp-year" error={e['price.yearly']}>
+            <input id="pp-year" type="number" min={0} className="field-input" value={v.yearly} onChange={set('yearly')} disabled={code === 'free'} />
+          </Field>
+          <Field label="GST (%)" htmlFor="pp-gst" error={e.gstPct}>
+            <input id="pp-gst" type="number" min={0} max={28} className="field-input" value={v.gstPct} onChange={set('gstPct')} />
+          </Field>
+        </div>
+        <fieldset className="rounded-xl border border-line px-4 py-3">
+          <legend className="px-1 text-sm font-semibold">Limits (leave empty for no limit)</legend>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Field label="Active courses" htmlFor="pp-courses" error={e.activeCourses}>
+              <input id="pp-courses" type="number" min={0} className="field-input" value={v.activeCourses} onChange={set('activeCourses')} />
+            </Field>
+            <Field label="Active batches" htmlFor="pp-batches" error={e.activeBatches}>
+              <input id="pp-batches" type="number" min={0} className="field-input" value={v.activeBatches} onChange={set('activeBatches')} />
+            </Field>
+            <Field label="Learners in current batches" htmlFor="pp-learners" error={e.learners}>
+              <input id="pp-learners" type="number" min={0} className="field-input" value={v.learners} onChange={set('learners')} />
+            </Field>
+          </div>
+        </fieldset>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Field label="Assessments" htmlFor="pp-assess" hint="For example Basic or Advanced">
+            <input id="pp-assess" className="field-input" value={v.assessments} onChange={set('assessments')} />
+          </Field>
+          <Field label="Reports" htmlFor="pp-reports" hint="For example Basic or Advanced">
+            <input id="pp-reports" className="field-input" value={v.reports} onChange={set('reports')} />
+          </Field>
+          <Field label="Support" htmlFor="pp-support" hint="For example Email, Priority">
+            <input id="pp-support" className="field-input" value={v.support} onChange={set('support')} />
+          </Field>
+        </div>
+        <fieldset className="space-y-2 rounded-xl border border-line px-4 py-3 text-sm">
+          <legend className="px-1 font-semibold">Included</legend>
+          <label className="flex items-center gap-2.5">
+            <input type="checkbox" className="size-4 accent-[var(--color-brand)]" checked={flags.trainerManagement} onChange={tick('trainerManagement')} /> Trainer management
+          </label>
+          <label className="flex items-center gap-2.5">
+            <input type="checkbox" className="size-4 accent-[var(--color-brand)]" checked={flags.certificates} onChange={tick('certificates')} /> Certificates
+          </label>
+          <label className="flex items-center gap-2.5">
+            <input type="checkbox" className="size-4 accent-[var(--color-brand)]" checked={flags.apiAccess} onChange={tick('apiAccess')} /> API access
+          </label>
+          <label className="flex items-center gap-2.5">
+            <input type="checkbox" className="size-4 accent-[var(--color-brand)]" checked={flags.recommended} onChange={tick('recommended')} /> Show as Recommended
+          </label>
+        </fieldset>
+        <Field label="Feature lines on the plans page (one per line)" htmlFor="pp-feat" error={e.features}>
+          <textarea id="pp-feat" rows={6} className="field-input h-auto py-2" value={v.features} onChange={set('features')} />
         </Field>
       </div>
     </Modal>

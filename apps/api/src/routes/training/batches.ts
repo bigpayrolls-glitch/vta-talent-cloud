@@ -11,7 +11,8 @@ import { invalid, notFound } from '../../lib/errors.js';
 import { formatDay } from '../../lib/dates.js';
 import { notify } from '../../lib/notify.js';
 import { iso, parse } from '../../lib/validate.js';
-import { batchManageScope, batchReadScope, batchVisible, inScope, rosterShowsContact, type BatchScope } from '../../policy/index.js';
+import { assertBatchRoom, assertLearnerRoom } from '../../lib/partnerSubscriptions.js';
+import { batchManageScope, batchReadScope, batchVisible, inScope, isPlatformAdmin, partnerOrgs, rosterShowsContact, type BatchScope } from '../../policy/index.js';
 import { attendanceByCandidate, emptyStats } from '../operations/common.js';
 import { grantRole } from '../admin/roles.js';
 
@@ -211,6 +212,8 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
     if (course.owner_organisation_id && centre.organisation_id !== course.owner_organisation_id) {
       throw invalid('This course belongs to another training partner', { courseId: 'Runs only at its partner’s centres' });
     }
+    // A training partner's plan limits its active batches (AutoTalent Grid staff are not limited).
+    if (centre.organisation_id && !isPlatformAdmin(req.actor!) && partnerOrgs(req.actor!).includes(centre.organisation_id)) await assertBatchRoom(db, centre.organisation_id);
     const grantCentre = await assertTrainerFits(db, b.trainerId, b.centreId);
     const row = {
       id: newId(),
@@ -369,6 +372,11 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
       }
       if (Object.keys(problems).length) throw invalid('Some candidates cannot be enrolled. Nobody was added.', problems);
       const { n } = await trx.selectFrom('enrolments').select(sql<string>`count(*)`.as('n')).where('batch_id', '=', id).where('status', '!=', 'withdrawn').executeTakeFirstOrThrow();
+      // A training partner's plan limits its current learners (AutoTalent Grid staff are not limited).
+      if (!isPlatformAdmin(req.actor!)) {
+        const org = await trx.selectFrom('centres').select('organisation_id').where('id', '=', batch.centre_id).executeTakeFirst();
+        if (org?.organisation_id && partnerOrgs(req.actor!).includes(org.organisation_id)) await assertLearnerRoom(trx, org.organisation_id, unique.length);
+      }
       const free = batch.capacity - Number(n);
       if (unique.length > free) throw invalid(free <= 0 ? 'This batch is full.' : `Only ${free} ${free === 1 ? 'place is' : 'places are'} left in this batch.`, { capacity: `${n} of ${batch.capacity} enrolled` });
 

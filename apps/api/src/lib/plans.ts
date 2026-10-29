@@ -1,4 +1,4 @@
-import { PLAN_INFO, PLANS, type Plan, type PlanInfo, type PlanTable } from '@vta/shared';
+import { PARTNER_PLAN_INFO, PARTNER_PLANS, PLAN_INFO, PLANS, type PartnerPlan, type PartnerPlanInfo, type PartnerPlanTable, type Plan, type PlanInfo, type PlanTable } from '@vta/shared';
 import type { DB } from '../db/index.js';
 
 /**
@@ -7,17 +7,31 @@ import type { DB } from '../db/index.js';
  * so limits and prices follow an edit within half a minute everywhere.
  */
 const TTL_MS = 30_000;
-let cache: { at: number; employer: PlanTable } | null = null;
+let cache: { at: number; employer: PlanTable; partner: PartnerPlanTable } | null = null;
+
+async function load(db: DB) {
+  if (cache && Date.now() - cache.at < TTL_MS) return cache;
+  const rows = await db.selectFrom('plan_catalogue').select(['audience', 'code', 'info']).execute();
+  const employer = { ...PLAN_INFO } as PlanTable;
+  const partner = { ...PARTNER_PLAN_INFO } as PartnerPlanTable;
+  for (const r of rows) {
+    if (r.audience === 'employer' && (PLANS as readonly string[]).includes(r.code)) employer[r.code as Plan] = { ...PLAN_INFO[r.code as Plan], ...(r.info as Partial<PlanInfo>) };
+    if (r.audience === 'partner' && (PARTNER_PLANS as readonly string[]).includes(r.code)) partner[r.code as PartnerPlan] = { ...PARTNER_PLAN_INFO[r.code as PartnerPlan], ...(r.info as Partial<PartnerPlanInfo>) };
+  }
+  cache = { at: Date.now(), employer, partner };
+  return cache;
+}
 
 export async function employerPlans(db: DB): Promise<PlanTable> {
-  if (cache && Date.now() - cache.at < TTL_MS) return cache.employer;
-  const rows = await db.selectFrom('plan_catalogue').select(['code', 'info']).where('audience', '=', 'employer').execute();
-  const table = { ...PLAN_INFO } as PlanTable;
-  for (const r of rows) {
-    if ((PLANS as readonly string[]).includes(r.code)) table[r.code as Plan] = { ...PLAN_INFO[r.code as Plan], ...(r.info as Partial<PlanInfo>) };
-  }
-  cache = { at: Date.now(), employer: table };
-  return table;
+  return (await load(db)).employer;
+}
+
+export async function partnerPlans(db: DB): Promise<PartnerPlanTable> {
+  return (await load(db)).partner;
+}
+
+export async function partnerPlan(db: DB, plan: PartnerPlan): Promise<PartnerPlanInfo> {
+  return (await load(db)).partner[plan];
 }
 
 export async function employerPlan(db: DB, plan: Plan): Promise<PlanInfo> {

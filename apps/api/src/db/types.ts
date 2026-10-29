@@ -350,7 +350,7 @@ export interface NotificationsTable {
 
 export interface EmployerSubscriptionsTable {
   organisation_id: string;
-  plan: 'starter' | 'growth' | 'enterprise';
+  plan: 'starter' | 'growth' | 'enterprise' | 'professional' | 'institution';
   billing_cycle: 'monthly' | 'yearly' | null;
   period_start: Date;
   period_end: Date;
@@ -363,9 +363,10 @@ export interface EmployerSubscriptionsTable {
 export interface SubscriptionPaymentsTable {
   id: string;
   organisation_id: string;
-  plan: 'starter' | 'growth';
+  plan: 'starter' | 'growth' | 'professional' | 'institution';
   billing_cycle: 'monthly' | 'yearly';
   amount_paise: number;
+  gst_paise: Generated<number>;
   currency: Generated<string>;
   method: 'card' | 'upi' | 'netbanking' | 'wallet' | 'other';
   provider: 'test' | 'razorpay';
@@ -422,7 +423,8 @@ export interface PaymentOrdersTable {
   status: Generated<'created' | 'paid' | 'failed' | 'needs_refund'>;
   payer_id: string;
   organisation_id: string | null;
-  plan: 'starter' | 'growth' | null;
+  plan: 'starter' | 'growth' | 'professional' | 'institution' | null;
+  gst_paise: Generated<number>;
   billing_cycle: 'monthly' | 'yearly' | null;
   batch_id: string | null;
   needs_stay: Generated<boolean>;

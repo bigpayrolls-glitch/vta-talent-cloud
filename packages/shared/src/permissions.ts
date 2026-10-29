@@ -86,6 +86,8 @@ export const PERMISSIONS = {
   /** PA-01: the partner's own organisation profile and documents. */
   'partner.profile': ['partner_admin'],
   'partner.profile.read': ['partner_admin'],
+  /** 29 Oct 2026: the training partner's plan, payments and invoices. */
+  'partner.subscription': ['partner_admin'],
   'programme.manage': ['super_admin'],
   'programme.read': ['super_admin', 'partner_admin'],
   /** PA-05: programme documents. VTA staff and the assigned partner's admins. */
