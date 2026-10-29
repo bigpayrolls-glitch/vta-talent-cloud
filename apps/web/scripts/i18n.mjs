@@ -27,6 +27,24 @@ for (const name of SHARED_FILES) {
     if (/^[A-Z]/.test(s) && /[a-z]/.test(s) && !identifier && !/https?:|\$\{|^(INR|UPI)$/.test(s)) keys.add(s);
   }
 }
+// Label tables shown through t(TABLE[x]) (the text is not inside a t() call).
+const TABLES = [
+  ['components/ui.tsx', 'STATUS_LABEL'],
+  ['pages/learner/Certificates.tsx', 'STATUS'],
+  ['pages/learner/Home.tsx', 'VERIFY_TEXT'],
+];
+for (const [file, name] of TABLES) {
+  const text = readFileSync(join(src, file), 'utf8');
+  const at = text.indexOf(`const ${name}`);
+  const block = text.slice(at, text.indexOf('\n};', at));
+  for (const m of block.matchAll(/'((?:\\.|[^'\\])*)'/g)) if (/^[A-Z]/.test(m[1])) keys.add(unescape(m[1]));
+}
+// StatusBadge shows other statuses capitalised ("active" → "Active").
+{
+  const ui = readFileSync(join(src, 'components/ui.tsx'), 'utf8');
+  const block = ui.slice(ui.indexOf('const STATUS_STYLE'), ui.indexOf('\n};', ui.indexOf('const STATUS_STYLE')));
+  for (const m of block.matchAll(/^\s+'?([a-z]+)'?:/gm)) keys.add(m[1].charAt(0).toUpperCase() + m[1].slice(1));
+}
 keys.delete('');
 const sorted = [...keys].sort((a, b) => a.localeCompare(b));
 const placeholders = (s) => [...s.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).sort().join(',');

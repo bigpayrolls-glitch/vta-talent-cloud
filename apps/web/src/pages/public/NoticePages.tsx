@@ -3,6 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Wordmark } from '../../components/ui';
+import { currentLang, t } from '../../lib/i18n';
 
 /**
  * The privacy notice and terms of use shown at registration and on first sign-in.
@@ -13,14 +14,19 @@ function Shell({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div className="min-h-dvh bg-white">
       <header className="flex h-[72px] items-center border-b border-line px-4 lg:px-6">
-        <Link to="/" aria-label="AutoTalent Grid home">
+        <Link to="/" aria-label={t('AutoTalent Grid home')}>
           <Wordmark tagline />
         </Link>
       </header>
       <main className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
+        {currentLang() !== 'en' && (
+          <p role="note" className="mb-4 rounded-lg bg-surface px-3 py-2 text-sm">
+            {t('This notice is shown in English. Translations will follow.')}
+          </p>
+        )}
         <p role="note" className="mb-6 flex items-start gap-2 rounded-lg bg-warning-tint px-3 py-2 text-sm text-warning">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-          Draft for AutoTalent Grid review (version {NOTICE_VERSION}). The final wording and contact details are to be approved by AutoTalent Grid before the pilot.
+          {t('Draft for AutoTalent Grid review (version {version}). The final wording and contact details are to be approved by AutoTalent Grid before the pilot.', { version: NOTICE_VERSION })}
         </p>
         <h1 className="text-[28px] font-bold tracking-tight">{title}</h1>
         <div className="notice mt-6 space-y-5 text-[15px] leading-relaxed [&_h2]:mt-8 [&_h2]:text-lg [&_h2]:font-bold [&_li]:ml-5 [&_li]:list-disc">{children}</div>
@@ -107,7 +113,7 @@ function OrganisationTerms() {
 
 export function PrivacyPage() {
   return (
-    <Shell title="Privacy notice">
+    <Shell title={t('Privacy notice')}>
       <PrivacyNotice />
       <OrganisationPrivacy />
     </Shell>
@@ -116,7 +122,7 @@ export function PrivacyPage() {
 
 export function TermsPage() {
   return (
-    <Shell title="Terms of use">
+    <Shell title={t('Terms of use')}>
       <TermsOfUse />
       <OrganisationTerms />
     </Shell>

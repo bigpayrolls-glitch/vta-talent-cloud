@@ -27,6 +27,7 @@ import { EmptyState, ErrorNote, Spinner, Wordmark } from '../../components/ui';
 import { api, ApiError } from '../../lib/api';
 import { PaymentCancelled, payWithRazorpay, type RazorpayStart } from '../../lib/razorpay';
 import { useAuth } from '../../lib/auth';
+import { t, tn } from '../../lib/i18n';
 import { PublicShell } from './Home';
 
 /**
@@ -35,8 +36,8 @@ import { PublicShell } from './Home';
  * No ratings or reviews are shown: none are collected yet.
  */
 export const courseImage = (skillArea: string) => `/courses/${(SKILL_AREAS as readonly string[]).includes(skillArea) ? skillArea : 'other'}.webp`;
-const MODE_LABEL: Record<string, string> = { classroom: 'Classroom', online: 'Online', blended: 'Classroom and online' };
-const rupees = (n: number) => (n === 0 ? 'Free' : `₹${n.toLocaleString('en-IN')}`);
+const MODE_LABEL = (): Record<string, string> => ({ classroom: t('Classroom'), online: t('Online'), blended: t('Classroom and online') });
+const rupees = (n: number) => (n === 0 ? t('Free') : `₹${n.toLocaleString('en-IN')}`);
 const day = (d: string) => new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${d}T00:00:00`));
 const monthYear = (d: string) => new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric' }).format(new Date(`${d}T00:00:00`));
 
@@ -59,7 +60,7 @@ function CheckGroup<T extends string>({ legend, options, labels, value, onChange
         {options.map((o) => (
           <label key={o} className="flex items-center gap-2.5 text-sm">
             <input type="checkbox" className="size-4 accent-[#D7141C]" checked={value.includes(o)} onChange={(e) => onChange(e.target.checked ? [...value, o] : value.filter((x) => x !== o))} />
-            {labels[o]}
+            {t(labels[o])}
           </label>
         ))}
       </div>
@@ -92,10 +93,10 @@ export function CoursesPage() {
     <div className="space-y-4">
       <div>
         <label htmlFor="f-city" className="text-sm font-semibold">
-          Location
+          {t('Location')}
         </label>
         <select id="f-city" className="field-input mt-2" value={city} onChange={(e) => set('city', e.target.value)}>
-          <option value="">All locations</option>
+          <option value="">{t('All locations')}</option>
           {(q.data?.cities ?? []).map((c) => (
             <option key={c} value={c}>
               {c}
@@ -103,13 +104,13 @@ export function CoursesPage() {
           ))}
         </select>
       </div>
-      <CheckGroup legend="Course category" options={SKILL_AREAS} labels={SKILL_AREA_LABEL} value={list('skill') as SkillArea[]} onChange={(v) => set('skill', v)} />
-      <CheckGroup legend="Training mode" options={DELIVERY_MODES} labels={MODE_LABEL as Record<(typeof DELIVERY_MODES)[number], string>} value={list('mode') as (typeof DELIVERY_MODES)[number][]} onChange={(v) => set('mode', v)} />
-      <CheckGroup legend="Duration" options={DURATION_BUCKETS} labels={DURATION_BUCKET_LABEL} value={list('duration') as (typeof DURATION_BUCKETS)[number][]} onChange={(v) => set('duration', v)} />
-      <CheckGroup legend="Fee" options={FEE_BUCKETS} labels={FEE_BUCKET_LABEL} value={list('fee') as (typeof FEE_BUCKETS)[number][]} onChange={(v) => set('fee', v)} />
+      <CheckGroup legend={t('Course category')} options={SKILL_AREAS} labels={SKILL_AREA_LABEL} value={list('skill') as SkillArea[]} onChange={(v) => set('skill', v)} />
+      <CheckGroup legend={t('Training mode')} options={DELIVERY_MODES} labels={MODE_LABEL() as Record<(typeof DELIVERY_MODES)[number], string>} value={list('mode') as (typeof DELIVERY_MODES)[number][]} onChange={(v) => set('mode', v)} />
+      <CheckGroup legend={t('Duration')} options={DURATION_BUCKETS} labels={DURATION_BUCKET_LABEL} value={list('duration') as (typeof DURATION_BUCKETS)[number][]} onChange={(v) => set('duration', v)} />
+      <CheckGroup legend={t('Fee')} options={FEE_BUCKETS} labels={FEE_BUCKET_LABEL} value={list('fee') as (typeof FEE_BUCKETS)[number][]} onChange={(v) => set('fee', v)} />
       {active && (
         <button type="button" className="text-sm font-semibold text-[#C8101A] underline" onClick={() => setParams(sort !== 'soonest' ? { sort } : {}, { replace: true })}>
-          Clear filters
+          {t('Clear filters')}
         </button>
       )}
     </div>
@@ -118,30 +119,30 @@ export function CoursesPage() {
   return (
     <PublicShell>
       <div className="mx-auto grid max-w-[1440px] gap-8 px-4 py-8 sm:px-8 lg:grid-cols-[240px_1fr] lg:px-12">
-        <aside aria-label="Filters" className="hidden lg:block">
-          <h2 className="mb-4 font-bold">Filters</h2>
+        <aside aria-label={t('Filters')} className="hidden lg:block">
+          <h2 className="mb-4 font-bold">{t('Filters')}</h2>
           {filters}
         </aside>
         <div>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h1 className="text-[28px] font-bold tracking-tight">Training courses</h1>
+              <h1 className="text-[28px] font-bold tracking-tight">{t('Training courses')}</h1>
               <p className="text-sm text-muted" aria-live="polite">
-                {q.data ? `${q.data.total} ${q.data.total === 1 ? 'course' : 'courses'} with batches open for enrolment` : ' '}
+                {q.data ? (q.data.total === 1 ? t('{n} course with batches open for enrolment', { n: q.data.total }) : t('{n} courses with batches open for enrolment', { n: q.data.total })) : ' '}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <button type="button" className="btn-secondary lg:hidden" onClick={() => setFiltersOpen(true)}>
                 <SlidersHorizontal className="size-4" aria-hidden />
-                Filters
+                {t('Filters')}
               </button>
               <label htmlFor="f-sort" className="text-sm text-muted">
-                Sort by
+                {t('Sort by')}
               </label>
               <select id="f-sort" className="field-input w-auto" value={sort} onChange={(e) => set('sort', e.target.value === 'soonest' ? '' : e.target.value)}>
                 {COURSE_SORTS.map((s) => (
                   <option key={s} value={s}>
-                    {COURSE_SORT_LABEL[s]}
+                    {t(COURSE_SORT_LABEL[s])}
                   </option>
                 ))}
               </select>
@@ -156,7 +157,7 @@ export function CoursesPage() {
             </div>
           ) : !q.data!.items.length ? (
             <div className="card mt-6">
-              <EmptyState title="No courses match" body={active ? 'Try fewer filters.' : 'New batches are added regularly. Check back soon.'} />
+              <EmptyState title={t('No courses match')} body={active ? t('Try fewer filters.') : t('New batches are added regularly. Check back soon.')} />
             </div>
           ) : (
             <ul className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
@@ -165,22 +166,22 @@ export function CoursesPage() {
                   <img src={c.imageUrl ?? courseImage(c.skillArea)} alt="" className="aspect-[16/10] w-full object-cover" loading="lazy" />
                   <div className="flex flex-1 flex-col px-4 py-4">
                     <h2 className="font-bold leading-snug">{c.title}</h2>
-                    <p className="text-sm text-muted">{COURSE_LEVEL_LABEL[c.level as keyof typeof COURSE_LEVEL_LABEL] ?? c.level}</p>
+                    <p className="text-sm text-muted">{t(COURSE_LEVEL_LABEL[c.level as keyof typeof COURSE_LEVEL_LABEL] ?? c.level)}</p>
                     <div className="mt-3 space-y-1.5 text-[13px] text-ink/80">
                       <Meta icon={Building2}>{c.providers.join(', ')}</Meta>
                       <div className="flex flex-wrap gap-x-4 gap-y-1">
                         <Meta icon={Clock}>{durationText(c.durationValue, c.durationUnit)}</Meta>
-                        <Meta icon={School}>{MODE_LABEL[c.deliveryMode] ?? c.deliveryMode}</Meta>
+                        <Meta icon={School}>{MODE_LABEL()[c.deliveryMode] ?? c.deliveryMode}</Meta>
                       </div>
                       <div className="flex flex-wrap gap-x-4 gap-y-1">
-                        <Meta icon={MapPin}>{c.cities.join(', ') || 'Online'}</Meta>
-                        <Meta icon={CalendarDays}>Starts {day(c.nextStart)}</Meta>
+                        <Meta icon={MapPin}>{c.cities.join(', ') || t('Online')}</Meta>
+                        <Meta icon={CalendarDays}>{t('Starts {date}', { date: day(c.nextStart) })}</Meta>
                       </div>
                     </div>
                     {c.skillTags.length > 0 && (
-                      <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Skills">
-                        {c.skillTags.slice(0, 4).map((t) => (
-                          <li key={t} className="rounded-full bg-brand-tint px-2.5 py-0.5 text-[11px] font-semibold text-[#C8101A]">{t}</li>
+                      <ul className="mt-3 flex flex-wrap gap-1.5" aria-label={t('Skills')}>
+                        {c.skillTags.slice(0, 4).map((tag) => (
+                          <li key={tag} className="rounded-full bg-brand-tint px-2.5 py-0.5 text-[11px] font-semibold text-[#C8101A]">{tag}</li>
                         ))}
                         {c.skillTags.length > 4 && <li className="rounded-full bg-surface px-2.5 py-0.5 text-[11px] font-semibold text-muted">+{c.skillTags.length - 4}</li>}
                       </ul>
@@ -188,20 +189,20 @@ export function CoursesPage() {
                     <div className="mt-auto flex items-end justify-between gap-2 pt-3">
                       <p className="text-xl font-extrabold">
                         {rupees(c.feeRupees)}
-                        {c.feeRupees > 0 && c.gstPct > 0 && <span className="ml-1 text-xs font-medium text-muted">incl. GST</span>}
+                        {c.feeRupees > 0 && c.gstPct > 0 && <span className="ml-1 text-xs font-medium text-muted">{t('incl. GST')}</span>}
                       </p>
-                      <p className={`text-xs font-semibold ${c.seatsLeft <= 5 ? 'text-[#C8101A]' : 'text-success'}`}>{c.seatsLeft} {c.seatsLeft === 1 ? 'seat' : 'seats'} left</p>
+                      <p className={`text-xs font-semibold ${c.seatsLeft <= 5 ? 'text-[#C8101A]' : 'text-success'}`}>{c.seatsLeft === 1 ? t('{n} seat left', { n: c.seatsLeft }) : t('{n} seats left', { n: c.seatsLeft })}</p>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2">
-                      <Link to={`/courses/${c.id}`} className="btn-secondary h-10" aria-label={`View details: ${c.title}`}>
-                        Details
+                      <Link to={`/courses/${c.id}`} className="btn-secondary h-10" aria-label={t('View details: {title}', { title: c.title })}>
+                        {t('Details')}
                       </Link>
                       {c.nextBatchId ? (
-                        <Link to={`/enrol/${c.nextBatchId}`} className="btn-primary h-10 bg-[#C8101A] hover:bg-brand-hover" aria-label={`Enrol now: ${c.title}`}>
-                          Enrol now
+                        <Link to={`/enrol/${c.nextBatchId}`} className="btn-primary h-10 bg-[#C8101A] hover:bg-brand-hover" aria-label={t('Enrol now: {title}', { title: c.title })}>
+                          {t('Enrol now')}
                         </Link>
                       ) : (
-                        <span className="btn-secondary h-10 cursor-default opacity-60">Full</span>
+                        <span className="btn-secondary h-10 cursor-default opacity-60">{t('Full')}</span>
                       )}
                     </div>
                   </div>
@@ -212,18 +213,18 @@ export function CoursesPage() {
         </div>
       </div>
       {filtersOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Filters">
-          <button type="button" className="absolute inset-0 bg-ink/40" onClick={() => setFiltersOpen(false)} aria-label="Close filters" />
+        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label={t('Filters')}>
+          <button type="button" className="absolute inset-0 bg-ink/40" onClick={() => setFiltersOpen(false)} aria-label={t('Close filters')} />
           <div className="absolute inset-y-0 right-0 w-[85%] max-w-sm overflow-y-auto bg-white p-5 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-bold">Filters</h2>
-              <button type="button" className="rounded-lg p-2 hover:bg-surface" onClick={() => setFiltersOpen(false)} aria-label="Close filters">
+              <h2 className="font-bold">{t('Filters')}</h2>
+              <button type="button" className="rounded-lg p-2 hover:bg-surface" onClick={() => setFiltersOpen(false)} aria-label={t('Close filters')}>
                 <X className="size-5" />
               </button>
             </div>
             {filters}
             <button type="button" className="btn-primary mt-6 w-full" onClick={() => setFiltersOpen(false)}>
-              Show {q.data?.total ?? ''} courses
+              {t('Show {n} courses', { n: q.data?.total ?? '' })}
             </button>
           </div>
         </div>
@@ -235,6 +236,7 @@ export function CoursesPage() {
 // ---------------------------------------------------------------- course details
 
 const TABS = ['Overview', 'Syllabus', 'Certification'] as const;
+const TAB_LABEL = (): Record<(typeof TABS)[number], string> => ({ Overview: t('Overview'), Syllabus: t('Syllabus'), Certification: t('Certification') });
 
 export function CourseDetailPage() {
   const { id = '' } = useParams();
@@ -261,63 +263,63 @@ export function CourseDetailPage() {
       <div className="mx-auto max-w-[1280px] px-4 py-6 sm:px-8 lg:px-12">
         <Link to="/courses" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink">
           <ArrowLeft className="size-4" aria-hidden />
-          Back to courses
+          {t('Back to courses')}
         </Link>
         <section className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,420px)_1fr]">
           <img src={c.imageUrl ?? courseImage(c.skillArea)} alt="" className="aspect-[16/10] w-full rounded-2xl object-cover" />
           <div>
-            <p className="text-[13px] font-semibold tracking-wide text-[#C8101A] uppercase">{SKILL_AREA_LABEL[c.skillArea as SkillArea] ?? c.skillArea}</p>
+            <p className="text-[13px] font-semibold tracking-wide text-[#C8101A] uppercase">{t(SKILL_AREA_LABEL[c.skillArea as SkillArea] ?? c.skillArea)}</p>
             <h1 className="mt-1 text-[28px] leading-tight font-bold tracking-tight sm:text-[32px]">
-              {c.title} <span className="font-semibold text-ink/70">({COURSE_LEVEL_LABEL[c.level as keyof typeof COURSE_LEVEL_LABEL] ?? c.level})</span>
+              {c.title} <span className="font-semibold text-ink/70">({t(COURSE_LEVEL_LABEL[c.level as keyof typeof COURSE_LEVEL_LABEL] ?? c.level)})</span>
             </h1>
             <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-ink/80">
               {c.providers.length > 0 && <Meta icon={Building2}>{c.providers.join(', ')}</Meta>}
               {c.cities.length > 0 && <Meta icon={MapPin}>{c.cities.join(', ')}</Meta>}
               <Meta icon={Clock}>{durationText(c.durationValue, c.durationUnit)}</Meta>
-              <Meta icon={School}>{MODE_LABEL[c.deliveryMode] ?? c.deliveryMode}</Meta>
-              <Meta icon={Award}>Certificate</Meta>
+              <Meta icon={School}>{MODE_LABEL()[c.deliveryMode] ?? c.deliveryMode}</Meta>
+              <Meta icon={Award}>{t('Certificate')}</Meta>
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-4">
               <p className="text-[32px] font-extrabold tracking-tight">
                 {rupees(c.feeRupees)}
-                {c.feeRupees > 0 && c.gstPct > 0 && <span className="ml-1.5 text-sm font-medium text-muted">incl. {c.gstPct}% GST</span>}
+                {c.feeRupees > 0 && c.gstPct > 0 && <span className="ml-1.5 text-sm font-medium text-muted">{t('incl. {pct}% GST', { pct: c.gstPct })}</span>}
               </p>
               {first ? (
                 <Link to={`/enrol/${first.id}`} className="btn-primary h-12 min-w-[220px] bg-[#C8101A] px-8 text-base hover:bg-brand-hover">
-                  Enrol now
+                  {t('Enrol now')}
                 </Link>
               ) : (
-                <p className="text-sm text-muted">No batch open for enrolment right now.</p>
+                <p className="text-sm text-muted">{t('No batch open for enrolment right now.')}</p>
               )}
             </div>
-            {first && <p className="mt-2 text-sm text-muted">Next batch starts {day(first.startDate)}. Your seat is confirmed straight away.</p>}
+            {first && <p className="mt-2 text-sm text-muted">{t('Next batch starts {date}. Your seat is confirmed straight away.', { date: day(first.startDate) })}</p>}
           </div>
         </section>
 
         <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_340px]">
           <section className="card">
-            <div role="tablist" aria-label="Course information" className="flex gap-1 overflow-x-auto border-b border-line px-3">
-              {TABS.map((t) => (
+            <div role="tablist" aria-label={t('Course information')} className="flex gap-1 overflow-x-auto border-b border-line px-3">
+              {TABS.map((x) => (
                 <button
-                  key={t}
+                  key={x}
                   type="button"
                   role="tab"
-                  aria-selected={tab === t}
-                  onClick={() => setTab(t)}
-                  className={`-mb-px border-b-2 px-3 py-3 text-sm font-semibold whitespace-nowrap ${tab === t ? 'border-[#D7141C] text-[#C8101A]' : 'border-transparent text-muted hover:text-ink'}`}
+                  aria-selected={tab === x}
+                  onClick={() => setTab(x)}
+                  className={`-mb-px border-b-2 px-3 py-3 text-sm font-semibold whitespace-nowrap ${tab === x ? 'border-[#D7141C] text-[#C8101A]' : 'border-transparent text-muted hover:text-ink'}`}
                 >
-                  {t}
+                  {TAB_LABEL()[x]}
                 </button>
               ))}
             </div>
             <div role="tabpanel" className="px-5 py-5">
               {tab === 'Overview' && (
                 <>
-                  <h2 className="font-bold">About this course</h2>
-                  <p className="mt-2 whitespace-pre-line text-ink/80">{c.description || `${c.title}: hands-on training at a workshop centre, assessed by your trainer.`}</p>
+                  <h2 className="font-bold">{t('About this course')}</h2>
+                  <p className="mt-2 whitespace-pre-line text-ink/80">{c.description || t('{title}: hands-on training at a workshop centre, assessed by your trainer.', { title: c.title })}</p>
                   {c.skills.length > 0 && (
                     <>
-                      <h2 className="mt-6 font-bold">What you will learn</h2>
+                      <h2 className="mt-6 font-bold">{t('What you will learn')}</h2>
                       <ul className="mt-2 grid gap-2 sm:grid-cols-2">
                         {c.skills.map((s) => (
                           <li key={s.label} className="flex gap-2">
@@ -330,7 +332,7 @@ export function CourseDetailPage() {
                   )}
                   {c.learningOutcomes.length > 0 && (
                     <>
-                      <h2 className="mt-6 font-bold">By the end you will be able to</h2>
+                      <h2 className="mt-6 font-bold">{t('By the end you will be able to')}</h2>
                       <ul className="mt-2 list-disc space-y-1 pl-5 text-ink/80">
                         {c.learningOutcomes.map((o) => <li key={o}>{o}</li>)}
                       </ul>
@@ -338,7 +340,7 @@ export function CourseDetailPage() {
                   )}
                   {c.prerequisites && (
                     <>
-                      <h2 className="mt-6 font-bold">Before you join</h2>
+                      <h2 className="mt-6 font-bold">{t('Before you join')}</h2>
                       <p className="mt-2 whitespace-pre-line text-ink/80">{c.prerequisites}</p>
                     </>
                   )}
@@ -346,7 +348,7 @@ export function CourseDetailPage() {
               )}
               {tab === 'Syllabus' && c.modules.length > 0 && (
                 <>
-                  <h2 className="font-bold">Course modules</h2>
+                  <h2 className="font-bold">{t('Course modules')}</h2>
                   <ol className="mt-3 space-y-2">
                     {c.modules.map((m, i) => (
                       <li key={m.name} className="flex gap-3">
@@ -359,42 +361,42 @@ export function CourseDetailPage() {
                       </li>
                     ))}
                   </ol>
-                  {c.trainingHours && <p className="mt-4 text-sm text-muted">{c.trainingHours} training hours in all.</p>}
+                  {c.trainingHours && <p className="mt-4 text-sm text-muted">{t('{n} training hours in all.', { n: c.trainingHours })}</p>}
                 </>
               )}
               {tab === 'Syllabus' && c.modules.length === 0 && (
                 <>
-                  <h2 className="font-bold">Skills taught and assessed</h2>
+                  <h2 className="font-bold">{t('Skills taught and assessed')}</h2>
                   <ol className="mt-3 space-y-2">
                     {c.skills.map((s, i) => (
                       <li key={s.label} className="flex gap-3">
                         <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand-tint text-sm font-semibold text-[#C8101A]">{i + 1}</span>
                         <span className="pt-0.5">
                           {s.label}
-                          {s.required && <span className="ml-2 text-xs text-muted">must pass</span>}
+                          {s.required && <span className="ml-2 text-xs text-muted">{t('must pass')}</span>}
                         </span>
                       </li>
                     ))}
                   </ol>
-                  {c.trainingHours && <p className="mt-4 text-sm text-muted">About {c.trainingHours} training hours.</p>}
+                  {c.trainingHours && <p className="mt-4 text-sm text-muted">{t('About {n} training hours.', { n: c.trainingHours })}</p>}
                 </>
               )}
               {tab === 'Certification' && (
                 <>
-                  <h2 className="font-bold">How you earn the certificate</h2>
-                  {c.certificateType && c.certificateType !== 'No certificate' && <p className="mt-1 text-sm text-muted">Certificate: {c.certificateType}</p>}
+                  <h2 className="font-bold">{t('How you earn the certificate')}</h2>
+                  {c.certificateType && c.certificateType !== 'No certificate' && <p className="mt-1 text-sm text-muted">{t('Certificate: {type}', { type: c.certificateType })}</p>}
                   <ul className="mt-3 space-y-2">
                     <li className="flex gap-2">
                       <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-                      Attend at least {c.attendanceThresholdPct}% of the sessions.
+                      {t('Attend at least {pct}% of the sessions.', { pct: c.attendanceThresholdPct })}
                     </li>
                     <li className="flex gap-2">
                       <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-                      Score at least {c.passMarkPct}% in the trainer&apos;s assessment, passing every must-pass skill.
+                      {t('Score at least {pct}% in the trainer\'s assessment, passing every must-pass skill.', { pct: c.passMarkPct })}
                     </li>
                     <li className="flex gap-2">
                       <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-                      AutoTalent Grid issues your certificate. Employers can check it with its QR code.
+                      {t('AutoTalent Grid issues your certificate. Employers can check it with its QR code.')}
                     </li>
                   </ul>
                 </>
@@ -404,10 +406,10 @@ export function CourseDetailPage() {
 
           <aside aria-labelledby="batches-h" className="card h-fit px-5 py-4">
             <h2 id="batches-h" className="font-bold">
-              Upcoming batches
+              {t('Upcoming batches')}
             </h2>
             {!c.batches.length ? (
-              <p className="mt-2 text-sm text-muted">No batch is open right now.</p>
+              <p className="mt-2 text-sm text-muted">{t('No batch is open right now.')}</p>
             ) : (
               <ul className="mt-2 divide-y divide-line">
                 {c.batches.map((b) => (
@@ -426,11 +428,11 @@ export function CourseDetailPage() {
                         {b.centre}
                         {b.city ? `, ${b.city}` : ''}
                       </span>
-                      <span className={`block ${b.seatsLeft ? 'text-ink/80' : 'font-semibold text-warning'}`}>{b.seatsLeft ? `${b.seatsLeft} seats left` : 'Full'}</span>
+                      <span className={`block ${b.seatsLeft ? 'text-ink/80' : 'font-semibold text-warning'}`}>{b.seatsLeft ? t('{n} seats left', { n: b.seatsLeft }) : t('Full')}</span>
                     </span>
                     {b.seatsLeft > 0 && (
-                      <Link to={`/enrol/${b.id}`} className="btn-secondary btn-sm border-[#D7141C] text-[#C8101A]" aria-label={`Enrol now: ${b.name}`}>
-                        Enrol now
+                      <Link to={`/enrol/${b.id}`} className="btn-secondary btn-sm border-[#D7141C] text-[#C8101A]" aria-label={t('Enrol now: {title}', { title: b.name })}>
+                        {t('Enrol now')}
                       </Link>
                     )}
                   </li>
@@ -454,9 +456,9 @@ interface Quote {
 }
 
 function Stepper({ step }: { step: 1 | 2 | 3 }) {
-  const steps = ['Course and batch', 'Payment', 'Confirmation'];
+  const steps = [t('Course and batch'), t('Payment'), t('Confirmation')];
   return (
-    <ol className="flex flex-wrap items-center gap-x-6 gap-y-2" aria-label="Enrolment steps">
+    <ol className="flex flex-wrap items-center gap-x-6 gap-y-2" aria-label={t('Enrolment steps')}>
       {steps.map((s, i) => {
         const n = i + 1;
         const done = n < step;
@@ -519,7 +521,7 @@ export function EnrolPage() {
     return (
       <PublicShell>
         <div className="mx-auto max-w-xl px-4 py-12">
-          <ErrorNote message="Enrolling is for learner accounts. Sign out and sign in with your learner mobile number." />
+          <ErrorNote message={t('Enrolling is for learner accounts. Sign out and sign in with your learner mobile number.')} />
         </div>
       </PublicShell>
     );
@@ -542,7 +544,7 @@ export function EnrolPage() {
               <div className="mt-6 grid gap-6 lg:grid-cols-2">
                 <section className="card px-5 py-5" aria-labelledby="sel-h">
                   <h1 id="sel-h" className="font-bold">
-                    Selected course
+                    {t('Selected course')}
                   </h1>
                   <div className="mt-3 flex gap-3">
                     <img src={courseImage(d.course.skillArea)} alt="" className="h-16 w-24 shrink-0 rounded-lg object-cover" />
@@ -552,26 +554,26 @@ export function EnrolPage() {
                     </div>
                   </div>
                   <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-sm">
-                    <dt className="text-muted">Batch</dt>
+                    <dt className="text-muted">{t('Batch')}</dt>
                     <dd className="font-medium">{d.batch.name}</dd>
-                    <dt className="text-muted">Dates</dt>
+                    <dt className="text-muted">{t('Dates')}</dt>
                     <dd>
                       {day(d.batch.startDate)} – {day(d.batch.endDate)}
                     </dd>
-                    <dt className="text-muted">Location</dt>
+                    <dt className="text-muted">{t('Location')}</dt>
                     <dd>
                       {d.batch.centre}
                       {d.batch.city ? `, ${d.batch.city}` : ''}
                     </dd>
-                    <dt className="text-muted">Mode</dt>
-                    <dd>{MODE_LABEL[d.course.deliveryMode] ?? d.course.deliveryMode}</dd>
-                    <dt className="text-muted">Duration</dt>
+                    <dt className="text-muted">{t('Mode')}</dt>
+                    <dd>{MODE_LABEL()[d.course.deliveryMode] ?? d.course.deliveryMode}</dd>
+                    <dt className="text-muted">{t('Duration')}</dt>
                     <dd>{durationText(d.course.durationValue, d.course.durationUnit)}</dd>
-                    <dt className="text-muted">Seats left</dt>
+                    <dt className="text-muted">{t('Seats left')}</dt>
                     <dd>{d.batch.seatsLeft}</dd>
                   </dl>
                   <Link to={`/courses/${d.course.id}`} className="mt-4 inline-block text-sm font-semibold text-[#C8101A] underline">
-                    Choose another batch
+                    {t('Choose another batch')}
                   </Link>
                 </section>
 
@@ -584,15 +586,15 @@ export function EnrolPage() {
                   }}
                 >
                   <h2 id="pay-h" className="font-bold">
-                    Payment summary
+                    {t('Payment summary')}
                   </h2>
                   <dl className="mt-3 divide-y divide-line text-sm">
                     <div className="flex justify-between py-2">
-                      <dt className="text-muted">Course fee</dt>
+                      <dt className="text-muted">{t('Course fee')}</dt>
                       <dd>{rupees(fee)}</dd>
                     </div>
                     <div className="flex justify-between py-2 text-base">
-                      <dt className="font-bold">Total amount</dt>
+                      <dt className="font-bold">{t('Total amount')}</dt>
                       <dd className="font-bold">{rupees(fee)}</dd>
                     </div>
                   </dl>
@@ -601,26 +603,26 @@ export function EnrolPage() {
                       <ErrorNote message={d.blocker} />
                     </div>
                   ) : fee > 0 && d.paymentMode === 'none' ? (
-                    <p className="mt-4 rounded-lg bg-surface px-4 py-3 text-sm">Online payment is not switched on yet. Contact the training centre to enrol.</p>
+                    <p className="mt-4 rounded-lg bg-surface px-4 py-3 text-sm">{t('Online payment is not switched on yet. Contact the training centre to enrol.')}</p>
                   ) : (
                     <>
                       {fee > 0 && d.paymentMode === 'razorpay' && (
                         <p className="mt-4 flex items-start gap-2.5 rounded-lg bg-surface px-4 py-3 text-sm">
                           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-                          <span>You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. Your seat is confirmed as soon as the payment goes through.</span>
+                          <span>{t('You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. Your seat is confirmed as soon as the payment goes through.')}</span>
                         </p>
                       )}
                       {fee > 0 && d.paymentMode === 'test' && (
                         <fieldset className="mt-5">
-                          <legend className="font-semibold">Select payment method</legend>
-                          <div className="mt-2 space-y-2" role="radiogroup" aria-label="Payment method">
+                          <legend className="font-semibold">{t('Select payment method')}</legend>
+                          <div className="mt-2 space-y-2" role="radiogroup" aria-label={t('Payment method')}>
                             {PAY_METHODS.map((m) => {
                               const Icon = METHOD_ICON[m];
                               return (
                                 <label key={m} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm ${method === m ? 'border-[#D7141C] bg-brand-tint' : 'border-line hover:bg-surface'}`}>
                                   <input type="radio" name="method" className="size-4 accent-[#D7141C]" checked={method === m} onChange={() => setMethod(m)} />
                                   <Icon className="size-4 text-ink/60" aria-hidden />
-                                  {PAY_METHOD_LABEL[m]}
+                                  {t(PAY_METHOD_LABEL[m])}
                                 </label>
                               );
                             })}
@@ -629,22 +631,24 @@ export function EnrolPage() {
                       )}
                       {fee > 0 && d.paymentMode === 'test' && (
                         <p role="note" className="mt-4 rounded-lg bg-warning-tint px-4 py-3 text-sm text-warning">
-                          <span className="font-semibold">Test payment.</span> This staging copy has no payment provider: no money is taken and no card or bank details are asked for.
+                          {tn('{label} This staging copy has no payment provider: no money is taken and no card or bank details are asked for.', { label: <span className="font-semibold">{t('Test payment.')}</span> })}
                         </p>
                       )}
                       <label className="mt-4 flex items-start gap-2.5 text-sm">
                         <input type="checkbox" className="mt-0.5 size-4 accent-[#D7141C]" checked={terms} onChange={(e) => setTerms(e.target.checked)} />
                         <span>
-                          I agree to the{' '}
-                          <Link to="/terms" target="_blank" className="font-medium text-[#C8101A] underline">
-                            terms of use
-                          </Link>
-                          .
+                          {tn('I agree to the {link}.', {
+                            link: (
+                              <Link to="/terms" target="_blank" className="font-medium text-[#C8101A] underline">
+                                {t('terms of use')}
+                              </Link>
+                            ),
+                          })}
                         </span>
                       </label>
                       {err?.fields.acceptTerms && (
                         <p className="field-error" role="alert">
-                          {err.fields.acceptTerms}
+                          {t(err.fields.acceptTerms)}
                         </p>
                       )}
                       {err && !err.fields.acceptTerms && (
@@ -654,11 +658,11 @@ export function EnrolPage() {
                       )}
                       {note && (
                         <p role="status" className="mt-3 rounded-lg bg-warning-tint px-4 py-3 text-sm text-warning">
-                          {note}
+                          {t(note)}
                         </p>
                       )}
                       <button type="submit" className="btn-primary mt-5 h-12 w-full bg-[#C8101A] text-base hover:bg-brand-hover" disabled={pay.isPending}>
-                        {stage === 'verifying' ? 'Confirming your payment…' : stage === 'paying' ? 'Complete the payment in the Razorpay window…' : pay.isPending ? 'Please wait…' : fee > 0 ? `Pay ${rupees(fee)}` : 'Confirm enrolment'}
+                        {stage === 'verifying' ? t('Confirming your payment…') : stage === 'paying' ? t('Complete the payment in the Razorpay window…') : pay.isPending ? t('Please wait…') : fee > 0 ? t('Pay {amount}', { amount: rupees(fee) }) : t('Confirm enrolment')}
                       </button>
                     </>
                   )}
@@ -686,7 +690,7 @@ interface Receipt {
   batch: { name: string; startDate: string; endDate: string; centre: string; city: string | null; provider: string };
 }
 
-const NEXT_STEPS = ['The training centre has your enrolment and will contact you about the batch.', 'Attend the training as per the schedule.', 'Complete the assessment with your trainer.', 'Get certified and apply for jobs.'];
+const NEXT_STEPS = () => [t('The training centre has your enrolment and will contact you about the batch.'), t('Attend the training as per the schedule.'), t('Complete the assessment with your trainer.'), t('Get certified and apply for jobs.')];
 
 export function EnrolDonePage() {
   const { id = '' } = useParams();
@@ -701,12 +705,13 @@ export function EnrolDonePage() {
       </PublicShell>
     );
   const r = q.data!;
+  const statusLabel = t('Payment status');
   const rows: [string, string][] = [
-    ['Enrolment ID', r.receiptNumber],
-    ['Amount paid', r.free ? 'Free course' : rupees(r.amountRupees)],
-    ['Payment status', r.free ? 'Not needed' : r.test ? 'Paid (test)' : 'Paid'],
-    ['Batch starts', day(r.batch.startDate)],
-    ['Location', `${r.batch.centre}${r.batch.city ? `, ${r.batch.city}` : ''}`],
+    [t('Enrolment ID'), r.receiptNumber],
+    [t('Amount paid'), r.free ? t('Free course') : rupees(r.amountRupees)],
+    [statusLabel, r.free ? t('Not needed') : r.test ? t('Paid (test)') : t('Paid')],
+    [t('Batch starts'), day(r.batch.startDate)],
+    [t('Location'), `${r.batch.centre}${r.batch.city ? `, ${r.batch.city}` : ''}`],
   ];
   return (
     <PublicShell>
@@ -722,10 +727,10 @@ export function EnrolDonePage() {
             <div className="text-center">
               <CircleCheck className="mx-auto size-16 text-success print:hidden" aria-hidden />
               <h1 id="done-h" className="mt-3 text-[26px] font-bold tracking-tight">
-                Enrolment successful!
+                {t('Enrolment successful!')}
               </h1>
-              <p className="text-muted">You are now enrolled in the course.</p>
-              {r.test && <p className="mt-1 text-sm text-warning">Test payment: no money was taken. Not a tax invoice.</p>}
+              <p className="text-muted">{t('You are now enrolled in the course.')}</p>
+              {r.test && <p className="mt-1 text-sm text-warning">{t('Test payment: no money was taken. Not a tax invoice.')}</p>}
             </div>
             <div className="mt-6 flex gap-3 border-t border-line pt-5">
               <div>
@@ -742,27 +747,27 @@ export function EnrolDonePage() {
               {rows.map(([k, v]) => (
                 <div key={k} className="flex justify-between gap-3 py-2.5">
                   <dt className="text-muted">{k}</dt>
-                  <dd className={`text-right font-semibold ${k === 'Payment status' ? 'text-success' : ''}`}>{v}</dd>
+                  <dd className={`text-right font-semibold ${k === statusLabel ? 'text-success' : ''}`}>{v}</dd>
                 </div>
               ))}
             </dl>
             <div className="mt-6 grid gap-2 print:hidden">
               <Link to="/learn/learning" className="btn-primary h-12 bg-[#C8101A] text-base hover:bg-brand-hover">
-                Go to My Courses
+                {t('Go to My Courses')}
                 <ArrowRight className="size-5" aria-hidden />
               </Link>
               <button type="button" className="btn-secondary h-12 border-[#D7141C] text-base text-[#C8101A]" onClick={() => window.print()}>
                 <Printer className="size-4" aria-hidden />
-                Download receipt
+                {t('Download receipt')}
               </button>
             </div>
           </article>
           <aside className="card h-fit px-5 py-5 print:hidden" aria-labelledby="next-h">
             <h2 id="next-h" className="font-bold">
-              What&apos;s next?
+              {t('What\'s next?')}
             </h2>
             <ol className="mt-3 space-y-4">
-              {NEXT_STEPS.map((s, i) => (
+              {NEXT_STEPS().map((s, i) => (
                 <li key={s} className="flex gap-3 text-sm">
                   <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand-tint font-semibold text-[#C8101A]">{i + 1}</span>
                   <span className="pt-1">{s}</span>

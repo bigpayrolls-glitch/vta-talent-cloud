@@ -87,7 +87,7 @@ function ProfileView({ p }: { p: LearnerProfile }) {
         <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface" aria-hidden>
           <div className="h-full rounded-full bg-brand" style={{ width: `${p.completeness.pct}%` }} />
         </div>
-        {p.completeness.missing.length > 0 && <p className="mt-2 text-[13px] text-muted">{t('Still to add: {list}', { list: p.completeness.missing.join(', ') })}</p>}
+        {p.completeness.missing.length > 0 && <p className="mt-2 text-[13px] text-muted">{t('Still to add: {list}', { list: p.completeness.missing.map((m) => t(m)).join(', ') })}</p>}
       </aside>
     </div>
   );
