@@ -17,7 +17,7 @@ const idParam = z.object({ id: uuidSchema });
  * AutoTalent Grid career journey courses that have a ready-made picture in the web app (29 Oct 2026). An image
  * uploaded later replaces it.
  */
-const JOURNEY_PICTURES = new Set(['ATG-PARTS-1', 'ATG-PARTS-2', 'ATG-PARTS-3', 'ATG-TECH-4', 'ATG-SA-1', 'ATG-SA-2', 'ATG-SA-3', 'ATG-FS-1', 'ATG-FS-2', 'ATG-FS-3', 'ATG-FS-4']);
+const JOURNEY_PICTURES = new Set(['ATG-TECH-1', 'ATG-TECH-2', 'ATG-TECH-3', 'ATG-PARTS-1', 'ATG-PARTS-2', 'ATG-PARTS-3', 'ATG-TECH-4', 'ATG-SA-1', 'ATG-SA-2', 'ATG-SA-3', 'ATG-FS-1', 'ATG-FS-2', 'ATG-FS-3', 'ATG-FS-4']);
 
 /** Where the browser loads a course picture from (cache-busted by the last change). */
 export function courseImageUrl(c: Pick<Course, 'id' | 'image_key' | 'updated_at'> & { code?: string | null }, publicRoute = false): string | null {
