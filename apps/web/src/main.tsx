@@ -3,7 +3,8 @@ import './zod-config';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
-import { createBrowserRouter, RouterProvider } from 'react-router';
+import { createBrowserRouter, RouterProvider, type RouteObject } from 'react-router';
+import { RouteError } from './components/RouteError';
 import { ToastProvider } from './components/toast';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { AuthProvider } from './lib/auth';
@@ -17,7 +18,7 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
 });
 
-const router = createBrowserRouter([
+const routes: RouteObject[] = [
   // Public site (Phase 8). Signed-in people are sent on to their portal.
   { path: '/', lazy: () => import('./pages/public/Home').then((m) => ({ Component: m.PublicHomePage })) },
   { path: '/courses', lazy: () => import('./pages/public/Courses').then((m) => ({ Component: m.CoursesPage })) },
@@ -185,7 +186,10 @@ const router = createBrowserRouter([
     ],
   },
   { path: '*', element: <NotFound /> },
-]);
+];
+
+// Every screen shows a friendly error with Reload instead of a blank technical page.
+const router = createBrowserRouter(routes.map((r) => ({ ...r, errorElement: <RouteError /> })));
 
 // The staging banner takes 30px; one-screen pages (home, sign-in) subtract it so they still fit the window.
 if (import.meta.env.VITE_APP_ENV === 'staging') document.documentElement.style.setProperty('--banner-h', '30px');

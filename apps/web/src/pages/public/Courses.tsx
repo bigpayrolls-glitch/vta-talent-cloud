@@ -45,7 +45,11 @@ import { PublicShell } from './Home';
 export const courseImage = (skillArea: string) => `/courses/${(SKILL_AREAS as readonly string[]).includes(skillArea) ? skillArea : 'other'}.webp`;
 const MODE_LABEL = (): Record<string, string> => ({ classroom: t('Classroom'), online: t('Online'), blended: t('Classroom and online') });
 const rupees = (n: number) => (n === 0 ? t('Free') : `₹${n.toLocaleString('en-IN')}`);
-const day = (d: string) => new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${d}T00:00:00`));
+/** "10 Nov 2026"; empty when there is no date (a career course has no batch until one is assigned). */
+const day = (d: string | null | undefined) => {
+  const at = d ? new Date(`${d.slice(0, 10)}T00:00:00`) : null;
+  return at && !Number.isNaN(at.getTime()) ? new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(at) : '';
+};
 const monthYear = (d: string) => new Intl.DateTimeFormat('en-IN', { month: 'short', year: 'numeric' }).format(new Date(`${d}T00:00:00`));
 
 function Meta({ icon: Icon, children }: { icon: typeof Clock; children: ReactNode }) {
@@ -184,7 +188,7 @@ export function CoursesPage() {
                       {!c.track && (
                         <div className="flex flex-wrap gap-x-4 gap-y-1">
                           <Meta icon={MapPin}>{c.cities.join(', ') || t('Online')}</Meta>
-                          <Meta icon={CalendarDays}>{t('Starts {date}', { date: day(c.nextStart) })}</Meta>
+                          {c.nextStart && <Meta icon={CalendarDays}>{t('Starts {date}', { date: day(c.nextStart) })}</Meta>}
                         </div>
                       )}
                     </div>
