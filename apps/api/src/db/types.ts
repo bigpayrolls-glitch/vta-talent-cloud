@@ -372,6 +372,14 @@ export interface SubscriptionPaymentsTable {
   created_at: Timestamp;
 }
 
+export interface CandidateProfileViewsTable {
+  organisation_id: string;
+  candidate_id: string;
+  period: string;
+  viewed_by: string;
+  first_viewed_at: Timestamp;
+}
+
 export interface PaymentOrdersTable {
   id: string;
   purpose: 'plan' | 'course';
@@ -606,6 +614,7 @@ export interface Database {
   sessions: SessionsTable;
   otp_challenges: OtpChallengesTable;
   payment_orders: PaymentOrdersTable;
+  candidate_profile_views: CandidateProfileViewsTable;
   payment_webhook_events: PaymentWebhookEventsTable;
   invitations: InvitationsTable;
   organisations: OrganisationsTable;

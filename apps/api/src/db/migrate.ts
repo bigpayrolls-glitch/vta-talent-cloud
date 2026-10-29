@@ -20,6 +20,7 @@ import * as m0013 from './migrations/0013_course_enrolment.js';
 import * as m0014 from './migrations/0014_five_logins.js';
 import * as m0015 from './migrations/0015_sms_provider.js';
 import * as m0016 from './migrations/0016_razorpay.js';
+import * as m0021 from './migrations/0021_profile_views.js';
 import * as m0020 from './migrations/0020_imported_searchable.js';
 import * as m0019 from './migrations/0019_import_incomplete.js';
 import * as m0018 from './migrations/0018_centre_location.js';
@@ -47,6 +48,7 @@ const MIGRATIONS: Record<string, Migration> = {
   '0018_centre_location': m0018,
   '0019_import_incomplete': m0019,
   '0020_imported_searchable': m0020,
+  '0021_profile_views': m0021,
 };
 
 const provider: MigrationProvider = { getMigrations: async () => MIGRATIONS };
