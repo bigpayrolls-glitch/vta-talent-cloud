@@ -28,10 +28,10 @@ beforeAll(async () => {
 afterAll(() => ctx.close());
 
 describe('Free plan', () => {
-  it('shows only the first 20 results of a search, and says how many more match', async () => {
+  it('shows only the first 20 results of a search, and only that more match (not how many)', async () => {
     const r = (await employer.get('/employer/candidates?city=Hubballi&pageSize=50')).body;
     expect(r.items).toHaveLength(20);
-    expect(r).toMatchObject({ matched: 30, limitedTo: 20, total: 20 });
+    expect(r).toMatchObject({ matched: null, more: true, limitedTo: 20, total: 20 });
     expect((await employer.get('/employer/candidates?city=Hubballi&pageSize=20&page=2')).body.items).toHaveLength(0);
   });
 
@@ -44,6 +44,8 @@ describe('Free plan', () => {
 
   it('5 profile views a month; opening the same profile again is free', async () => {
     for (const id of ids.slice(0, 5)) expect((await employer.get(`/employer/candidates/${id}`)).status).toBe(200);
+    // No contact details on Free; the name stays shortened.
+    expect((await employer.get(`/employer/candidates/${ids[0]}`)).body).toMatchObject({ name: 'Search 0.', phone: null, email: null, contactNeedsUpgrade: true });
     expect((await employer.get(`/employer/candidates/${ids[0]}`)).status).toBe(200);
     const sixth = await employer.get(`/employer/candidates/${ids[5]}`);
     expect(sixth.status).toBe(403);
@@ -68,7 +70,13 @@ describe('Starter plan', () => {
     expect(r.items).toHaveLength(30);
     expect(r.limitedTo).toBeNull();
     expect((await employer.get('/employer/candidates?city=Hubballi&minExperienceMonths=12')).body.items).toHaveLength(18);
-    expect((await employer.get(`/employer/candidates/${ids[5]}`)).status).toBe(200);
+    expect(r).toMatchObject({ matched: 30, more: false });
+    const p = await employer.get(`/employer/candidates/${ids[5]}`);
+    expect(p.status).toBe(200);
+    // Starter includes contact details: full name and mobile, and the reveal is logged.
+    expect(p.body).toMatchObject({ name: 'Search Person 5', phone: '+919500000005', contactNeedsUpgrade: false });
+    const logged = await ctx.db.selectFrom('audit_events').select('entity_id').where('action', '=', 'candidate.contact_viewed').execute();
+    expect(logged.map((l) => l.entity_id)).toContain(ids[5]);
     expect((await employer.get('/employer/candidates/usage')).body).toMatchObject({ plan: 'starter', profileViews: { used: 6, limit: 50 }, invites: { used: 2, limit: 20 } });
   });
 });
