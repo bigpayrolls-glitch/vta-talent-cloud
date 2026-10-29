@@ -9,7 +9,7 @@ const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = join(web, 'src');
 const shared = join(web, '..', '..', 'packages', 'shared', 'src');
 // Shared messages and labels that learners see (form errors, skill names, document labels…).
-const SHARED_FILES = ['schemas.ts', 'learner.ts', 'catalogue.ts', 'hiring.ts', 'partnerCourses.ts'];
+const SHARED_FILES = ['schemas.ts', 'learner.ts', 'catalogue.ts', 'hiring.ts', 'partnerCourses.ts', 'roles.ts'];
 
 const walk = (d) => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : /\.(tsx?)$/.test(f) && !/\.test\./.test(f) ? [join(d, f)] : []));
 const unescape = (s) => s.replace(/\\(['"`\\])/g, '$1').replace(/\\n/g, '\n');

@@ -10,6 +10,7 @@ export function LanguagePicker({ compact = false }: { compact?: boolean }) {
       <Languages className="size-4 shrink-0 text-muted" aria-hidden />
       <span className="sr-only">{t('Language')}</span>
       <select
+        name="language"
         aria-label={t('Language')}
         className={`cursor-pointer appearance-none bg-transparent pr-1 font-medium outline-none ${compact ? 'max-w-[4.5rem]' : ''}`}
         value={lang}
