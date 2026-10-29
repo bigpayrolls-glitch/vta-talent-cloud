@@ -19,7 +19,7 @@ import {
   hoursLabel,
   splitLabel,
 } from '@vta/shared';
-import { ArrowLeft, ArrowRight, Award, Building2, CalendarDays, Check, CircleCheck, Clock, CreditCard, Landmark, MapPin, Printer, School, ShieldCheck, SlidersHorizontal, Smartphone, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Award, BedDouble, Building2, CalendarDays, Check, CircleCheck, Clock, CreditCard, Landmark, MapPin, Printer, School, ShieldCheck, SlidersHorizontal, Smartphone, X } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { durationText } from '../../components/form';
@@ -278,6 +278,7 @@ export function CourseDetailPage() {
               <Meta icon={Clock}>{durationText(c.durationValue, c.durationUnit)}</Meta>
               <Meta icon={School}>{MODE_LABEL()[c.deliveryMode] ?? c.deliveryMode}</Meta>
               <Meta icon={Award}>{t('Certificate')}</Meta>
+              {c.stayAvailable && <Meta icon={BedDouble}>{c.stayFeeRupees != null ? t('Accommodation with food: {amount}', { amount: rupees(c.stayFeeRupees) }) : t('Accommodation with food available')}</Meta>}
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-4">
               <p className="text-[32px] font-extrabold tracking-tight">
@@ -450,7 +451,7 @@ export function CourseDetailPage() {
 
 interface Quote {
   batch: { id: string; name: string; startDate: string; endDate: string; centre: string; city: string | null; provider: string; seatsLeft: number };
-  course: { id: string; title: string; skillArea: string; deliveryMode: string; durationValue: number; durationUnit: string; feeRupees: number };
+  course: { id: string; title: string; skillArea: string; deliveryMode: string; durationValue: number; durationUnit: string; feeRupees: number; stayAvailable: boolean; stayFeeRupees: number | null };
   blocker: string | null;
   paymentMode: 'test' | 'none' | 'razorpay';
 }
@@ -483,6 +484,9 @@ export function EnrolPage() {
   const navigate = useNavigate();
   const [method, setMethod] = useState<PayMethod>('upi');
   const [terms, setTerms] = useState(false);
+  // Accommodation with food, when the course offers it: the learner must choose one of the two boxes.
+  const [needsStay, setNeedsStay] = useState<boolean | null>(null);
+  const [stayError, setStayError] = useState(false);
   const isLearner = !!me && can('learner.self');
   const q = useQuery({ queryKey: ['enrol', batchId], queryFn: () => api.get<Quote>(`/me/enrol/${batchId}`), enabled: isLearner });
   const [stage, setStage] = useState<'idle' | 'paying' | 'verifying'>('idle');
@@ -491,7 +495,9 @@ export function EnrolPage() {
     mutationFn: async (): Promise<{ enrolmentId: string } | null> => {
       setNote(null);
       const live = q.data?.paymentMode === 'razorpay';
-      const r = await api.post<{ enrolmentId: string } | RazorpayStart>('/me/enrolments', { batchId, method: q.data?.course.feeRupees && !live ? method : undefined, acceptTerms: terms });
+      const stay = !!q.data?.course.stayAvailable && needsStay === true;
+      const total = (q.data?.course.feeRupees ?? 0) + (stay ? (q.data?.course.stayFeeRupees ?? 0) : 0);
+      const r = await api.post<{ enrolmentId: string } | RazorpayStart>('/me/enrolments', { batchId, method: total && !live ? method : undefined, needsStay: stay, acceptTerms: terms });
       if (!('razorpay' in r)) return r;
       setStage('paying');
       try {
@@ -539,7 +545,8 @@ export function EnrolPage() {
         ) : (
           (() => {
             const d = q.data!;
-            const fee = d.course.feeRupees;
+            const stayCharge = d.course.stayAvailable && needsStay === true ? (d.course.stayFeeRupees ?? 0) : 0;
+            const fee = d.course.feeRupees + stayCharge;
             return (
               <div className="mt-6 grid gap-6 lg:grid-cols-2">
                 <section className="card px-5 py-5" aria-labelledby="sel-h">
@@ -582,17 +589,59 @@ export function EnrolPage() {
                   aria-labelledby="pay-h"
                   onSubmit={(e) => {
                     e.preventDefault();
+                    if (d.course.stayAvailable && needsStay === null) return setStayError(true);
                     pay.mutate();
                   }}
                 >
+                  {d.course.stayAvailable && (
+                    <fieldset className="mb-5">
+                      <legend className="font-semibold">{t('Accommodation with food')}</legend>
+                      <p className="mt-1 text-sm text-muted">
+                        {d.course.stayFeeRupees != null
+                          ? t('Available during this course for {amount}.', { amount: rupees(d.course.stayFeeRupees) })
+                          : t('Available during this course. The charge will be confirmed by AutoTalent Grid.')}
+                      </p>
+                      <div className="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={t('Accommodation with food')}>
+                        {[
+                          { value: true, label: t('Need accommodation with food') },
+                          { value: false, label: t('Not needed') },
+                        ].map((o) => (
+                          <label key={String(o.value)} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium ${needsStay === o.value ? 'border-[#D7141C] bg-brand-tint' : 'border-line hover:bg-surface'}`}>
+                            <input
+                              type="radio"
+                              name="stay"
+                              className="size-4 accent-[#D7141C]"
+                              checked={needsStay === o.value}
+                              onChange={() => {
+                                setNeedsStay(o.value);
+                                setStayError(false);
+                              }}
+                            />
+                            {o.label}
+                          </label>
+                        ))}
+                      </div>
+                      {stayError && (
+                        <p className="field-error" role="alert">
+                          {t('Choose whether you need accommodation with food')}
+                        </p>
+                      )}
+                    </fieldset>
+                  )}
                   <h2 id="pay-h" className="font-bold">
                     {t('Payment summary')}
                   </h2>
                   <dl className="mt-3 divide-y divide-line text-sm">
                     <div className="flex justify-between py-2">
                       <dt className="text-muted">{t('Course fee')}</dt>
-                      <dd>{rupees(fee)}</dd>
+                      <dd>{rupees(d.course.feeRupees)}</dd>
                     </div>
+                    {d.course.stayAvailable && needsStay === true && (
+                      <div className="flex justify-between gap-4 py-2">
+                        <dt className="text-muted">{t('Accommodation with food')}</dt>
+                        <dd className="text-right">{d.course.stayFeeRupees != null ? rupees(d.course.stayFeeRupees) : t('To be confirmed')}</dd>
+                      </div>
+                    )}
                     <div className="flex justify-between py-2 text-base">
                       <dt className="font-bold">{t('Total amount')}</dt>
                       <dd className="font-bold">{rupees(fee)}</dd>
@@ -680,6 +729,8 @@ interface Receipt {
   enrolmentId: string;
   receiptNumber: string;
   amountRupees: number;
+  stayRupees: number;
+  needsStay: boolean;
   method: string | null;
   test: boolean;
   free: boolean;
@@ -710,6 +761,7 @@ export function EnrolDonePage() {
     [t('Enrolment ID'), r.receiptNumber],
     [t('Amount paid'), r.free ? t('Free course') : rupees(r.amountRupees)],
     [statusLabel, r.free ? t('Not needed') : r.test ? t('Paid (test)') : t('Paid')],
+    ...(r.needsStay ? [[t('Accommodation with food'), r.stayRupees > 0 ? t('{amount}, included in the amount paid', { amount: rupees(r.stayRupees) }) : t('Requested. The charge will be confirmed.')] as [string, string]] : []),
     [t('Batch starts'), day(r.batch.startDate)],
     [t('Location'), `${r.batch.centre}${r.batch.city ? `, ${r.batch.city}` : ''}`],
   ];

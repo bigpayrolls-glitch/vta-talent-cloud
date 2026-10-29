@@ -106,6 +106,8 @@ function courseDto(c: Course, batches: CatalogueBatch[]): CatalogueCourse {
     trainingHours: c.training_hours,
     feeRupees: rupees(totalPaise(c)),
     gstPct: c.gst_pct,
+    stayAvailable: c.stay_available,
+    stayFeeRupees: c.stay_available && c.stay_fee_paise !== null ? rupees(c.stay_fee_paise) : null,
     courseType: c.course_type,
     imageUrl: courseImageUrl(c, true),
     skillTags: c.skills.slice(0, 6),
@@ -161,6 +163,8 @@ export const batchSummary = (trx: DB, batchId: string) =>
       'co.duration_value',
       'co.duration_unit',
       sql<number>`co.fee_paise + round(co.fee_paise * co.gst_pct / 100.0 / 100.0)::int * 100`.as('fee_paise'),
+      'co.stay_available',
+      'co.stay_fee_paise',
       // A course that is not both published and active cannot be enrolled in.
       sql<'active' | 'inactive'>`case when co.status = 'active' and co.approval_status = 'published' then 'active' else 'inactive' end`.as('course_status'),
       'c.name as centre',
@@ -170,6 +174,9 @@ export const batchSummary = (trx: DB, batchId: string) =>
     ])
     .where('b.id', '=', batchId)
     .executeTakeFirst();
+
+/** The accommodation-with-food charge added for a learner who needs it (0 while the charge is to be confirmed). */
+const stayPaise = (b: { stay_available: boolean; stay_fee_paise: number | null }, needsStay: boolean) => (needsStay && b.stay_available ? (b.stay_fee_paise ?? 0) : 0);
 
 /**
  * Enrols a learner and records the payment, inside the caller's transaction (test payments, free courses and
@@ -181,14 +188,17 @@ export async function enrolSelf(
   ctx: AuditContext,
   userId: string,
   batchId: string,
-  pay: { provider: 'test' | 'razorpay'; method: 'upi' | 'card' | 'netbanking' | 'wallet' | 'other'; providerPaymentId?: string; expectedFee?: number },
+  pay: { provider: 'test' | 'razorpay'; method: 'upi' | 'card' | 'netbanking' | 'wallet' | 'other'; providerPaymentId?: string; expectedFee?: number; needsStay?: boolean },
 ): Promise<{ enrolmentId: string; receiptNumber: string } | { blocked: string }> {
   const locked = await trx.selectFrom('batches').select(['id', 'capacity', 'status', 'start_date']).where('id', '=', batchId).forUpdate().executeTakeFirst();
   const b = locked ? await batchSummary(trx, batchId) : undefined;
   if (!locked || !b || b.course_status !== 'active') return { blocked: 'This batch is no longer available.' };
   const why = await blocker(trx, userId, locked);
   if (why) return { blocked: why };
-  const fee = b.fee_paise;
+  const needsStay = !!pay.needsStay;
+  if (needsStay && !b.stay_available) return { blocked: 'This course no longer offers accommodation with food.' };
+  const stay = stayPaise(b, needsStay);
+  const fee = b.fee_paise + stay;
   if (pay.expectedFee !== undefined && pay.expectedFee !== fee) return { blocked: 'The course fee changed while you were paying.' };
 
   const prior = await trx.selectFrom('enrolments').select('id').where('batch_id', '=', b.id).where('candidate_id', '=', userId).executeTakeFirst();
@@ -196,11 +206,11 @@ export async function enrolSelf(
   if (prior) {
     await trx
       .updateTable('enrolments')
-      .set({ status: 'enrolled', enrolled_at: new Date(), enrolled_by: userId, withdrawn_at: null, withdraw_reason: null, source: 'self', updated_at: new Date() })
+      .set({ status: 'enrolled', enrolled_at: new Date(), enrolled_by: userId, withdrawn_at: null, withdraw_reason: null, source: 'self', needs_stay: needsStay, updated_at: new Date() })
       .where('id', '=', prior.id)
       .execute();
   } else {
-    await trx.insertInto('enrolments').values({ id: enrolmentId, candidate_id: userId, batch_id: b.id, status: 'enrolled', enrolled_by: userId, source: 'self' }).execute();
+    await trx.insertInto('enrolments').values({ id: enrolmentId, candidate_id: userId, batch_id: b.id, status: 'enrolled', enrolled_by: userId, source: 'self', needs_stay: needsStay }).execute();
   }
   const seq = (await sql<{ n: string }>`SELECT nextval('enrolment_receipt_seq') AS n`.execute(trx)).rows[0]!.n;
   const day = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10).replaceAll('-', '');
@@ -208,13 +218,13 @@ export async function enrolSelf(
   const paymentId = newId();
   await trx
     .insertInto('course_payments')
-    .values({ id: paymentId, enrolment_id: enrolmentId, candidate_id: userId, batch_id: b.id, amount_paise: fee, method: fee > 0 ? pay.method : null, provider: fee > 0 ? pay.provider : 'free', provider_payment_id: pay.providerPaymentId ?? null, status: 'succeeded', receipt_number: receipt })
+    .values({ id: paymentId, enrolment_id: enrolmentId, candidate_id: userId, batch_id: b.id, amount_paise: fee, stay_paise: stay, method: fee > 0 ? pay.method : null, provider: fee > 0 ? pay.provider : 'free', provider_payment_id: pay.providerPaymentId ?? null, status: 'succeeded', receipt_number: receipt })
     .execute();
   await audit(trx, ctx, {
     action: 'enrolment.self',
     entityType: 'batch',
     entityId: b.id,
-    after: { candidateId: userId, enrolmentId, amount_paise: fee, receipt, provider: fee > 0 ? pay.provider : 'free', ...(pay.providerPaymentId ? { razorpay_payment_id: pay.providerPaymentId } : {}) },
+    after: { candidateId: userId, enrolmentId, amount_paise: fee, needs_stay: needsStay, stay_paise: stay, receipt, provider: fee > 0 ? pay.provider : 'free', ...(pay.providerPaymentId ? { razorpay_payment_id: pay.providerPaymentId } : {}) },
   });
   const learner = await trx.selectFrom('users').select('name').where('id', '=', userId).executeTakeFirstOrThrow();
   // Whoever runs the centre hears about it: the training partner, or AutoTalent Grid admins for its own centres.
@@ -294,7 +304,7 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
     const { n } = await db.selectFrom('enrolments').select(sql<string>`count(*)`.as('n')).where('batch_id', '=', id).where('status', '!=', 'withdrawn').executeTakeFirstOrThrow();
     return {
       batch: { id: b.id, name: b.name, startDate: b.start_date, endDate: b.end_date, centre: b.centre, city: b.city, provider: b.org && b.org_type !== 'vta' ? b.org : 'AutoTalent Grid', seatsLeft: Math.max(0, b.capacity - Number(n)) },
-      course: { id: b.course_id, title: b.title, skillArea: b.skill_area, deliveryMode: b.delivery_mode, durationValue: b.duration_value, durationUnit: b.duration_unit, feeRupees: rupees(b.fee_paise) },
+      course: { id: b.course_id, title: b.title, skillArea: b.skill_area, deliveryMode: b.delivery_mode, durationValue: b.duration_value, durationUnit: b.duration_unit, feeRupees: rupees(b.fee_paise), stayAvailable: b.stay_available, stayFeeRupees: b.stay_available && b.stay_fee_paise !== null ? rupees(b.stay_fee_paise) : null },
       blocker: await blocker(db, req.actor!.userId, b),
       paymentMode: app.config.paymentMode,
     };
@@ -306,7 +316,8 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
     const mode = app.config.paymentMode;
     const quote = await batchSummary(db, body.batchId);
     if (!quote || quote.course_status !== 'active') throw notFound('Batch');
-    const fee = quote.fee_paise;
+    if (body.needsStay && !quote.stay_available) throw invalid('This course does not offer accommodation with food', { needsStay: 'Not offered for this course' });
+    const fee = quote.fee_paise + stayPaise(quote, body.needsStay);
     if (fee > 0 && mode === 'none') throw conflict('Online payment is not set up yet. Contact the training centre to enrol.');
     if (fee > 0 && mode === 'test' && !body.method) throw invalid('Choose how to pay', { method: 'Choose how to pay' });
 
@@ -322,13 +333,14 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
         amountPaise: fee,
         payerId: userId,
         batchId: quote.id,
+        needsStay: body.needsStay,
         description: `${quote.title}: ${quote.name}`,
         prefill: { name: learner.name, email: learner.email ?? undefined, contact: learner.phone ?? undefined },
         ctx: auditCtx(req),
       });
     }
 
-    const result = await db.transaction().execute((trx) => enrolSelf(trx, auditCtx(req), userId, body.batchId, { provider: 'test', method: body.method ?? 'upi' }));
+    const result = await db.transaction().execute((trx) => enrolSelf(trx, auditCtx(req), userId, body.batchId, { provider: 'test', method: body.method ?? 'upi', needsStay: body.needsStay }));
     if ('blocked' in result) throw conflict(result.blocked);
     reply.code(201);
     return result;
@@ -342,7 +354,7 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
       .innerJoin('enrolments as e', 'e.id', 'p.enrolment_id')
       .innerJoin('users as u', 'u.id', 'p.candidate_id')
       .innerJoin('candidate_profiles as cp', 'cp.user_id', 'p.candidate_id')
-      .select(['p.id', 'p.amount_paise', 'p.method', 'p.provider', 'p.receipt_number', 'p.created_at', 'e.status', 'u.name', 'cp.candidate_code', 'p.batch_id'])
+      .select(['p.id', 'p.amount_paise', 'p.stay_paise', 'e.needs_stay', 'p.method', 'p.provider', 'p.receipt_number', 'p.created_at', 'e.status', 'u.name', 'cp.candidate_code', 'p.batch_id'])
       .where('p.enrolment_id', '=', id)
       .where('p.candidate_id', '=', req.actor!.userId)
       .orderBy('p.created_at', 'desc')
@@ -353,6 +365,8 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
       enrolmentId: id,
       receiptNumber: r.receipt_number,
       amountRupees: rupees(r.amount_paise),
+      stayRupees: rupees(r.stay_paise),
+      needsStay: r.needs_stay,
       method: r.method,
       test: r.provider === 'test',
       free: r.provider === 'free',

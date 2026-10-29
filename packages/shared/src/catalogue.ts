@@ -46,6 +46,8 @@ export const selfEnrolSchema = z.object({
   batchId: uuidSchema,
   /** Needed only when the course has a fee. */
   method: z.enum(PAY_METHODS).optional(),
+  /** Accommodation with food, when the course offers it. */
+  needsStay: z.boolean().default(false),
   acceptTerms: z.literal(true, 'Accept the terms to continue'),
 });
 
@@ -75,6 +77,9 @@ export interface CatalogueCourse {
   /** What the learner pays, including GST. */
   feeRupees: number;
   gstPct: number;
+  /** Accommodation with food: offered or not, and its charge for the whole course (null = to be confirmed). */
+  stayAvailable: boolean;
+  stayFeeRupees: number | null;
   courseType: string | null;
   imageUrl: string | null;
   /** Skill chips on the course card. */

@@ -31,6 +31,7 @@ export async function startRazorpayOrder(
     plan?: 'starter' | 'growth';
     cycle?: 'monthly' | 'yearly';
     batchId?: string;
+    needsStay?: boolean;
     description: string;
     prefill: { name?: string; email?: string; contact?: string };
     ctx: AuditContext;
@@ -59,6 +60,7 @@ export async function startRazorpayOrder(
         plan: o.plan ?? null,
         billing_cycle: o.cycle ?? null,
         batch_id: o.batchId ?? null,
+        needs_stay: o.needsStay ?? false,
         provider_payment_id: null,
         result_id: null,
         failure: null,

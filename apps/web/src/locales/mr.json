@@ -749,5 +749,16 @@
  "Two-wheeler": "टू-व्हीलर",
  "Use 2–24 letters, numbers or hyphens": "2–24 अक्षरे, अंक किंवा हायफन वापरा",
  "Use the format YYYY-MM-DD": "YYYY-MM-DD फॉरमॅट वापरा",
- "Whole rupees only": "फक्त पूर्ण रुपये"
+ "Whole rupees only": "फक्त पूर्ण रुपये",
+ "{amount}, included in the amount paid": "{amount}, भरलेल्या रकमेत समाविष्ट",
+ "Accommodation with food": "जेवणासह राहण्याची सोय",
+ "Accommodation with food available": "जेवणासह राहण्याची सोय उपलब्ध",
+ "Accommodation with food: {amount}": "जेवणासह राहण्याची सोय: {amount}",
+ "At most ₹2,00,000": "जास्तीत जास्त ₹2,00,000",
+ "Available during this course for {amount}.": "या कोर्सदरम्यान {amount} मध्ये उपलब्ध.",
+ "Available during this course. The charge will be confirmed by AutoTalent Grid.": "या कोर्सदरम्यान उपलब्ध. शुल्क AutoTalent Grid कळवेल.",
+ "Choose whether you need accommodation with food": "तुम्हाला जेवणासह राहण्याची सोय हवी आहे का ते निवडा",
+ "Need accommodation with food": "जेवणासह राहण्याची सोय हवी",
+ "Requested. The charge will be confirmed.": "विनंती मिळाली. शुल्क नंतर कळवले जाईल.",
+ "To be confirmed": "नंतर कळवले जाईल"
 }

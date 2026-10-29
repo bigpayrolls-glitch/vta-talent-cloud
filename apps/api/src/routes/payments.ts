@@ -79,7 +79,7 @@ export async function completeOrder(app: FastifyInstance, orderId: string, payme
       await trx.updateTable('payment_orders').set({ status: 'paid', provider_payment_id: paymentId, result_id: r.paymentId, paid_at: new Date(), updated_at: new Date() }).where('id', '=', o.id).execute();
       return { status: 'paid', purpose: 'plan', paymentId: r.paymentId } as const;
     }
-    const r = await enrolSelf(trx, ctx, o.payer_id, o.batch_id!, { provider: 'razorpay', method, providerPaymentId: paymentId, expectedFee: o.amount_paise });
+    const r = await enrolSelf(trx, ctx, o.payer_id, o.batch_id!, { provider: 'razorpay', method, providerPaymentId: paymentId, expectedFee: o.amount_paise, needsStay: o.needs_stay });
     if ('blocked' in r) {
       const reason = r.blocked.replace(/\.$/, '').toLowerCase();
       await flagRefund(trx, o, paymentId, `${reason}.`, ctx, true);

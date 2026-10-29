@@ -57,6 +57,8 @@ function toDto(c: CourseRow, extra: { batch_count?: string | number; enrolled?: 
     feeRupees: fee,
     gstPct: c.gst_pct,
     totalFeeRupees: feeWithGst(fee, c.gst_pct).totalRupees,
+    stayAvailable: c.stay_available,
+    stayFeeRupees: c.stay_fee_paise === null ? null : Math.round(c.stay_fee_paise / 100),
     certificateType: c.certificate_type,
     firstBatch: c.first_batch
       ? { ...c.first_batch, classTimings: c.first_batch.classTimings ?? undefined, centreName: extra.centreName, trainerName: extra.trainerName }
@@ -97,6 +99,9 @@ function toRow(b: z.infer<typeof partnerCourseSaveSchema>) {
   if (b.feeRupees !== undefined) row.fee_paise = b.feeRupees * 100;
   if (b.gstPct !== undefined) row.gst_pct = b.gstPct;
   if (b.certificateType !== undefined) row.certificate_type = b.certificateType;
+  if (b.stayAvailable !== undefined) row.stay_available = b.stayAvailable;
+  if (b.stayFeeRupees !== undefined) row.stay_fee_paise = b.stayFeeRupees === null ? null : b.stayFeeRupees * 100;
+  if (b.stayAvailable === false) row.stay_fee_paise = null;
   if (b.firstBatch !== undefined) {
     row.first_batch = b.firstBatch ? JSON.stringify({ ...b.firstBatch, classTimings: b.firstBatch.classTimings || null } satisfies FirstBatchPlan) : null;
   }

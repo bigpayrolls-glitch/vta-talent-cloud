@@ -31,6 +31,15 @@ export const criterionSchema = z.object({
   required: z.boolean().default(false),
 });
 
+/**
+ * Accommodation with food (29 Oct 2026): offered or not, and the charge for the whole course once it is known
+ * (null = to be confirmed). Learners who need it say so when they enrol.
+ */
+export const staySchema = z.object({
+  stayAvailable: z.boolean().optional(),
+  stayFeeRupees: z.coerce.number().int('Whole rupees only').min(0, 'Cannot be negative').max(200_000, 'At most ₹2,00,000').nullable().optional(),
+});
+
 export const courseSchema = z.object({
   code: z
     .string()
@@ -50,7 +59,9 @@ export const courseSchema = z.object({
   attendanceThresholdPct: z.coerce.number().int().min(0, '0–100').max(100, '0–100'),
   passMarkPct: z.coerce.number().int().min(0, '0–100').max(100, '0–100'),
   /** Phase 13: course fee in whole rupees, paid by learners who enrol themselves. 0 = free. No GST for now. */
-  feeRupees: z.coerce.number().int('Whole rupees only').min(0, 'Cannot be negative').max(500_000, 'At most ₹5,00,000').default(0),
+  // Optional, not defaulted: a partial update without a fee must not reset it to 0.
+  feeRupees: z.coerce.number().int('Whole rupees only').min(0, 'Cannot be negative').max(500_000, 'At most ₹5,00,000').optional(),
+  ...staySchema.shape,
 });
 
 export const criteriaListSchema = z.object({

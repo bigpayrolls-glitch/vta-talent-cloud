@@ -152,7 +152,7 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
       .selectFrom('enrolments as e')
       .innerJoin('users as u', 'u.id', 'e.candidate_id')
       .innerJoin('candidate_profiles as cp', 'cp.user_id', 'u.id')
-      .select(['e.id', 'e.status', 'e.enrolled_at', 'e.withdraw_reason', 'u.id as candidate_id', 'u.name', 'u.phone', 'cp.candidate_code', 'cp.verification_status'])
+      .select(['e.id', 'e.status', 'e.enrolled_at', 'e.withdraw_reason', 'e.needs_stay', 'u.id as candidate_id', 'u.name', 'u.phone', 'cp.candidate_code', 'cp.verification_status'])
       .where('e.batch_id', '=', id);
     if (q) {
       const like = `%${q.replace(/[%_\\]/g, '\\$&')}%`;
@@ -182,6 +182,7 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
         assessmentOutcome: res && (res.status === 'submitted' || res.status === 'approved') ? res.outcome : null,
         credentialId: creds.find((x) => x.enrolment_id === r.id)?.id ?? null,
         enrolmentId: r.id,
+        needsStay: r.needs_stay,
         status: r.status,
         enrolledAt: iso(r.enrolled_at),
         withdrawReason: r.withdraw_reason,

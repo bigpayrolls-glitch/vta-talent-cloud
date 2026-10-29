@@ -36,6 +36,7 @@ interface RosterRow {
   status: string;
   enrolledAt: string;
   withdrawReason: string | null;
+  needsStay?: boolean;
   candidateId: string;
   code: string;
   name: string;
@@ -405,6 +406,7 @@ export function BatchDetailPage({ base }: { base: string }) {
                     {r.code}
                     {r.phone && `, ${formatPhone(r.phone)}`}
                     {r.status === 'withdrawn' && r.withdrawReason ? `. Withdrawn: ${r.withdrawReason}` : `. Enrolled ${formatDate(r.enrolledAt)}`}
+                    {r.needsStay && r.status !== 'withdrawn' && <span className="ml-2 rounded-full bg-warning-tint px-2 py-0.5 text-xs font-semibold text-warning">Needs accommodation with food</span>}
                   </p>
                 </div>
                 <span className="flex flex-wrap items-center gap-2 text-[13px]">
