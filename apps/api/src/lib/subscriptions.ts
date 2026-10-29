@@ -1,4 +1,4 @@
-import { type Plan, type SubscriptionDto } from '@vta/shared';
+import { PLANS, type Plan, type SubscriptionDto } from '@vta/shared';
 import { employerPlan } from './plans.js';
 import { sql } from 'kysely';
 import type { DB } from '../db/index.js';
@@ -17,9 +17,12 @@ export const ACTIVE_JOB_STATUSES = ['pending_review', 'published', 'paused'] as 
 
 export async function currentSubscription(db: DB, organisationId: string, now = new Date()): Promise<{ plan: Plan; row: Row | null }> {
   const row = (await db.selectFrom('employer_subscriptions').selectAll().where('organisation_id', '=', organisationId).executeTakeFirst()) ?? null;
-  const plan: Plan = row && row.period_end > now ? row.plan : 'free';
+  // A partner plan on an employer (never expected) counts as Free.
+  const plan: Plan = row && row.period_end > now && isEmployerPlan(row.plan) ? row.plan : 'free';
   return { plan, row };
 }
+
+export const isEmployerPlan = (p: string): p is Plan => (PLANS as readonly string[]).includes(p);
 
 export const planLimit = (message: string) => new ApiError('FORBIDDEN', message, { plan: 'upgrade' });
 
@@ -132,7 +135,7 @@ export async function subscriptionDto(db: DB, organisationId: string, paymentMod
   );
   return {
     plan,
-    lastPaidPlan: row?.plan ?? null,
+    lastPaidPlan: row && isEmployerPlan(row.plan) ? row.plan : null,
     cycle: plan === 'free' ? null : (row?.billing_cycle ?? null),
     status: plan !== 'free' ? 'active' : row ? 'expired' : 'free',
     periodEnd: row ? row.period_end.toISOString() : null,

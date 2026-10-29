@@ -1,5 +1,6 @@
-import { adminSetPlanSchema, checkoutSchema, planRequestSchema, uuidSchema } from '@vta/shared';
-import { employerPlan } from '../../lib/plans.js';
+import { adminSetPlanSchema, checkoutSchema, PARTNER_PLANS, planRequestSchema, PLANS, uuidSchema, type PaidPartnerPlan, type PartnerPlan, type Plan } from '@vta/shared';
+import { currentPartnerPlan, partnerSubscriptionDto } from '../../lib/partnerSubscriptions.js';
+import { employerPlan, partnerPlan } from '../../lib/plans.js';
 import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
 import { z } from 'zod';
@@ -27,12 +28,25 @@ const istDay = (d: Date) => new Intl.DateTimeFormat('en-IN', { day: 'numeric', m
 export async function activatePlan(
   trx: DB,
   ctx: AuditContext,
-  p: { organisationId: string; plan: 'starter' | 'growth'; cycle: 'monthly' | 'yearly'; amountPaise: number; method: 'card' | 'upi' | 'netbanking' | 'wallet' | 'other'; provider: 'test' | 'razorpay'; providerPaymentId?: string; paidBy: string },
+  p: {
+    organisationId: string;
+    plan: 'starter' | 'growth' | 'professional' | 'institution';
+    cycle: 'monthly' | 'yearly';
+    /** Total paid, GST included. */
+    amountPaise: number;
+    gstPaise?: number;
+    method: 'card' | 'upi' | 'netbanking' | 'wallet' | 'other';
+    provider: 'test' | 'razorpay';
+    providerPaymentId?: string;
+    paidBy: string;
+  },
 ): Promise<{ paymentId: string; invoiceNumber: string }> {
-  // Lock the subscription row so two payments for one employer are applied one after the other.
+  // Lock the subscription row so two payments for one organisation are applied one after the other.
   await sql`SELECT 1 FROM employer_subscriptions WHERE organisation_id = ${p.organisationId} FOR UPDATE`.execute(trx);
   const now = new Date();
-  const { plan: current, row } = await currentSubscription(trx, p.organisationId, now);
+  const org = await trx.selectFrom('organisations').select('type').where('id', '=', p.organisationId).executeTakeFirstOrThrow();
+  const partner = org.type === 'partner';
+  const { plan: current, row } = partner ? await currentPartnerPlan(trx, p.organisationId, now) : await currentSubscription(trx, p.organisationId, now);
   const start = current === p.plan && row && row.billing_cycle === p.cycle ? row.period_end : now;
   const end = addPeriod(start, p.cycle);
   const id = newId();
@@ -41,7 +55,7 @@ export async function activatePlan(
   const invoice = `INV-${day}-${String(seq).padStart(4, '0')}`;
   await trx
     .insertInto('subscription_payments')
-    .values({ id, organisation_id: p.organisationId, plan: p.plan, billing_cycle: p.cycle, amount_paise: p.amountPaise, method: p.method, provider: p.provider, provider_payment_id: p.providerPaymentId ?? null, status: 'succeeded', invoice_number: invoice, period_start: start, period_end: end, paid_by: p.paidBy })
+    .values({ id, organisation_id: p.organisationId, plan: p.plan, billing_cycle: p.cycle, amount_paise: p.amountPaise, gst_paise: p.gstPaise ?? 0, method: p.method, provider: p.provider, provider_payment_id: p.providerPaymentId ?? null, status: 'succeeded', invoice_number: invoice, period_start: start, period_end: end, paid_by: p.paidBy })
     .execute();
   await trx
     .insertInto('employer_subscriptions')
@@ -63,9 +77,10 @@ export async function activatePlan(
     entityType: 'organisation',
     entityId: p.organisationId,
     before: { plan: current, period_end: row ? iso(row.period_end) : null },
-    after: { plan: p.plan, cycle: p.cycle, amount_paise: p.amountPaise, invoice, period_end: iso(end), provider: p.provider, ...(p.providerPaymentId ? { razorpay_payment_id: p.providerPaymentId } : {}) },
+    after: { plan: p.plan, cycle: p.cycle, amount_paise: p.amountPaise, gst_paise: p.gstPaise ?? 0, invoice, period_end: iso(end), provider: p.provider, ...(p.providerPaymentId ? { razorpay_payment_id: p.providerPaymentId } : {}) },
   });
-  await notify(trx, await orgMembers(trx, p.organisationId, ['employer_admin']), 'plan_activated', { plan: (await employerPlan(trx, p.plan)).name, until: istDay(end), invoice }, '/employer/subscription', { except: ctx.actorId ?? undefined });
+  const name = partner ? (await partnerPlan(trx, p.plan as PaidPartnerPlan)).name : (await employerPlan(trx, p.plan as Plan)).name;
+  await notify(trx, await orgMembers(trx, p.organisationId, [partner ? 'partner_admin' : 'employer_admin']), 'plan_activated', { plan: name, until: istDay(end), invoice }, partner ? '/partner/subscription' : '/employer/subscription', { except: ctx.actorId ?? undefined });
   return { paymentId: id, invoiceNumber: invoice };
 }
 
@@ -166,9 +181,10 @@ export const subscriptionRoutes: FastifyPluginAsync = async (app) => {
   app.get('/admin/organisations/:id/subscription', { config: { permission: 'subscription.manage' } }, async (req) => {
     const { id } = parse(idParam, req.params);
     const org = await db.selectFrom('organisations').select(['id', 'type']).where('id', '=', id).executeTakeFirst();
-    if (!org || org.type !== 'employer') throw notFound('Employer');
+    if (!org || (org.type !== 'employer' && org.type !== 'partner')) throw notFound('Organisation');
     const payments = await db.selectFrom('subscription_payments').selectAll().where('organisation_id', '=', id).orderBy('created_at', 'desc').limit(20).execute();
-    return { ...(await subscriptionDto(db, id, mode)), payments: payments.map(paymentDto) };
+    const dto = org.type === 'partner' ? await partnerSubscriptionDto(db, id, mode) : await subscriptionDto(db, id, mode);
+    return { ...dto, audience: org.type, payments: payments.map(paymentDto) };
   });
 
   /** Set a plan by hand, for Enterprise or a payment taken outside the platform. Free ends the current plan now. */
@@ -176,15 +192,19 @@ export const subscriptionRoutes: FastifyPluginAsync = async (app) => {
     const { id } = parse(idParam, req.params);
     const b = parse(adminSetPlanSchema, req.body);
     const org = await db.selectFrom('organisations').select(['id', 'type']).where('id', '=', id).executeTakeFirst();
-    if (!org || org.type !== 'employer') throw notFound('Employer');
+    if (!org || (org.type !== 'employer' && org.type !== 'partner')) throw notFound('Organisation');
+    const partner = org.type === 'partner';
+    if (partner ? !(PARTNER_PLANS as readonly string[]).includes(b.plan) : !(PLANS as readonly string[]).includes(b.plan)) {
+      throw invalid('Choose one of this organisation’s plans', { plan: partner ? 'A training partner plan' : 'An employer plan' });
+    }
     const now = new Date();
-    const { plan: before, row } = await currentSubscription(db, id, now);
+    const { plan: before, row } = partner ? await currentPartnerPlan(db, id, now) : await currentSubscription(db, id, now);
     const end = b.plan === 'free' ? null : addPeriod(now, 'monthly', b.months ?? 1);
     await db.transaction().execute(async (trx) => {
       if (b.plan === 'free') {
         await trx.deleteFrom('employer_subscriptions').where('organisation_id', '=', id).execute();
       } else {
-        const values = { plan: b.plan, billing_cycle: null, period_start: now, period_end: end!, source: 'admin' as const, updated_by: req.actor!.userId };
+        const values = { plan: b.plan as Exclude<typeof b.plan, 'free'>, billing_cycle: null, period_start: now, period_end: end!, source: 'admin' as const, updated_by: req.actor!.userId };
         await trx
           .insertInto('employer_subscriptions')
           .values({ organisation_id: id, ...values })
@@ -198,8 +218,10 @@ export const subscriptionRoutes: FastifyPluginAsync = async (app) => {
         before: { plan: before, period_end: row ? iso(row.period_end) : null },
         after: { plan: b.plan, period_end: end ? iso(end) : null, reason: b.reason },
       });
-      await notify(trx, await orgMembers(trx, id, EMPLOYER_TEAM), 'plan_set', { plan: (await employerPlan(trx, b.plan)).name, until: end ? istDay(end) : '' }, '/employer/subscription');
+      const name = partner ? (await partnerPlan(trx, b.plan as PartnerPlan)).name : (await employerPlan(trx, b.plan as Plan)).name;
+      if (partner) await notify(trx, await orgMembers(trx, id, ['partner_admin']), 'plan_set', { plan: name, until: end ? istDay(end) : '' }, '/partner/subscription');
+      else await notify(trx, await orgMembers(trx, id, EMPLOYER_TEAM), 'plan_set', { plan: name, until: end ? istDay(end) : '' }, '/employer/subscription');
     });
-    return subscriptionDto(db, id, mode);
+    return partner ? partnerSubscriptionDto(db, id, mode) : subscriptionDto(db, id, mode);
   });
 };

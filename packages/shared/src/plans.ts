@@ -140,7 +140,8 @@ export const planRequestSchema = z.object({
 
 /** AutoTalent Grid sets a plan by hand (Enterprise, or a payment taken outside the platform). */
 export const adminSetPlanSchema = z.object({
-  plan: z.enum(PLANS),
+  /** An employer plan for employers, a training partner plan for partners (checked on the server). */
+  plan: z.enum([...PLANS, 'professional', 'institution'] as const),
   months: z.coerce.number().int().min(1, 'At least 1 month').max(36, 'At most 36 months').optional(),
   reason: z.string().trim().min(3, 'Say why').max(500),
 });
@@ -177,4 +178,141 @@ export interface SearchUsageDto {
   allFilters: boolean;
   profileViews: { used: number; limit: number | null };
   invites: { used: number; limit: number | null };
+}
+
+// ---------------------------------------------------------------------------
+// Training partner plans (29 Oct 2026, AutoTalent Grid's Subscription & Billing design). Prices are in paise
+// before GST; GST at gstPct is added at checkout. The numbers are enforced on the server: active courses
+// (submitted, needing changes or published), active batches (planned or running) and current learners
+// (enrolled in those batches). The other rows are what the plan includes, shown on the plans page.
+// AutoTalent Grid can change all of it in Admin > Plans.
+// ---------------------------------------------------------------------------
+
+export const PARTNER_PLANS = ['free', 'professional', 'institution'] as const;
+export type PartnerPlan = (typeof PARTNER_PLANS)[number];
+export const PAID_PARTNER_PLANS = ['professional', 'institution'] as const;
+export type PaidPartnerPlan = (typeof PAID_PARTNER_PLANS)[number];
+
+export interface PartnerPlanInfo {
+  name: string;
+  tagline: string;
+  price: Record<BillingCycle, number>;
+  gstPct: number;
+  recommended: boolean;
+  activeCourses: number | null;
+  activeBatches: number | null;
+  learners: number | null;
+  trainerManagement: boolean;
+  assessments: string;
+  certificates: boolean;
+  reports: string;
+  apiAccess: boolean;
+  support: string;
+  features: string[];
+}
+export type PartnerPlanTable = Record<PartnerPlan, PartnerPlanInfo>;
+
+export const PARTNER_PLAN_INFO: PartnerPlanTable = {
+  free: {
+    name: 'Free',
+    tagline: 'For new training partners',
+    price: { monthly: 0, yearly: 0 },
+    gstPct: 18,
+    recommended: false,
+    activeCourses: 2,
+    activeBatches: 1,
+    learners: 50,
+    trainerManagement: true,
+    assessments: 'Basic',
+    certificates: true,
+    reports: 'Basic',
+    apiAccess: false,
+    support: 'Email',
+    features: ['2 active courses', '1 active batch', 'Up to 50 learners', 'Basic trainer management', 'Reports (basic)', 'Email support'],
+  },
+  professional: {
+    name: 'Professional',
+    tagline: 'For growing training centres',
+    price: { monthly: 149_900, yearly: 1_499_900 },
+    gstPct: 18,
+    recommended: true,
+    activeCourses: 10,
+    activeBatches: 10,
+    learners: 500,
+    trainerManagement: true,
+    assessments: 'Advanced',
+    certificates: true,
+    reports: 'Advanced',
+    apiAccess: false,
+    support: 'Priority',
+    features: ['10 active courses', 'Up to 10 batches', 'Up to 500 learners', 'Trainer management', 'Assessments', 'Certificates', 'Reports (advanced)', 'Priority support'],
+  },
+  institution: {
+    name: 'Institution',
+    tagline: 'For institutes with many centres',
+    price: { monthly: 399_900, yearly: 3_999_900 },
+    gstPct: 18,
+    recommended: false,
+    activeCourses: null,
+    activeBatches: null,
+    learners: 2000,
+    trainerManagement: true,
+    assessments: 'Advanced',
+    certificates: true,
+    reports: 'Advanced',
+    apiAccess: true,
+    support: 'Dedicated manager',
+    features: ['Unlimited courses', 'Unlimited batches', 'Up to 2,000 learners', 'Advanced reports', 'API access (if required)', 'Dedicated success manager'],
+  },
+};
+
+/** Price, GST (rounded to whole rupees) and total in paise for a partner plan and billing period. */
+export function partnerPlanTotal(info: PartnerPlanInfo, cycle: BillingCycle): { base: number; gst: number; total: number } {
+  const base = info.price[cycle];
+  const gst = Math.round((base * info.gstPct) / 100 / 100) * 100;
+  return { base, gst, total: base + gst };
+}
+
+/** Admin > Plans: everything about one training partner plan. Prices in whole rupees before GST. */
+export const partnerPlanEditSchema = z.object({
+  name: z.string().trim().min(2, 'Enter a name').max(40),
+  tagline: z.string().trim().max(120),
+  price: z.object({ monthly: rupees, yearly: rupees }),
+  gstPct: z.coerce.number().int().min(0).max(28, 'At most 28%'),
+  recommended: z.boolean(),
+  activeCourses: optLimit,
+  activeBatches: optLimit,
+  learners: optLimit,
+  trainerManagement: z.boolean(),
+  assessments: z.string().trim().max(40),
+  certificates: z.boolean(),
+  reports: z.string().trim().max(40),
+  apiAccess: z.boolean(),
+  support: z.string().trim().max(60),
+  features: z.array(z.string().trim().min(2).max(120)).max(12),
+});
+
+export const partnerCheckoutSchema = z.object({
+  plan: z.enum(PAID_PARTNER_PLANS, { error: 'Choose a plan' }),
+  cycle: z.enum(BILLING_CYCLES, { error: 'Choose monthly or yearly' }),
+  method: z.enum(PAYMENT_METHODS, { error: 'Choose how to pay' }).optional(),
+  acceptTerms: z.literal(true, { error: 'Accept the terms to continue' }),
+});
+
+export interface PartnerSubscriptionDto {
+  plan: PartnerPlan;
+  lastPaidPlan: PartnerPlan | null;
+  cycle: BillingCycle | null;
+  status: 'active' | 'expired' | 'free';
+  periodEnd: string | null;
+  source: 'payment' | 'admin' | null;
+  usage: {
+    activeCourses: number;
+    activeCoursesLimit: number | null;
+    activeBatches: number;
+    activeBatchesLimit: number | null;
+    learners: number;
+    learnersLimit: number | null;
+  };
+  paymentMode: 'test' | 'none' | 'razorpay';
 }

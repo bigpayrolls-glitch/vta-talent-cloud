@@ -28,7 +28,8 @@ export async function startRazorpayOrder(
     amountPaise: number;
     payerId: string;
     organisationId?: string;
-    plan?: 'starter' | 'growth';
+    plan?: 'starter' | 'growth' | 'professional' | 'institution';
+    gstPaise?: number;
     cycle?: 'monthly' | 'yearly';
     batchId?: string;
     courseId?: string;
@@ -60,6 +61,7 @@ export async function startRazorpayOrder(
         organisation_id: o.organisationId ?? null,
         plan: o.plan ?? null,
         billing_cycle: o.cycle ?? null,
+        gst_paise: o.gstPaise ?? 0,
         batch_id: o.batchId ?? null,
         course_id: o.courseId ?? null,
         needs_stay: o.needsStay ?? false,

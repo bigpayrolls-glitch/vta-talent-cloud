@@ -22,6 +22,7 @@ import { formatDay, todayIst } from '../../lib/dates.js';
 import { ApiError, invalid, notFound } from '../../lib/errors.js';
 import { notify, orgMembers, PARTNER_TEAM, vtaReviewers } from '../../lib/notify.js';
 import { sniffMime } from '../../lib/storage.js';
+import { assertCourseRoom } from '../../lib/partnerSubscriptions.js';
 import { iso, parse } from '../../lib/validate.js';
 import { partnerCentres, partnerOrgs } from '../../policy/index.js';
 import { grantRole } from '../admin/roles.js';
@@ -461,6 +462,7 @@ export const partnerCourseRoutes: FastifyPluginAsync = async (app) => {
       assertEditable(c);
       const missing = await missingForSubmit(trx, c, centres);
       if (Object.keys(missing).length) throw invalid('Complete the highlighted details before submitting.', missing);
+      if (c.owner_organisation_id) await assertCourseRoom(trx, c.owner_organisation_id, c.id);
       const resubmit = c.approval_status === 'changes_requested';
       const now = new Date();
       await trx.updateTable('courses').set({ approval_status: 'submitted', submitted_at: now, updated_at: now }).where('id', '=', id).execute();

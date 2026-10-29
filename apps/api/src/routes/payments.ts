@@ -81,7 +81,7 @@ export async function completeOrder(app: FastifyInstance, orderId: string, payme
     }
     const method = recordedMethod(payment.method);
     if (o.purpose === 'plan') {
-      const r = await activatePlan(trx, ctx, { organisationId: o.organisation_id!, plan: o.plan!, cycle: o.billing_cycle!, amountPaise: o.amount_paise, method, provider: 'razorpay', providerPaymentId: paymentId, paidBy: o.payer_id });
+      const r = await activatePlan(trx, ctx, { organisationId: o.organisation_id!, plan: o.plan!, cycle: o.billing_cycle!, amountPaise: o.amount_paise, gstPaise: o.gst_paise, method, provider: 'razorpay', providerPaymentId: paymentId, paidBy: o.payer_id });
       await trx.updateTable('payment_orders').set({ status: 'paid', provider_payment_id: paymentId, result_id: r.paymentId, paid_at: new Date(), updated_at: new Date() }).where('id', '=', o.id).execute();
       return { status: 'paid', purpose: 'plan', paymentId: r.paymentId } as const;
     }

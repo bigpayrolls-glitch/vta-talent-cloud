@@ -171,6 +171,8 @@ const router = createBrowserRouter([
       { path: 'programmes', lazy: () => import('./pages/programmes/Programmes').then((m) => ({ Component: () => <m.ProgrammesPage base="/partner/programmes" /> })) },
       { path: 'programmes/:id', lazy: () => import('./pages/programmes/Programmes').then((m) => ({ Component: () => <m.ProgrammeDetailPage base="/partner/programmes" /> })) },
       { path: 'organisation', lazy: () => import('./pages/programmes/Reports').then((m) => ({ Component: m.PartnerOrganisationPage })) },
+      { path: 'subscription', lazy: () => import('./pages/partner/Subscription').then((m) => ({ Component: m.PartnerSubscriptionPage })) },
+      { path: 'subscription/invoices/:id', lazy: () => import('./pages/partner/Subscription').then((m) => ({ Component: m.PartnerInvoicePage })) },
       { path: 'trainers', lazy: () => import('./pages/training/Trainers').then((m) => ({ Component: () => <m.TrainersPage base="/partner/trainers" /> })) },
       { path: 'trainers/:id', lazy: () => import('./pages/training/Trainers').then((m) => ({ Component: () => <m.TrainerDetailPage base="/partner/trainers" /> })) },
       // Phase 4: trainer screens that work offline.
