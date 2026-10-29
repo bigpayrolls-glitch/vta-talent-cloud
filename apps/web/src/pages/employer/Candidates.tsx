@@ -11,13 +11,15 @@ import { experienceHave, shortDate, skillLabel, type JobView } from '../hiring/f
 interface CandidateRow {
   id: string;
   name: string;
-  city: string;
+  city: string | null;
   preferredWorkArea: string | null;
   skillAreas: string[];
   experienceMonths: number;
   languages: string[];
   availability: string | null;
   vtaCertificates: string[];
+  /** False while AutoTalent Grid has not yet checked the profile. */
+  verified: boolean;
 }
 
 /** EM-04: search people who chose to be found by employers. Contact details are never shown here. */
@@ -41,7 +43,7 @@ export function CandidateSearchPage() {
 
   return (
     <>
-      <PageHeader title="Find candidates" description="Only people who chose to let employers find them, verified by AutoTalent Grid. Contact details are shared when they apply to your job." />
+      <PageHeader title="Find candidates" description="People who can be found by employers. Contact details are shared when they apply to your job." />
       <form
         className="card mb-4 grid gap-3 px-4 py-4 sm:grid-cols-2 lg:grid-cols-5"
         onSubmit={(e) => {
@@ -100,7 +102,7 @@ export function CandidateSearchPage() {
         <ErrorNote message={(q.error as Error).message} />
       ) : !q.data!.items.length ? (
         <div className="card">
-          <EmptyState title="No candidates match" body="Try fewer filters. Only people who chose to be found appear here." />
+          <EmptyState title="No candidates match" body="Try fewer filters. People who turned off “Employers can find my profile” do not appear." />
         </div>
       ) : (
         <>
@@ -109,9 +111,12 @@ export function CandidateSearchPage() {
             {q.data!.items.map((c) => (
               <li key={c.id}>
                 <Link to={`/employer/candidates/${c.id}`} className="card block h-full px-5 py-4 hover:border-brand">
-                  <p className="font-semibold">{c.name}</p>
+                  <p className="font-semibold">
+                    {c.name}
+                    {!c.verified && <span className="ml-2 rounded-full bg-surface px-2 py-0.5 align-middle text-xs font-medium text-muted">Not verified yet</span>}
+                  </p>
                   <p className="text-sm text-muted">
-                    {c.city}
+                    {c.city ?? 'City not given'}
                     {c.preferredWorkArea ? `, prefers ${c.preferredWorkArea}` : ''}
                   </p>
                   <p className="mt-2 text-sm">
@@ -140,7 +145,7 @@ export function CandidateSearchPage() {
 interface CandidateProfile {
   id: string;
   name: string;
-  city: string;
+  city: string | null;
   state: string | null;
   preferredWorkArea: string | null;
   skillAreas: string[];
@@ -148,6 +153,7 @@ interface CandidateProfile {
   education: string | null;
   languages: string[];
   availability: string | null;
+  verified: boolean;
   certificates: { id: string; course: string; issueDate: string; verifyPath: string }[];
   documents: { id: string; title: string; verificationStatus: string }[];
   contact: string;
@@ -171,8 +177,9 @@ export function CandidateProfilePage() {
       <header className="mb-5 mt-3 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-[26px] font-bold tracking-tight">{c.name}</h1>
+          {!c.verified && <p className="mt-1 text-sm text-muted">Not verified yet: AutoTalent Grid has not checked this profile.</p>}
           <p className="mt-1 text-muted">
-            {[c.city, c.state].filter(Boolean).join(', ')}. Verified by AutoTalent Grid.
+            {[c.city, c.state].filter(Boolean).join(', ') || 'City not given'}.{c.verified ? ' Verified by AutoTalent Grid.' : ''}
           </p>
         </div>
         <button className="btn-primary" onClick={() => setInviting(true)}>

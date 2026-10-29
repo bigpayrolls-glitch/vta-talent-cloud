@@ -60,4 +60,24 @@ describe('importing candidates without date of birth or city', () => {
     const n = await ctx.db.selectFrom('users').select((eb) => eb.fn.countAll<string>().as('n')).where('phone', 'like', '+91880000%').executeTakeFirstOrThrow();
     expect(Number(n.n)).toBe(2500);
   });
+
+  it('imported candidates show in employer search at once: masked name, no contact, marked not verified; they can turn it off', async () => {
+    const employer = await loginEmail(ctx, EMAIL.employerAdminA);
+    const res = await employer.get('/employer/candidates?city=Bengaluru');
+    const found = res.body.items.find((x: { name: string }) => x.name.startsWith('Manjunath'));
+    expect(found).toMatchObject({ name: 'Manjunath R.', verified: false, city: 'Bengaluru' });
+    expect(JSON.stringify(found)).not.toMatch(/9845994999/);
+    const one = await employer.get(`/employer/candidates/${found.id}`);
+    expect(one.body).toMatchObject({ verified: false, contact: 'Shared when they apply to one of your jobs' });
+    // Rejected candidates never show.
+    await ctx.db.updateTable('candidate_profiles').set({ verification_status: 'rejected' }).where('user_id', '=', found.id).execute();
+    expect((await employer.get(`/employer/candidates/${found.id}`)).status).toBe(404);
+    await ctx.db.updateTable('candidate_profiles').set({ verification_status: 'pending' }).where('user_id', '=', found.id).execute();
+    // The person turns it off after signing in.
+    const me = await loginPhone(ctx, '+919845994999');
+    for (const purpose of ['privacy_notice', 'terms']) await me.post('/me/consents', { purpose, granted: true, noticeVersion: NOTICE_VERSION });
+    expect((await me.get('/me/profile')).body.searchable).toBe(true);
+    await me.post('/me/consents', { purpose: 'profile_searchable', granted: false });
+    expect((await employer.get(`/employer/candidates/${found.id}`)).status).toBe(404);
+  });
 });

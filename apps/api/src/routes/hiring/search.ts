@@ -13,20 +13,24 @@ import { assertVerified, certificatesOf, employerOrg, likeEscape, openJobsQuery,
 const idParam = z.object({ id: uuidSchema });
 
 /**
- * EM-04 / EM-05 / EM-10: verified employers search candidates who turned on "employers can find my profile",
- * are verified by VTA and have an active account. Results never include phone, email, date of birth or
+ * EM-04 / EM-05 / EM-10: verified employers search candidates whose profile is findable (see `searchable`). Results never include phone, email, date of birth or
  * the full surname; those are shared only when the person applies. Opening a profile is logged.
  */
 export const searchRoutes: FastifyPluginAsync = async (app) => {
   const db = app.db;
 
+  /**
+   * 29 Oct 2026 (decision of AutoTalent Grid): candidates show while AutoTalent Grid has not yet checked them
+   * (marked "Not verified yet"), and imported candidates show before they first sign in. Each person can still
+   * turn "Employers can find my profile" off. Rejected or closed accounts never show.
+   */
   const searchable = () =>
     db
       .selectFrom('candidate_profiles as cp')
       .innerJoin('users as u', 'u.id', 'cp.user_id')
       .where('cp.searchable', '=', true)
-      .where('cp.verification_status', '=', 'verified')
-      .where('u.status', '=', 'active');
+      .where('cp.verification_status', 'in', ['verified', 'pending'])
+      .where('u.status', 'in', ['active', 'invited']);
 
   app.get('/employer/candidates', { config: { permission: 'candidate.search' } }, async (req) => {
     assertVerified(await employerOrg(db, req));
@@ -59,6 +63,7 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
         'cp.experience_months',
         'cp.languages',
         'cp.availability',
+        'cp.verification_status',
         sql<string[]>`array(select c.course_title from credentials c where c.candidate_id = cp.user_id and c.status = 'active' order by c.issue_date desc)`.as('certs'),
       ])
       .orderBy('cp.experience_months', 'desc')
@@ -76,6 +81,7 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
         experienceMonths: r.experience_months,
         languages: r.languages,
         availability: r.availability,
+        verified: r.verification_status === 'verified',
         vtaCertificates: r.certs,
       })),
       page: f.page,
@@ -89,7 +95,7 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
     assertVerified(org);
     const { id } = parse(idParam, req.params);
     const p = await searchable()
-      .select(['cp.user_id', 'u.name', 'cp.city', 'cp.state', 'cp.preferred_work_area', 'cp.skill_areas', 'cp.experience_months', 'cp.education', 'cp.languages', 'cp.availability'])
+      .select(['cp.user_id', 'u.name', 'cp.city', 'cp.state', 'cp.preferred_work_area', 'cp.skill_areas', 'cp.experience_months', 'cp.education', 'cp.languages', 'cp.availability', 'cp.verification_status'])
       .where('cp.user_id', '=', id)
       .executeTakeFirst();
     if (!p) throw notFound('Candidate');
@@ -112,6 +118,7 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
       education: p.education,
       languages: p.languages,
       availability: p.availability,
+      verified: p.verification_status === 'verified',
       certificates: await certificatesOf(db, id),
       // Titles only. Files open once the person applies to one of your jobs.
       documents: (await sharedDocumentsOf(db, id)).map(({ id: docId, kind, title, verificationStatus }) => ({ id: docId, kind, title, verificationStatus })),
