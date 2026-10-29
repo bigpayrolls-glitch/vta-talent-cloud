@@ -30,6 +30,13 @@ export interface PlanInfo {
   contactDetails: boolean;
   /** Scheduling and recording interviews. */
   interviews: boolean;
+  /**
+   * Candidate search (29 Oct 2026). `results`: how many search results are shown (null = all).
+   * `profileViews` / `invites`: full profiles opened and "invite to apply" sent per calendar month (India time);
+   * opening the same candidate again in the same month does not count twice. null = no limit.
+   * `allFilters`: experience and certificate filters (skill area and city are always available).
+   */
+  search: { results: number | null; profileViews: number | null; invites: number | null; allFilters: boolean };
   features: string[];
 }
 
@@ -42,7 +49,8 @@ export const PLAN_INFO: Record<Plan, PlanInfo> = {
     applicants: { limit: 3, per: 'job' },
     contactDetails: false,
     interviews: false,
-    features: ['1 active job', 'Up to 3 applicants per job', 'Candidate search', 'Certificate checks by QR code'],
+    search: { results: 20, profileViews: 5, invites: 2, allFilters: false },
+    features: ['1 active job', 'Up to 3 applicants per job', 'Candidate search: first 20 results, 5 profile views a month', 'Certificate checks by QR code'],
   },
   starter: {
     name: 'Starter',
@@ -52,7 +60,8 @@ export const PLAN_INFO: Record<Plan, PlanInfo> = {
     applicants: { limit: 25, per: 'month' },
     contactDetails: true,
     interviews: true,
-    features: ['Up to 3 active jobs', 'Up to 25 applicants per month', 'View candidate contact details', 'Interview management', 'Certificate checks by QR code', 'Hiring dashboard'],
+    search: { results: null, profileViews: 50, invites: 20, allFilters: true },
+    features: ['Up to 3 active jobs', 'Up to 25 applicants per month', 'Candidate search: 50 profile views and 20 invites a month', 'View candidate contact details', 'Interview management', 'Certificate checks by QR code', 'Hiring dashboard'],
   },
   growth: {
     name: 'Growth',
@@ -62,7 +71,8 @@ export const PLAN_INFO: Record<Plan, PlanInfo> = {
     applicants: { limit: 100, per: 'month' },
     contactDetails: true,
     interviews: true,
-    features: ['Up to 10 active jobs', 'Up to 100 applicants per month', 'Everything in Starter'],
+    search: { results: null, profileViews: 300, invites: 100, allFilters: true },
+    features: ['Up to 10 active jobs', 'Up to 100 applicants per month', 'Candidate search: 300 profile views and 100 invites a month', 'Everything in Starter'],
   },
   enterprise: {
     name: 'Enterprise',
@@ -73,7 +83,8 @@ export const PLAN_INFO: Record<Plan, PlanInfo> = {
     applicants: null,
     contactDetails: true,
     interviews: true,
-    features: ['Jobs and applicants as agreed', 'Everything in Growth', 'Set up with AutoTalent Grid'],
+    search: { results: null, profileViews: null, invites: null, allFilters: true },
+    features: ['Jobs, applicants and candidate search as agreed', 'Everything in Growth', 'Set up with AutoTalent Grid'],
   },
 };
 
@@ -131,4 +142,15 @@ export interface SubscriptionDto {
   };
   /** How payments are taken: 'test' (staging: no money moves) or 'none' (ask AutoTalent Grid). */
   paymentMode: 'test' | 'none' | 'razorpay';
+}
+
+/** What an employer has used of its plan's candidate search this month. */
+export interface SearchUsageDto {
+  plan: Plan;
+  /** First day of next month (India time), when the counts start again. */
+  resetsOn: string;
+  results: number | null;
+  allFilters: boolean;
+  profileViews: { used: number; limit: number | null };
+  invites: { used: number; limit: number | null };
 }

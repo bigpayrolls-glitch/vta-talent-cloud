@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query';
-import { SKILL_AREAS, type Page } from '@vta/shared';
-import { ArrowLeft, Award, ExternalLink, FileText, Lock, Send } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { PLAN_INFO, SKILL_AREAS, type Page, type SearchUsageDto } from '@vta/shared';
+import { ArrowLeft, Award, ExternalLink, FileText, Lock, Send, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useToast } from '../../components/toast';
@@ -22,15 +22,66 @@ interface CandidateRow {
   verified: boolean;
 }
 
+export const useSearchUsage = () => useQuery({ queryKey: ['employer', 'search-usage'], queryFn: () => api.get<SearchUsageDto>('/employer/candidates/usage') });
+
+const dayMonth = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+
+/** What the employer's plan allows in candidate search, and what is used this month. */
+function UsageBar({ u }: { u: SearchUsageDto }) {
+  const item = (label: string, x: { used: number; limit: number | null }) =>
+    x.limit === null ? (
+      <span>{label}: no limit</span>
+    ) : (
+      <span className={x.used >= x.limit ? 'font-semibold text-brand' : ''}>
+        {label}: {x.used} of {x.limit} used
+      </span>
+    );
+  return (
+    <div className="card mb-4 flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
+      <p className="flex flex-wrap gap-x-5 gap-y-1">
+        <span className="font-semibold">{PLAN_INFO[u.plan].name} plan</span>
+        {item('Profile views', u.profileViews)}
+        {item('Invites', u.invites)}
+        <span className="text-muted">Resets {dayMonth(u.resetsOn)}</span>
+      </p>
+      {u.plan !== 'enterprise' && (
+        <Link to="/employer/subscription/plans" className="inline-flex items-center gap-1.5 font-semibold text-[#C8101A] hover:underline">
+          <Sparkles className="size-4" aria-hidden /> Upgrade
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/** Shown when a plan limit is reached. */
+export function UpgradeNote({ message }: { message: string }) {
+  return (
+    <div className="card flex flex-col items-start gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+      <p className="flex items-start gap-2 text-sm">
+        <Lock className="mt-0.5 size-4 shrink-0 text-brand" aria-hidden />
+        {message}
+      </p>
+      <Link to="/employer/subscription/plans" className="btn-primary shrink-0 bg-[#C8101A]">
+        See plans
+      </Link>
+    </div>
+  );
+}
+
+const isPlanLimit = (e: unknown) => e instanceof ApiError && e.fields.plan === 'limit';
+
 /** EM-04: search people who chose to be found by employers. Contact details are never shown here. */
 export function CandidateSearchPage() {
+  const usage = useSearchUsage();
+  const allFilters = usage.data?.allFilters ?? true;
   const [params, setParams] = useSearchParams();
   const get = (k: string) => params.get(k) ?? '';
   const [city, setCity] = useState(get('city'));
   const filters = { skillArea: get('skillArea'), city: get('city'), minExperienceMonths: get('minExperienceMonths'), hasCertificate: get('hasCertificate'), page: get('page') || '1' };
   const q = useQuery({
     queryKey: ['employer', 'candidates', filters],
-    queryFn: () => api.get<Page<CandidateRow>>(`/employer/candidates${qs({ ...filters, pageSize: 20 })}`),
+    queryFn: () => api.get<Page<CandidateRow> & { matched: number; limitedTo: number | null }>(`/employer/candidates${qs({ ...filters, ...(allFilters ? {} : { minExperienceMonths: '', hasCertificate: '' }), pageSize: 20 })}`),
+    enabled: !usage.isLoading,
     placeholderData: (p) => p,
   });
   const set = (k: string, v: string) => {
@@ -44,6 +95,7 @@ export function CandidateSearchPage() {
   return (
     <>
       <PageHeader title="Find candidates" description="People who can be found by employers. Contact details are shared when they apply to your job." />
+      {usage.data && <UsageBar u={usage.data} />}
       <form
         className="card mb-4 grid gap-3 px-4 py-4 sm:grid-cols-2 lg:grid-cols-5"
         onSubmit={(e) => {
@@ -72,9 +124,9 @@ export function CandidateSearchPage() {
         </div>
         <div>
           <label className="field-label" htmlFor="f-exp">
-            Experience
+            Experience {!allFilters && <Lock className="inline size-3.5 text-muted" aria-label="Starter plan and above" />}
           </label>
-          <select id="f-exp" className="field-input" value={filters.minExperienceMonths} onChange={(e) => set('minExperienceMonths', e.target.value)}>
+          <select id="f-exp" className="field-input" value={allFilters ? filters.minExperienceMonths : ''} disabled={!allFilters} title={allFilters ? undefined : 'Starter plan and above'} onChange={(e) => set('minExperienceMonths', e.target.value)}>
             <option value="">Any</option>
             <option value="6">6 months or more</option>
             <option value="12">1 year or more</option>
@@ -83,9 +135,9 @@ export function CandidateSearchPage() {
         </div>
         <div>
           <label className="field-label" htmlFor="f-cert">
-            AutoTalent Grid certificate
+            AutoTalent Grid certificate {!allFilters && <Lock className="inline size-3.5 text-muted" aria-label="Starter plan and above" />}
           </label>
-          <select id="f-cert" className="field-input" value={filters.hasCertificate} onChange={(e) => set('hasCertificate', e.target.value)}>
+          <select id="f-cert" className="field-input" value={allFilters ? filters.hasCertificate : ''} disabled={!allFilters} title={allFilters ? undefined : 'Starter plan and above'} onChange={(e) => set('hasCertificate', e.target.value)}>
             <option value="">Any</option>
             <option value="yes">Has an AutoTalent Grid certificate</option>
           </select>
@@ -96,7 +148,7 @@ export function CandidateSearchPage() {
           </button>
         </div>
       </form>
-      {q.isLoading ? (
+      {q.isPending ? (
         <Spinner />
       ) : q.isError ? (
         <ErrorNote message={(q.error as Error).message} />
@@ -106,7 +158,7 @@ export function CandidateSearchPage() {
         </div>
       ) : (
         <>
-          <p className="mb-2 text-sm text-muted">{q.data!.total} found</p>
+          <p className="mb-2 text-sm text-muted">{q.data!.matched ?? q.data!.total} found{q.data!.limitedTo !== null && q.data!.matched > q.data!.limitedTo ? `, first ${q.data!.limitedTo} shown` : ''}</p>
           <ul className="grid gap-3 md:grid-cols-2">
             {q.data!.items.map((c) => (
               <li key={c.id}>
@@ -136,6 +188,11 @@ export function CandidateSearchPage() {
           <div className="card mt-3">
             <Pagination page={q.data!.page} pageSize={q.data!.pageSize} total={q.data!.total} onPage={(p) => setParams(new URLSearchParams({ ...Object.fromEntries(params), page: String(p) }))} />
           </div>
+          {q.data!.limitedTo !== null && q.data!.matched > q.data!.limitedTo && (
+            <div className="mt-3">
+              <UpgradeNote message={`${(q.data!.matched - q.data!.limitedTo).toLocaleString('en-IN')} more candidates match. Upgrade to Starter to see them all and use every filter.`} />
+            </div>
+          )}
         </>
       )}
     </>
@@ -163,9 +220,19 @@ interface CandidateProfile {
 /** EM-05: permitted fields only. Opening this page is logged (EM-10). */
 export function CandidateProfilePage() {
   const { id = '' } = useParams();
-  const q = useQuery({ queryKey: ['employer', 'candidate', id], queryFn: () => api.get<CandidateProfile>(`/employer/candidates/${id}`) });
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ['employer', 'candidate', id],
+    queryFn: async () => {
+      const r = await api.get<CandidateProfile>(`/employer/candidates/${id}`);
+      void qc.invalidateQueries({ queryKey: ['employer', 'search-usage'] }); // this view may have used one of the month's views
+      return r;
+    },
+    retry: (n, e) => !isPlanLimit(e) && n < 2,
+  });
   const [inviting, setInviting] = useState(false);
   if (q.isLoading) return <Spinner />;
+  if (q.isError && isPlanLimit(q.error)) return <UpgradeNote message={(q.error as Error).message} />;
   if (q.isError) return <ErrorNote message={(q.error as Error).message} />;
   const c = q.data!;
   return (
@@ -261,15 +328,19 @@ function InviteModal({ candidateId, name, onClose, onDone }: { candidateId: stri
   const [jobId, setJobId] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [limit, setLimit] = useState('');
+  const qc = useQueryClient();
   const send = async () => {
     setError('');
     try {
       await api.post(`/employer/candidates/${candidateId}/invite`, { jobId, message });
       toast('success', `${name} was invited. They decide whether to apply.`);
+      await qc.invalidateQueries({ queryKey: ['employer', 'search-usage'] });
       onDone();
       onClose();
     } catch (e) {
-      setError(e instanceof ApiError ? [e.message, ...Object.values(e.fields)].join(' ') : 'Could not send');
+      if (isPlanLimit(e)) setLimit((e as Error).message);
+      else setError(e instanceof ApiError ? [e.message, ...Object.values(e.fields)].join(' ') : 'Could not send');
     }
   };
   return (
@@ -289,6 +360,7 @@ function InviteModal({ candidateId, name, onClose, onDone }: { candidateId: stri
       }
     >
       <div className="space-y-4">
+        {limit && <UpgradeNote message={limit} />}
         {error && <ErrorNote message={error} />}
         <Field label="Job" htmlFor="inv-job">
           <select id="inv-job" className="field-input" value={jobId} onChange={(e) => setJobId(e.target.value)}>

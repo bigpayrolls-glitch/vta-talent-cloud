@@ -1,4 +1,4 @@
-import { candidateSearchSchema, inviteToApplySchema, maskedName, uuidSchema } from '@vta/shared';
+import { candidateSearchSchema, inviteToApplySchema, maskedName, PLAN_INFO, uuidSchema, type SearchUsageDto } from '@vta/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
 import { z } from 'zod';
@@ -6,11 +6,25 @@ import { auditCtx } from '../../app.js';
 import { audit } from '../../audit/service.js';
 import { notify } from '../../lib/notify.js';
 import { newId } from '../../lib/crypto.js';
-import { conflict, invalid, notFound } from '../../lib/errors.js';
+import { ApiError, conflict, invalid, notFound } from '../../lib/errors.js';
+import { currentSubscription } from '../../lib/subscriptions.js';
 import { iso, parse } from '../../lib/validate.js';
 import { assertVerified, certificatesOf, employerOrg, likeEscape, openJobsQuery, sharedDocumentsOf } from './common.js';
 
 const idParam = z.object({ id: uuidSchema });
+
+/** The calendar month in India time: "2026-10", its first moment, and the first day of the next month. */
+export function istMonth(now = new Date()) {
+  const ist = new Date(now.getTime() + 5.5 * 3600_000);
+  const y = ist.getUTCFullYear();
+  const m = ist.getUTCMonth();
+  const start = new Date(Date.UTC(y, m, 1) - 5.5 * 3600_000);
+  const next = new Date(Date.UTC(y, m + 1, 1));
+  return { period: `${y}-${String(m + 1).padStart(2, '0')}`, start, resetsOn: next.toISOString().slice(0, 10) };
+}
+
+/** A plan limit reached: the screen shows an upgrade message (fields.plan = 'limit'). */
+const limitReached = (message: string) => new ApiError('FORBIDDEN', message, { plan: 'limit' });
 
 /**
  * EM-04 / EM-05 / EM-10: verified employers search candidates whose profile is findable (see `searchable`). Results never include phone, email, date of birth or
@@ -32,9 +46,39 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
       .where('cp.verification_status', 'in', ['verified', 'pending'])
       .where('u.status', 'in', ['active', 'invited']);
 
+  /** What this employer has used of its plan's candidate search this month. */
+  async function usage(orgId: string): Promise<SearchUsageDto> {
+    const { plan } = await currentSubscription(db, orgId);
+    const lim = PLAN_INFO[plan].search;
+    const m = istMonth();
+    const views = await db.selectFrom('candidate_profile_views').select((eb) => eb.fn.countAll<string>().as('n')).where('organisation_id', '=', orgId).where('period', '=', m.period).executeTakeFirstOrThrow();
+    const invites = await db
+      .selectFrom('job_invitations as i')
+      .innerJoin('jobs as j', 'j.id', 'i.job_id')
+      .select((eb) => eb.fn.countAll<string>().as('n'))
+      .where('j.organisation_id', '=', orgId)
+      .where('i.created_at', '>=', m.start)
+      .executeTakeFirstOrThrow();
+    return {
+      plan,
+      resetsOn: m.resetsOn,
+      results: lim.results,
+      allFilters: lim.allFilters,
+      profileViews: { used: Number(views.n), limit: lim.profileViews },
+      invites: { used: Number(invites.n), limit: lim.invites },
+    };
+  }
+
+  app.get('/employer/candidates/usage', { config: { permission: 'candidate.search' } }, async (req) => usage((await employerOrg(db, req)).id));
+
   app.get('/employer/candidates', { config: { permission: 'candidate.search' } }, async (req) => {
-    assertVerified(await employerOrg(db, req));
+    const org = await employerOrg(db, req);
+    assertVerified(org);
     const f = parse(candidateSearchSchema, req.query);
+    const lim = PLAN_INFO[(await currentSubscription(db, org.id)).plan].search;
+    if (!lim.allFilters && (f.minExperienceMonths !== undefined || f.hasCertificate || f.courseId || f.availability)) {
+      throw limitReached('Experience and certificate filters are in the Starter plan and above.');
+    }
     let q = searchable();
     if (f.skillArea) q = q.where(sql<boolean>`${f.skillArea} = any(cp.skill_areas)`);
     if (f.city) q = q.where((eb) => eb.or([eb('cp.city', 'ilike', likeEscape(f.city!)), eb('cp.preferred_work_area', 'ilike', likeEscape(f.city!))]));
@@ -68,7 +112,8 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
       ])
       .orderBy('cp.experience_months', 'desc')
       .orderBy('cp.user_id')
-      .limit(f.pageSize)
+      // Free plan: only the first `results` candidates of a search are shown.
+      .limit(lim.results === null ? f.pageSize : Math.max(0, Math.min(f.pageSize, lim.results - (f.page - 1) * f.pageSize)))
       .offset((f.page - 1) * f.pageSize)
       .execute();
     return {
@@ -86,7 +131,10 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
       })),
       page: f.page,
       pageSize: f.pageSize,
-      total: Number(total),
+      total: lim.results === null ? Number(total) : Math.min(Number(total), lim.results),
+      // All matches, for "N more candidates: upgrade to see them all".
+      matched: Number(total),
+      limitedTo: lim.results,
     };
   });
 
@@ -99,6 +147,16 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
       .where('cp.user_id', '=', id)
       .executeTakeFirst();
     if (!p) throw notFound('Candidate');
+    // Plan limit: each candidate counts once a month; opening them again is free.
+    const m = istMonth();
+    const seen = await db.selectFrom('candidate_profile_views').select('candidate_id').where('organisation_id', '=', org.id).where('period', '=', m.period).where('candidate_id', '=', id).executeTakeFirst();
+    if (!seen) {
+      const u = await usage(org.id);
+      if (u.profileViews.limit !== null && u.profileViews.used >= u.profileViews.limit) {
+        throw limitReached(`You have opened ${u.profileViews.limit} candidate profiles this month, the limit of your ${PLAN_INFO[u.plan].name} plan. Upgrade to see more, or wait until ${u.resetsOn}.`);
+      }
+      await db.insertInto('candidate_profile_views').values({ organisation_id: org.id, candidate_id: id, period: m.period, viewed_by: req.actor!.userId }).onConflict((oc) => oc.doNothing()).execute();
+    }
     await audit(db, auditCtx(req), { action: 'candidate.profile_viewed', entityType: 'user', entityId: id, after: { organisationId: org.id, via: 'search' } });
     const invited = await db
       .selectFrom('job_invitations as i')
@@ -139,6 +197,10 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
     if (!job) throw invalid('Choose one of your open, published jobs', { jobId: 'Not an open job of yours' });
     const existing = await db.selectFrom('job_invitations').select('id').where('job_id', '=', b.jobId).where('candidate_id', '=', id).executeTakeFirst();
     if (existing) throw conflict('You already invited this person to this job');
+    const u = await usage(org.id);
+    if (u.invites.limit !== null && u.invites.used >= u.invites.limit) {
+      throw limitReached(`You have sent ${u.invites.limit} invitations this month, the limit of your ${PLAN_INFO[u.plan].name} plan. Upgrade to send more, or wait until ${u.resetsOn}.`);
+    }
     const iid = newId();
     await db.transaction().execute(async (trx) => {
       await trx.insertInto('job_invitations').values({ id: iid, job_id: b.jobId, candidate_id: id, invited_by: req.actor!.userId, message: b.message ?? null }).execute();
