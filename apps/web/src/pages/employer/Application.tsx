@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   APPLICATION_STATUS_LABEL,
+  availabilityLabel,
   INTERVIEW_MODE_LABEL,
   INTERVIEW_MODES,
   INTERVIEW_OUTCOME_LABEL,
@@ -34,6 +35,7 @@ interface ApplicationDetail {
   appliedAt: string;
   note: string | null;
   joiningDate: string | null;
+  expectedJoiningDate: string | null;
   outcomeVerification: string;
   nextMoves: ApplicationStatus[];
   consent: { sharedAt: string; fields: string[] };
@@ -53,6 +55,7 @@ interface ApplicationDetail {
     education: string | null;
     languages: string[];
     availability: string | null;
+    willingToRelocate: boolean | null;
     verificationStatus: string;
   };
   certificates: { id: string; course: string; issueDate: string; verifyPath: string }[];
@@ -97,7 +100,7 @@ export function EmployerApplicationPage() {
   const refresh = () => qc.invalidateQueries({ queryKey: ['employer'] });
 
   const move = async (to: ApplicationStatus) => {
-    if (to === 'joined' || to === 'rejected') return setMoving(to);
+    if (to === 'joined' || to === 'rejected' || to === 'offer') return setMoving(to);
     setError('');
     try {
       await api.post(`/employer/applications/${id}/move`, { to });
@@ -145,6 +148,11 @@ export function EmployerApplicationPage() {
         <div className="mb-4">
           <ErrorNote message={error} />
         </div>
+      )}
+      {a.status === 'offer' && a.expectedJoiningDate && (
+        <p className="mb-4 rounded-lg bg-surface px-4 py-3 text-sm">
+          Offer made. Expected to join on <span className="font-semibold">{shortDate(a.expectedJoiningDate)}</span>. Once the person has started, use Record joining.
+        </p>
       )}
       {a.status === 'joined' && a.joiningDate && <p className="mb-4 rounded-lg bg-success-tint px-4 py-3 text-sm text-success">Joined on {shortDate(a.joiningDate)}. AutoTalent Grid may contact you to confirm it.</p>}
 
@@ -197,7 +205,8 @@ export function EmployerApplicationPage() {
                 ['Experience', experienceHave(p.experienceMonths)],
                 ['Education', p.education],
                 ['Languages', p.languages.join(', ')],
-                ['Availability', p.availability],
+                ['Can join', availabilityLabel(p.availability)],
+                ['Willing to relocate', p.willingToRelocate == null ? null : p.willingToRelocate ? 'Yes' : 'No'],
               ] as const
             ).map(([k, val]) => (
               <div key={k} className="grid gap-0.5 px-5 py-2.5 text-sm sm:grid-cols-[180px_1fr]">
@@ -301,22 +310,32 @@ export function EmployerApplicationPage() {
         </aside>
       </div>
 
-      {moving && <MoveModal id={id} to={moving} onClose={() => setMoving(null)} onDone={refresh} />}
+      {moving && <MoveModal id={id} to={moving} expected={a.expectedJoiningDate} onClose={() => setMoving(null)} onDone={refresh} />}
       {interview && <InterviewModal applicationId={id} interview={interview === 'new' ? null : interview} onClose={() => setInterview(null)} onDone={refresh} />}
     </>
   );
 }
 
-function MoveModal({ id, to, onClose, onDone }: { id: string; to: ApplicationStatus; onClose: () => void; onDone: () => Promise<unknown> }) {
+const todayLocal = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
+
+const MODAL_TITLE: Partial<Record<ApplicationStatus, string>> = { joined: 'Record joining', offer: 'Record offer', rejected: 'Not selected' };
+
+function MoveModal({ id, to, expected, onClose, onDone }: { id: string; to: ApplicationStatus; expected: string | null; onClose: () => void; onDone: () => Promise<unknown> }) {
   const toast = useToast();
   const f = useForm(moveApplicationSchema);
-  const [joiningDate, setJoiningDate] = useState('');
+  const today = todayLocal();
+  // The day the person actually started: the expected date once it has come, otherwise chosen by hand.
+  const [joiningDate, setJoiningDate] = useState(expected && expected <= today ? expected : '');
+  const [expectedJoiningDate, setExpectedJoiningDate] = useState('');
   const [reason, setReason] = useState('');
   return (
     <Modal
       open
       onClose={onClose}
-      title={to === 'joined' ? 'Record joining' : 'Not selected'}
+      title={MODAL_TITLE[to] ?? 'Not selected'}
       footer={
         <>
           <button className="btn-secondary" onClick={onClose}>
@@ -326,10 +345,10 @@ function MoveModal({ id, to, onClose, onDone }: { id: string; to: ApplicationSta
             className="btn-primary"
             disabled={f.submitting}
             onClick={() =>
-              void f.submit({ to, ...(to === 'joined' ? { joiningDate } : { reason }) }, async (data) => {
+              void f.submit({ to, ...(to === 'joined' ? { joiningDate } : to === 'offer' ? { expectedJoiningDate } : { reason }) }, async (data) => {
                 await api.post(`/employer/applications/${id}/move`, data);
                 await onDone();
-                toast('success', to === 'joined' ? 'Joining recorded' : 'Marked as not selected');
+                toast('success', to === 'joined' ? 'Joining recorded' : to === 'offer' ? 'Offer recorded' : 'Marked as not selected');
                 onClose();
               })
             }
@@ -341,8 +360,17 @@ function MoveModal({ id, to, onClose, onDone }: { id: string; to: ApplicationSta
     >
       {f.formError && <ErrorNote message={f.formError} />}
       {to === 'joined' ? (
-        <Field label="Joining date" htmlFor="m-join" error={f.errors.joiningDate} hint="Record a joining once the person has started. An offer alone is not a joining.">
-          <input id="m-join" type="date" className="field-input" value={joiningDate} onChange={(e) => setJoiningDate(e.target.value)} />
+        <Field
+          label="Date the person started work"
+          htmlFor="m-join"
+          error={f.errors.joiningDate}
+          hint="Use this once the person has actually started. It counts as a successful placement for AutoTalent Grid, so it cannot be a future date. For a future start, record the offer with an expected joining date."
+        >
+          <input id="m-join" type="date" max={today} className="field-input" value={joiningDate} onChange={(e) => setJoiningDate(e.target.value)} />
+        </Field>
+      ) : to === 'offer' ? (
+        <Field label="Expected joining date" htmlFor="m-expected" error={f.errors.expectedJoiningDate} hint="The day the person is expected to start. The candidate sees this date. Record the joining once they have started.">
+          <input id="m-expected" type="date" min={today} className="field-input" value={expectedJoiningDate} onChange={(e) => setExpectedJoiningDate(e.target.value)} />
         </Field>
       ) : (
         <Field label="Reason (seen only by your team and AutoTalent Grid)" htmlFor="m-reason" error={f.errors.reason}>

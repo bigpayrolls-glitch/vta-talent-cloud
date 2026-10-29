@@ -789,5 +789,20 @@
  "The next step of the journey opens once you complete this one.": "यह स्टेप पूरा करते ही सफ़र का अगला स्टेप खुल जाएगा।",
  "To be assigned by AutoTalent Grid": "AutoTalent Grid तय करेगा",
  "Training partner assigned by AutoTalent Grid": "AutoTalent Grid द्वारा तय ट्रेनिंग पार्टनर",
- "You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. Your enrolment is confirmed as soon as the payment goes through.": "आप Razorpay से सुरक्षित पेमेंट करते हैं: UPI, डेबिट या क्रेडिट कार्ड, नेट बैंकिंग या वॉलेट। पेमेंट होते ही आपका एडमिशन पक्का हो जाता है।"
+ "You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. Your enrolment is confirmed as soon as the payment goes through.": "आप Razorpay से सुरक्षित पेमेंट करते हैं: UPI, डेबिट या क्रेडिट कार्ड, नेट बैंकिंग या वॉलेट। पेमेंट होते ही आपका एडमिशन पक्का हो जाता है।",
+ "After 1 month": "1 महीने के बाद",
+ "Choose": "चुनें",
+ "Choose when you can join": "चुनें कि आप कब जॉइन कर सकते हैं",
+ "Immediately": "तुरंत",
+ "No": "नहीं",
+ "No, only near where I live": "नहीं, सिर्फ़ जहाँ रहता/रहती हूँ उसके पास",
+ "When can you join a job?": "आप नौकरी कब जॉइन कर सकते हैं?",
+ "When you can join": "कब जॉइन कर सकते हैं",
+ "Willing to relocate": "दूसरे शहर जाने को तैयार",
+ "Willing to relocate for a job?": "नौकरी के लिए दूसरे शहर जाने को तैयार हैं?",
+ "Within 1 month": "1 महीने के अंदर",
+ "Within 15 days": "15 दिन के अंदर",
+ "Yes": "हाँ",
+ "Yes, I can move to another city": "हाँ, मैं दूसरे शहर जा सकता/सकती हूँ",
+ "You have an offer. Expected joining date: {date}.": "आपको ऑफ़र मिला है। जॉइन करने की संभावित तारीख: {date}।"
 }

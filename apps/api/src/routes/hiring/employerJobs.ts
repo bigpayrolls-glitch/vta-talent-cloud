@@ -233,7 +233,7 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
     const p = await db
       .selectFrom('users as u')
       .innerJoin('candidate_profiles as cp', 'cp.user_id', 'u.id')
-      .select(['u.name', 'u.phone', 'u.email', 'cp.candidate_code', 'cp.city', 'cp.state', 'cp.preferred_work_area', 'cp.skill_areas', 'cp.experience_months', 'cp.education', 'cp.languages', 'cp.availability', 'cp.verification_status'])
+      .select(['u.name', 'u.phone', 'u.email', 'cp.candidate_code', 'cp.city', 'cp.state', 'cp.preferred_work_area', 'cp.skill_areas', 'cp.experience_months', 'cp.education', 'cp.languages', 'cp.availability', 'cp.willing_to_relocate', 'cp.verification_status'])
       .where('u.id', '=', a.candidate_id)
       .executeTakeFirstOrThrow();
     const { plan } = await currentSubscription(db, a.organisation_id);
@@ -251,6 +251,7 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
       appliedAt: iso(a.applied_at),
       note: a.note,
       joiningDate: a.joining_date,
+      expectedJoiningDate: a.expected_joining_date,
       outcomeVerification: a.outcome_verification,
       nextMoves: EMPLOYER_MOVES[a.status],
       consent: a.consent_snapshot,
@@ -270,6 +271,7 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
         education: p.education,
         languages: p.languages,
         availability: p.availability,
+        willingToRelocate: p.willing_to_relocate,
         verificationStatus: p.verification_status,
       },
       certificates: contactShared ? await certificatesOf(db, a.candidate_id) : [],
@@ -310,7 +312,8 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
       throw invalid(a.status === 'withdrawn' ? 'The candidate withdrew this application.' : `An application that is ${a.status.replace('_', ' ')} cannot move to ${b.to.replace('_', ' ')}.`);
     }
     if (b.to === 'joined' && b.joiningDate! > todayIst()) throw invalid('Record a joining once it has happened', { joiningDate: 'Not in the future' });
-    await moveApplication(req, a, b.to, 'employer', { joining_date: b.to === 'joined' ? b.joiningDate! : null, reason: b.reason ?? null });
+    if (b.to === 'offer' && b.expectedJoiningDate! < todayIst()) throw invalid('Check the expected joining date', { expectedJoiningDate: 'Today or later' });
+    await moveApplication(req, a, b.to, 'employer', { joining_date: b.to === 'joined' ? b.joiningDate! : null, expected_joining_date: b.to === 'offer' ? b.expectedJoiningDate! : null, reason: b.reason ?? null });
     return { ok: true, status: b.to };
   });
 
@@ -318,19 +321,19 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
   const jobContext = (trx: Parameters<typeof notify>[0], jobId: string) =>
     trx.selectFrom('jobs as j').innerJoin('organisations as o', 'o.id', 'j.organisation_id').select(['j.title as job', 'o.legal_name as company']).where('j.id', '=', jobId).executeTakeFirstOrThrow();
 
-  async function moveApplication(req: FastifyRequest, a: JobApplication, to: ApplicationStatus, kind: 'employer', extra: { joining_date: string | null; reason: string | null }, quiet = false) {
+  async function moveApplication(req: FastifyRequest, a: JobApplication, to: ApplicationStatus, kind: 'employer', extra: { joining_date: string | null; expected_joining_date?: string | null; reason: string | null }, quiet = false) {
     const now = new Date();
     await db.transaction().execute(async (trx) => {
       const updated = await trx
         .updateTable('job_applications')
-        .set({ status: to, updated_at: now, ...(to === 'joined' ? { joining_date: extra.joining_date } : {}) })
+        .set({ status: to, updated_at: now, ...(to === 'joined' ? { joining_date: extra.joining_date } : {}), ...(to === 'offer' ? { expected_joining_date: extra.expected_joining_date } : {}) })
         .where('id', '=', a.id)
         .where('status', '=', a.status) // someone else may have moved it a moment ago
         .returning('id')
         .executeTakeFirst();
       if (!updated) throw invalid('This application was just changed by someone else. Reload and try again.');
       await trx.insertInto('application_events').values({ id: newId(), application_id: a.id, from_status: a.status, to_status: to, actor_id: req.actor!.userId, actor_kind: kind }).execute();
-      await audit(trx, auditCtx(req), { action: 'application.moved', entityType: 'application', entityId: a.id, before: { status: a.status }, after: { status: to, joining_date: extra.joining_date, reason: extra.reason } });
+      await audit(trx, auditCtx(req), { action: 'application.moved', entityType: 'application', entityId: a.id, before: { status: a.status }, after: { status: to, joining_date: extra.joining_date, expected_joining_date: extra.expected_joining_date ?? null, reason: extra.reason } });
       // SH-07: the learner hears about each step (the employer's reason stays internal); VTA hears about joinings to verify.
       const ctx = await jobContext(trx, a.job_id);
       if (!quiet) await notify(trx, [a.candidate_id], 'application_update', { ...ctx, status: to }, `/learn/applications/${a.id}`);
