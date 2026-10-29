@@ -10,7 +10,7 @@ test('an Admin changes the Starter price; the employer plans page shows the new 
     const dialog = page.getByRole('dialog', { name: 'Edit Starter plan' });
     await dialog.getByLabel('Monthly price (₹)').fill(rupees);
     await dialog.getByRole('button', { name: 'Save plan' }).click();
-    await expect(page.getByText('Starter plan saved')).toBeVisible();
+    await expect(page.getByText('Starter plan saved').last()).toBeVisible();
   };
   await setPrice('1199');
   await expect(page.getByText('₹1,199')).toBeVisible();
