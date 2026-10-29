@@ -9,6 +9,7 @@ import { notify, vtaReviewers } from '../lib/notify.js';
 import { checkoutSignatureOk, gatewayUnavailable, recordedMethod, webhookSignatureOk, type GatewayPayment } from '../lib/razorpay.js';
 import { parse } from '../lib/validate.js';
 import { activatePlan } from './hiring/subscription.js';
+import { createBooking } from './learner/bookings.js';
 import { enrolSelf } from './learner/catalogue.js';
 
 const idParam = z.object({ id: uuidSchema });
@@ -20,12 +21,17 @@ const verifySchema = z.object({
 export type PaymentOutcome =
   | { status: 'paid'; purpose: 'plan'; paymentId: string }
   | { status: 'paid'; purpose: 'course'; enrolmentId: string }
-  | { status: 'needs_refund'; purpose: 'plan' | 'course'; message: string };
+  | { status: 'paid'; purpose: 'booking'; bookingId: string }
+  | { status: 'needs_refund'; purpose: 'plan' | 'course' | 'booking'; message: string };
 
 const money = (paise: number) => `₹${Math.round(paise / 100).toLocaleString('en-IN')}`;
 
-function outcomeOf(o: { status: string; purpose: 'plan' | 'course'; result_id: string | null; failure: string | null }): PaymentOutcome | null {
-  if (o.status === 'paid' && o.result_id) return o.purpose === 'plan' ? { status: 'paid', purpose: 'plan', paymentId: o.result_id } : { status: 'paid', purpose: 'course', enrolmentId: o.result_id };
+function outcomeOf(o: { status: string; purpose: 'plan' | 'course' | 'booking'; result_id: string | null; failure: string | null }): PaymentOutcome | null {
+  if (o.status === 'paid' && o.result_id) {
+    if (o.purpose === 'plan') return { status: 'paid', purpose: 'plan', paymentId: o.result_id };
+    if (o.purpose === 'booking') return { status: 'paid', purpose: 'booking', bookingId: o.result_id };
+    return { status: 'paid', purpose: 'course', enrolmentId: o.result_id };
+  }
   if (o.status === 'needs_refund') {
     return { status: 'needs_refund', purpose: o.purpose, message: `Your payment was received, but ${o.failure ?? 'it could not be used.'} AutoTalent Grid has been told and will refund it in full.` };
   }
@@ -78,6 +84,16 @@ export async function completeOrder(app: FastifyInstance, orderId: string, payme
       const r = await activatePlan(trx, ctx, { organisationId: o.organisation_id!, plan: o.plan!, cycle: o.billing_cycle!, amountPaise: o.amount_paise, method, provider: 'razorpay', providerPaymentId: paymentId, paidBy: o.payer_id });
       await trx.updateTable('payment_orders').set({ status: 'paid', provider_payment_id: paymentId, result_id: r.paymentId, paid_at: new Date(), updated_at: new Date() }).where('id', '=', o.id).execute();
       return { status: 'paid', purpose: 'plan', paymentId: r.paymentId } as const;
+    }
+    if (o.purpose === 'booking') {
+      const k = await createBooking(trx, ctx, o.payer_id, o.course_id!, { provider: 'razorpay', method, providerPaymentId: paymentId, expectedAmount: o.amount_paise, needsStay: o.needs_stay });
+      if ('blocked' in k) {
+        const reason = k.blocked.replace(/\.$/, '').toLowerCase();
+        await flagRefund(trx, o, paymentId, `${reason}.`, ctx, true);
+        return outcomeOf({ ...o, status: 'needs_refund', failure: `${reason}.` })!;
+      }
+      await trx.updateTable('payment_orders').set({ status: 'paid', provider_payment_id: paymentId, result_id: k.bookingId, paid_at: new Date(), updated_at: new Date() }).where('id', '=', o.id).execute();
+      return { status: 'paid', purpose: 'booking', bookingId: k.bookingId } as const;
     }
     const r = await enrolSelf(trx, ctx, o.payer_id, o.batch_id!, { provider: 'razorpay', method, providerPaymentId: paymentId, expectedFee: o.amount_paise, needsStay: o.needs_stay });
     if ('blocked' in r) {

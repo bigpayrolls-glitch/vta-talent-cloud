@@ -63,6 +63,8 @@ export const NOTIFICATION_TEMPLATES = {
   job_submitted: { title: (p) => `Job waiting for review: ${p.job}`, body: (p) => `From ${p.company}.` },
   joining_reported: { title: (p) => `Joining to verify: ${p.job}`, body: (p) => `${p.company} recorded a joining.` },
   plan_requested: { title: (p) => `${p.org} asked about the ${p.plan} plan`, body: (p) => (p.note ? `Their note: ${p.note}` : 'Contact them to set it up.') },
+  course_booked: { title: (p) => `${p.learner} enrolled in ${p.course}`, body: (p) => `${p.amount ? `They paid ${p.amount} online. ` : ''}Assign a batch in Course enrolments.` },
+  booking_placed: { title: (p) => `Your batch for ${p.course}`, body: (p) => `You are in ${p.batch} at ${p.centre}, starting ${p.start}. The training centre will contact you.` },
   self_enrolled: { title: (p) => `${p.learner} enrolled in ${p.batch}`, body: (p) => (p.amount ? `They enrolled online and paid ${p.amount}.` : 'They enrolled online.') },
   centre_added: { title: (p) => `New centre: ${p.name}`, body: (p) => `${p.org} added a centre in ${p.city}. Check it in Centres; you can edit or delete it.` },
   trainer_signed_up: { title: (p) => `New trainer to verify: ${p.name}`, body: (p) => `An independent trainer from ${p.city} signed up. Verify them before they can be given a batch.` },

@@ -150,6 +150,20 @@ describe('course fee', () => {
   });
 });
 
+describe('career journey course', () => {
+  it('enrolling makes an order for the course; the booking is made when the payment is verified', async () => {
+    const step1 = (await ctx.db.selectFrom('courses').select('id').where('code', '=', 'ATG-SA-1').executeTakeFirstOrThrow()).id;
+    await ctx.db.updateTable('courses').set({ fee_paise: 250_000, status: 'active' }).where('id', '=', step1).execute();
+    const o = await c.learner!.post('/me/bookings', { courseId: step1, acceptTerms: true });
+    expect(o.status).toBe(201);
+    expect(o.body.razorpay).toMatchObject({ amount: 250_000, description: 'Service Advisor Beginner: Job Card, Process and AMC Basics' });
+    expect(await ctx.db.selectFrom('course_bookings').select('id').where('course_id', '=', step1).execute()).toHaveLength(0);
+    const r = await c.learner!.post(`/payments/${o.body.orderId}/verify`, rzp.pay(o.body.razorpay.orderId));
+    expect(r.body).toMatchObject({ status: 'paid', purpose: 'booking', bookingId: expect.any(String) });
+    expect((await c.learner!.get(`/me/bookings/${r.body.bookingId}/receipt`)).body).toMatchObject({ amountRupees: 2500, test: false, status: 'awaiting_batch', method: 'upi' });
+  });
+});
+
 describe('webhook', () => {
   const hook = (body: object, opts: { sig?: string; id?: string } = {}) => {
     const raw = JSON.stringify(body);

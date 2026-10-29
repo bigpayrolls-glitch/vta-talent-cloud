@@ -12,3 +12,4 @@ export * from './notifications.js';
 export * from './plans.js';
 export * from './catalogue.js';
 export * from './partnerCourses.js';
+export * from './journeys.js';

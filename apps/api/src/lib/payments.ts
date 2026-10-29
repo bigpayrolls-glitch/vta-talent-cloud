@@ -24,13 +24,14 @@ export interface RazorpayCheckout {
 export async function startRazorpayOrder(
   app: FastifyInstance,
   o: {
-    purpose: 'plan' | 'course';
+    purpose: 'plan' | 'course' | 'booking';
     amountPaise: number;
     payerId: string;
     organisationId?: string;
     plan?: 'starter' | 'growth';
     cycle?: 'monthly' | 'yearly';
     batchId?: string;
+    courseId?: string;
     needsStay?: boolean;
     description: string;
     prefill: { name?: string; email?: string; contact?: string };
@@ -60,6 +61,7 @@ export async function startRazorpayOrder(
         plan: o.plan ?? null,
         billing_cycle: o.cycle ?? null,
         batch_id: o.batchId ?? null,
+        course_id: o.courseId ?? null,
         needs_stay: o.needsStay ?? false,
         provider_payment_id: null,
         result_id: null,

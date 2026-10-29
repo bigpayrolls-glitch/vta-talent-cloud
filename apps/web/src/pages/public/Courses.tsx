@@ -16,10 +16,16 @@ import {
   type CatalogueCourseDetail,
   type PayMethod,
   type SkillArea,
+  type JourneyInfo,
+  type Track,
+  type TrackStep,
+  TRACK_CERTIFICATION,
+  TRACK_LABEL,
+  TRACK_STEP_LABEL,
   hoursLabel,
   splitLabel,
 } from '@vta/shared';
-import { ArrowLeft, ArrowRight, Award, BedDouble, Building2, CalendarDays, Check, CircleCheck, Clock, CreditCard, Landmark, MapPin, Printer, School, ShieldCheck, SlidersHorizontal, Smartphone, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Award, BedDouble, Route, Building2, CalendarDays, Check, CircleCheck, Clock, CreditCard, Landmark, MapPin, Printer, School, ShieldCheck, SlidersHorizontal, Smartphone, X } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { durationText } from '../../components/form';
@@ -165,18 +171,21 @@ export function CoursesPage() {
                 <li key={c.id} className="card flex flex-col overflow-hidden">
                   <img src={c.imageUrl ?? courseImage(c.skillArea)} alt="" className="aspect-[16/10] w-full object-cover" loading="lazy" />
                   <div className="flex flex-1 flex-col px-4 py-4">
+                    {c.track && c.trackStep && <JourneyBadge track={c.track} step={c.trackStep as TrackStep} />}
                     <h2 className="font-bold leading-snug">{c.title}</h2>
                     <p className="text-sm text-muted">{t(COURSE_LEVEL_LABEL[c.level as keyof typeof COURSE_LEVEL_LABEL] ?? c.level)}</p>
                     <div className="mt-3 space-y-1.5 text-[13px] text-ink/80">
-                      <Meta icon={Building2}>{c.providers.join(', ')}</Meta>
+                      <Meta icon={Building2}>{c.track ? t('Training partner assigned by AutoTalent Grid') : c.providers.join(', ')}</Meta>
                       <div className="flex flex-wrap gap-x-4 gap-y-1">
                         <Meta icon={Clock}>{durationText(c.durationValue, c.durationUnit)}</Meta>
                         <Meta icon={School}>{MODE_LABEL()[c.deliveryMode] ?? c.deliveryMode}</Meta>
                       </div>
-                      <div className="flex flex-wrap gap-x-4 gap-y-1">
-                        <Meta icon={MapPin}>{c.cities.join(', ') || t('Online')}</Meta>
-                        <Meta icon={CalendarDays}>{t('Starts {date}', { date: day(c.nextStart) })}</Meta>
-                      </div>
+                      {!c.track && (
+                        <div className="flex flex-wrap gap-x-4 gap-y-1">
+                          <Meta icon={MapPin}>{c.cities.join(', ') || t('Online')}</Meta>
+                          <Meta icon={CalendarDays}>{t('Starts {date}', { date: day(c.nextStart) })}</Meta>
+                        </div>
+                      )}
                     </div>
                     {c.skillTags.length > 0 && (
                       <ul className="mt-3 flex flex-wrap gap-1.5" aria-label={t('Skills')}>
@@ -191,13 +200,17 @@ export function CoursesPage() {
                         {rupees(c.feeRupees)}
                         {c.feeRupees > 0 && c.gstPct > 0 && <span className="ml-1 text-xs font-medium text-muted">{t('incl. GST')}</span>}
                       </p>
-                      <p className={`text-xs font-semibold ${c.seatsLeft <= 5 ? 'text-[#C8101A]' : 'text-success'}`}>{c.seatsLeft === 1 ? t('{n} seat left', { n: c.seatsLeft }) : t('{n} seats left', { n: c.seatsLeft })}</p>
+                      {!c.track && <p className={`text-xs font-semibold ${c.seatsLeft <= 5 ? 'text-[#C8101A]' : 'text-success'}`}>{c.seatsLeft === 1 ? t('{n} seat left', { n: c.seatsLeft }) : t('{n} seats left', { n: c.seatsLeft })}</p>}
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <Link to={`/courses/${c.id}`} className="btn-secondary h-10" aria-label={t('View details: {title}', { title: c.title })}>
                         {t('Details')}
                       </Link>
-                      {c.nextBatchId ? (
+                      {c.track ? (
+                        <Link to={`/enrol/course/${c.id}`} className="btn-primary h-10 bg-[#C8101A] hover:bg-brand-hover" aria-label={t('Enrol now: {title}', { title: c.title })}>
+                          {t('Enrol now')}
+                        </Link>
+                      ) : c.nextBatchId ? (
                         <Link to={`/enrol/${c.nextBatchId}`} className="btn-primary h-10 bg-[#C8101A] hover:bg-brand-hover" aria-label={t('Enrol now: {title}', { title: c.title })}>
                           {t('Enrol now')}
                         </Link>
@@ -237,6 +250,37 @@ export function CoursesPage() {
 
 const TABS = ['Overview', 'Syllabus', 'Certification'] as const;
 const TAB_LABEL = (): Record<(typeof TABS)[number], string> => ({ Overview: t('Overview'), Syllabus: t('Syllabus'), Certification: t('Certification') });
+
+/** "Technician · Step 2 of 4 · Bronze" */
+function JourneyBadge({ track, step }: { track: Track; step: TrackStep }) {
+  return (
+    <p className="mb-1 inline-flex w-fit items-center gap-1.5 rounded-full bg-ink px-2.5 py-0.5 text-[11px] font-semibold text-white">
+      <Route className="size-3" aria-hidden />
+      {t('{track} journey · Step {step} of 4 · {level}', { track: t(TRACK_LABEL[track]), step, level: t(TRACK_STEP_LABEL[step]) })}
+    </p>
+  );
+}
+
+function JourneyNote({ journey }: { journey: JourneyInfo }) {
+  return (
+    <div className="mt-3 space-y-1 text-sm text-muted">
+      <JourneyBadge track={journey.track} step={journey.step} />
+      {journey.previous && (
+        <p>
+          {tn('Open after you complete {course}.', {
+            course: (
+              <Link to={`/courses/${journey.previous.id}`} className="font-semibold text-[#C8101A] underline">
+                {journey.previous.title}
+              </Link>
+            ),
+          })}
+        </p>
+      )}
+      {journey.step === 4 && <p>{t('Completing this step leads to the {cert} certification.', { cert: TRACK_CERTIFICATION[journey.track] })}</p>}
+      <p>{t('AutoTalent Grid assigns your training partner and batch after you enrol.')}</p>
+    </div>
+  );
+}
 
 export function CourseDetailPage() {
   const { id = '' } = useParams();
@@ -285,7 +329,11 @@ export function CourseDetailPage() {
                 {rupees(c.feeRupees)}
                 {c.feeRupees > 0 && c.gstPct > 0 && <span className="ml-1.5 text-sm font-medium text-muted">{t('incl. {pct}% GST', { pct: c.gstPct })}</span>}
               </p>
-              {first ? (
+              {c.journey ? (
+                <Link to={`/enrol/course/${c.id}`} className="btn-primary h-12 min-w-[220px] bg-[#C8101A] px-8 text-base hover:bg-brand-hover">
+                  {t('Enrol now')}
+                </Link>
+              ) : first ? (
                 <Link to={`/enrol/${first.id}`} className="btn-primary h-12 min-w-[220px] bg-[#C8101A] px-8 text-base hover:bg-brand-hover">
                   {t('Enrol now')}
                 </Link>
@@ -293,7 +341,11 @@ export function CourseDetailPage() {
                 <p className="text-sm text-muted">{t('No batch open for enrolment right now.')}</p>
               )}
             </div>
-            {first && <p className="mt-2 text-sm text-muted">{t('Next batch starts {date}. Your seat is confirmed straight away.', { date: day(first.startDate) })}</p>}
+            {c.journey ? (
+              <JourneyNote journey={c.journey} />
+            ) : (
+              first && <p className="mt-2 text-sm text-muted">{t('Next batch starts {date}. Your seat is confirmed straight away.', { date: day(first.startDate) })}</p>
+            )}
           </div>
         </section>
 
@@ -407,9 +459,16 @@ export function CourseDetailPage() {
 
           <aside aria-labelledby="batches-h" className="card h-fit px-5 py-4">
             <h2 id="batches-h" className="font-bold">
-              {t('Upcoming batches')}
+              {c.journey ? t('How enrolment works') : t('Upcoming batches')}
             </h2>
-            {!c.batches.length ? (
+            {c.journey ? (
+              <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-ink/80">
+                <li>{t('Enrol and pay online for this course.')}</li>
+                <li>{t('AutoTalent Grid assigns a training partner and batch near you, and tells you the dates.')}</li>
+                <li>{t('Attend the training and complete the assessment.')}</li>
+                <li>{t('The next step of the journey opens once you complete this one.')}</li>
+              </ol>
+            ) : !c.batches.length ? (
               <p className="mt-2 text-sm text-muted">{t('No batch is open right now.')}</p>
             ) : (
               <ul className="mt-2 divide-y divide-line">
@@ -477,28 +536,50 @@ function Stepper({ step }: { step: 1 | 2 | 3 }) {
 
 const METHOD_ICON: Record<PayMethod, typeof CreditCard> = { upi: Smartphone, card: CreditCard, netbanking: Landmark };
 
-export function EnrolPage() {
-  const { batchId = '' } = useParams();
-  const { me, loading, can } = useAuth();
-  const location = useLocation();
-  const navigate = useNavigate();
+/** What the payment panel needs to know about the course. */
+interface PayCourse {
+  feeRupees: number;
+  stayAvailable: boolean;
+  stayFeeRupees: number | null;
+}
+
+/**
+ * The payment half of enrolling: accommodation choice, summary, method, terms and the pay button. Used for a
+ * batch (seat confirmed at once) and for a career journey course (AutoTalent Grid assigns the batch).
+ * `post` sends the enrolment and returns the new record's id, or a Razorpay order to pay.
+ */
+function PayPanel({
+  course,
+  blocker,
+  paymentMode,
+  post,
+  onDone,
+  contactText,
+  confirmText,
+}: {
+  course: PayCourse;
+  blocker: string | null;
+  paymentMode: 'test' | 'none' | 'razorpay';
+  post: (body: { method?: PayMethod; needsStay: boolean; acceptTerms: boolean }) => Promise<{ id: string } | RazorpayStart>;
+  onDone: (id: string) => void;
+  contactText: string;
+  confirmText: string;
+}) {
   const [method, setMethod] = useState<PayMethod>('upi');
   const [terms, setTerms] = useState(false);
   // Accommodation with food, when the course offers it: the learner must choose one of the two boxes.
   const [needsStay, setNeedsStay] = useState<boolean | null>(null);
   const [stayError, setStayError] = useState(false);
-  const isLearner = !!me && can('learner.self');
-  const q = useQuery({ queryKey: ['enrol', batchId], queryFn: () => api.get<Quote>(`/me/enrol/${batchId}`), enabled: isLearner });
   const [stage, setStage] = useState<'idle' | 'paying' | 'verifying'>('idle');
   const [note, setNote] = useState<string | null>(null);
+  const stayCharge = course.stayAvailable && needsStay === true ? (course.stayFeeRupees ?? 0) : 0;
+  const fee = course.feeRupees + stayCharge;
   const pay = useMutation({
-    mutationFn: async (): Promise<{ enrolmentId: string } | null> => {
+    mutationFn: async (): Promise<string | null> => {
       setNote(null);
-      const live = q.data?.paymentMode === 'razorpay';
-      const stay = !!q.data?.course.stayAvailable && needsStay === true;
-      const total = (q.data?.course.feeRupees ?? 0) + (stay ? (q.data?.course.stayFeeRupees ?? 0) : 0);
-      const r = await api.post<{ enrolmentId: string } | RazorpayStart>('/me/enrolments', { batchId, method: total && !live ? method : undefined, needsStay: stay, acceptTerms: terms });
-      if (!('razorpay' in r)) return r;
+      const live = paymentMode === 'razorpay';
+      const r = await post({ method: fee && !live ? method : undefined, needsStay: course.stayAvailable && needsStay === true, acceptTerms: terms });
+      if (!('razorpay' in r)) return r.id;
       setStage('paying');
       try {
         const out = await payWithRazorpay(r, () => setStage('verifying'));
@@ -506,7 +587,7 @@ export function EnrolPage() {
           setNote(out.message);
           return null;
         }
-        return out.purpose === 'course' ? { enrolmentId: out.enrolmentId } : null;
+        return out.purpose === 'course' ? out.enrolmentId : out.purpose === 'booking' ? out.bookingId : null;
       } catch (e) {
         if (e instanceof PaymentCancelled) {
           setNote(e.message);
@@ -517,13 +598,154 @@ export function EnrolPage() {
         setStage('idle');
       }
     },
-    onSuccess: (r) => {
-      if (r) navigate(`/enrol/done/${r.enrolmentId}`, { replace: true });
+    onSuccess: (id) => {
+      if (id) onDone(id);
     },
   });
+  const err = pay.error instanceof ApiError ? pay.error : null;
+  return (
+      <form
+        className="card px-5 py-5"
+        aria-labelledby="pay-h"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (course.stayAvailable && needsStay === null) return setStayError(true);
+          pay.mutate();
+        }}
+      >
+        {course.stayAvailable && (
+          <fieldset className="mb-5">
+            <legend className="font-semibold">{t('Accommodation with food')}</legend>
+            <p className="mt-1 text-sm text-muted">
+              {course.stayFeeRupees != null
+                ? t('Available during this course for {amount}.', { amount: rupees(course.stayFeeRupees) })
+                : t('Available during this course. The charge will be confirmed by AutoTalent Grid.')}
+            </p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={t('Accommodation with food')}>
+              {[
+                { value: true, label: t('Need accommodation with food') },
+                { value: false, label: t('Not needed') },
+              ].map((o) => (
+                <label key={String(o.value)} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium ${needsStay === o.value ? 'border-[#D7141C] bg-brand-tint' : 'border-line hover:bg-surface'}`}>
+                  <input
+                    type="radio"
+                    name="stay"
+                    className="size-4 accent-[#D7141C]"
+                    checked={needsStay === o.value}
+                    onChange={() => {
+                      setNeedsStay(o.value);
+                      setStayError(false);
+                    }}
+                  />
+                  {o.label}
+                </label>
+              ))}
+            </div>
+            {stayError && (
+              <p className="field-error" role="alert">
+                {t('Choose whether you need accommodation with food')}
+              </p>
+            )}
+          </fieldset>
+        )}
+        <h2 id="pay-h" className="font-bold">
+          {t('Payment summary')}
+        </h2>
+        <dl className="mt-3 divide-y divide-line text-sm">
+          <div className="flex justify-between py-2">
+            <dt className="text-muted">{t('Course fee')}</dt>
+            <dd>{rupees(course.feeRupees)}</dd>
+          </div>
+          {course.stayAvailable && needsStay === true && (
+            <div className="flex justify-between gap-4 py-2">
+              <dt className="text-muted">{t('Accommodation with food')}</dt>
+              <dd className="text-right">{course.stayFeeRupees != null ? rupees(course.stayFeeRupees) : t('To be confirmed')}</dd>
+            </div>
+          )}
+          <div className="flex justify-between py-2 text-base">
+            <dt className="font-bold">{t('Total amount')}</dt>
+            <dd className="font-bold">{rupees(fee)}</dd>
+          </div>
+        </dl>
+        {blocker ? (
+          <div className="mt-4">
+            <ErrorNote message={blocker} />
+          </div>
+        ) : fee > 0 && paymentMode === 'none' ? (
+          <p className="mt-4 rounded-lg bg-surface px-4 py-3 text-sm">{contactText}</p>
+        ) : (
+          <>
+            {fee > 0 && paymentMode === 'razorpay' && (
+              <p className="mt-4 flex items-start gap-2.5 rounded-lg bg-surface px-4 py-3 text-sm">
+                <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+                <span>{confirmText}</span>
+              </p>
+            )}
+            {fee > 0 && paymentMode === 'test' && (
+              <fieldset className="mt-5">
+                <legend className="font-semibold">{t('Select payment method')}</legend>
+                <div className="mt-2 space-y-2" role="radiogroup" aria-label={t('Payment method')}>
+                  {PAY_METHODS.map((m) => {
+                    const Icon = METHOD_ICON[m];
+                    return (
+                      <label key={m} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm ${method === m ? 'border-[#D7141C] bg-brand-tint' : 'border-line hover:bg-surface'}`}>
+                        <input type="radio" name="method" className="size-4 accent-[#D7141C]" checked={method === m} onChange={() => setMethod(m)} />
+                        <Icon className="size-4 text-ink/60" aria-hidden />
+                        {t(PAY_METHOD_LABEL[m])}
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            )}
+            {fee > 0 && paymentMode === 'test' && (
+              <p role="note" className="mt-4 rounded-lg bg-warning-tint px-4 py-3 text-sm text-warning">
+                {tn('{label} This staging copy has no payment provider: no money is taken and no card or bank details are asked for.', { label: <span className="font-semibold">{t('Test payment.')}</span> })}
+              </p>
+            )}
+            <label className="mt-4 flex items-start gap-2.5 text-sm">
+              <input type="checkbox" className="mt-0.5 size-4 accent-[#D7141C]" checked={terms} onChange={(e) => setTerms(e.target.checked)} />
+              <span>
+                {tn('I agree to the {link}.', {
+                  link: (
+                    <Link to="/terms" target="_blank" className="font-medium text-[#C8101A] underline">
+                      {t('terms of use')}
+                    </Link>
+                  ),
+                })}
+              </span>
+            </label>
+            {err?.fields.acceptTerms && (
+              <p className="field-error" role="alert">
+                {t(err.fields.acceptTerms)}
+              </p>
+            )}
+            {err && !err.fields.acceptTerms && (
+              <div className="mt-3">
+                <ErrorNote message={err.message} />
+              </div>
+            )}
+            {note && (
+              <p role="status" className="mt-3 rounded-lg bg-warning-tint px-4 py-3 text-sm text-warning">
+                {t(note)}
+              </p>
+            )}
+            <button type="submit" className="btn-primary mt-5 h-12 w-full bg-[#C8101A] text-base hover:bg-brand-hover" disabled={pay.isPending}>
+              {stage === 'verifying' ? t('Confirming your payment…') : stage === 'paying' ? t('Complete the payment in the Razorpay window…') : pay.isPending ? t('Please wait…') : fee > 0 ? t('Pay {amount}', { amount: rupees(fee) }) : t('Confirm enrolment')}
+            </button>
+          </>
+        )}
+      </form>
+  );
+}
+
+/** Learners must be signed in with a learner account to enrol. */
+function useLearnerGate(): ReactNode | null {
+  const { me, loading, can } = useAuth();
+  const location = useLocation();
   if (loading) return <Spinner />;
   if (!me) return <Navigate to={`/login?next=${encodeURIComponent(location.pathname)}`} replace />;
-  if (!isLearner)
+  if (!can('learner.self'))
     return (
       <PublicShell>
         <div className="mx-auto max-w-xl px-4 py-12">
@@ -531,7 +753,16 @@ export function EnrolPage() {
         </div>
       </PublicShell>
     );
-  const err = pay.error instanceof ApiError ? pay.error : null;
+  return null;
+}
+
+export function EnrolPage() {
+  const { batchId = '' } = useParams();
+  const { me, can } = useAuth();
+  const navigate = useNavigate();
+  const gate = useLearnerGate();
+  const q = useQuery({ queryKey: ['enrol', batchId], queryFn: () => api.get<Quote>(`/me/enrol/${batchId}`), enabled: !!me && can('learner.self') });
+  if (gate) return gate;
   return (
     <PublicShell>
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8">
@@ -545,8 +776,6 @@ export function EnrolPage() {
         ) : (
           (() => {
             const d = q.data!;
-            const stayCharge = d.course.stayAvailable && needsStay === true ? (d.course.stayFeeRupees ?? 0) : 0;
-            const fee = d.course.feeRupees + stayCharge;
             return (
               <div className="mt-6 grid gap-6 lg:grid-cols-2">
                 <section className="card px-5 py-5" aria-labelledby="sel-h">
@@ -584,138 +813,91 @@ export function EnrolPage() {
                   </Link>
                 </section>
 
-                <form
-                  className="card px-5 py-5"
-                  aria-labelledby="pay-h"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (d.course.stayAvailable && needsStay === null) return setStayError(true);
-                    pay.mutate();
+                <PayPanel
+                  course={d.course}
+                  blocker={d.blocker}
+                  paymentMode={d.paymentMode}
+                  contactText={t('Online payment is not switched on yet. Contact the training centre to enrol.')}
+                  confirmText={t('You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. Your seat is confirmed as soon as the payment goes through.')}
+                  post={async (body) => {
+                    const r = await api.post<{ enrolmentId: string } | RazorpayStart>('/me/enrolments', { batchId, ...body });
+                    return 'razorpay' in r ? r : { id: r.enrolmentId };
                   }}
-                >
-                  {d.course.stayAvailable && (
-                    <fieldset className="mb-5">
-                      <legend className="font-semibold">{t('Accommodation with food')}</legend>
-                      <p className="mt-1 text-sm text-muted">
-                        {d.course.stayFeeRupees != null
-                          ? t('Available during this course for {amount}.', { amount: rupees(d.course.stayFeeRupees) })
-                          : t('Available during this course. The charge will be confirmed by AutoTalent Grid.')}
-                      </p>
-                      <div className="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={t('Accommodation with food')}>
-                        {[
-                          { value: true, label: t('Need accommodation with food') },
-                          { value: false, label: t('Not needed') },
-                        ].map((o) => (
-                          <label key={String(o.value)} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm font-medium ${needsStay === o.value ? 'border-[#D7141C] bg-brand-tint' : 'border-line hover:bg-surface'}`}>
-                            <input
-                              type="radio"
-                              name="stay"
-                              className="size-4 accent-[#D7141C]"
-                              checked={needsStay === o.value}
-                              onChange={() => {
-                                setNeedsStay(o.value);
-                                setStayError(false);
-                              }}
-                            />
-                            {o.label}
-                          </label>
-                        ))}
-                      </div>
-                      {stayError && (
-                        <p className="field-error" role="alert">
-                          {t('Choose whether you need accommodation with food')}
-                        </p>
-                      )}
-                    </fieldset>
-                  )}
-                  <h2 id="pay-h" className="font-bold">
-                    {t('Payment summary')}
-                  </h2>
-                  <dl className="mt-3 divide-y divide-line text-sm">
-                    <div className="flex justify-between py-2">
-                      <dt className="text-muted">{t('Course fee')}</dt>
-                      <dd>{rupees(d.course.feeRupees)}</dd>
+                  onDone={(id) => navigate(`/enrol/done/${id}`, { replace: true })}
+                />
+              </div>
+            );
+          })()
+        )}
+      </div>
+    </PublicShell>
+  );
+}
+
+interface BookQuote {
+  course: { id: string; title: string; skillArea: string; deliveryMode: string; durationValue: number; durationUnit: string; journey: JourneyInfo | null } & PayCourse;
+  blocker: string | null;
+  paymentMode: 'test' | 'none' | 'razorpay';
+}
+
+/** Career journey course: enrol and pay for the course; AutoTalent Grid assigns the training partner and batch. */
+export function BookPage() {
+  const { courseId = '' } = useParams();
+  const { me, can } = useAuth();
+  const navigate = useNavigate();
+  const gate = useLearnerGate();
+  const q = useQuery({ queryKey: ['book', courseId], queryFn: () => api.get<BookQuote>(`/me/book/${courseId}`), enabled: !!me && can('learner.self') });
+  if (gate) return gate;
+  return (
+    <PublicShell>
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8">
+        <Stepper step={2} />
+        {q.isLoading ? (
+          <Spinner />
+        ) : q.isError ? (
+          <div className="mt-6">
+            <ErrorNote message={(q.error as Error).message} />
+          </div>
+        ) : (
+          (() => {
+            const d = q.data!;
+            return (
+              <div className="mt-6 grid gap-6 lg:grid-cols-2">
+                <section className="card px-5 py-5" aria-labelledby="sel-h">
+                  <h1 id="sel-h" className="font-bold">
+                    {t('Selected course')}
+                  </h1>
+                  <div className="mt-3 flex gap-3">
+                    <img src={courseImage(d.course.skillArea)} alt="" className="h-16 w-24 shrink-0 rounded-lg object-cover" />
+                    <div>
+                      <p className="font-semibold">{d.course.title}</p>
+                      {d.course.journey && <JourneyBadge track={d.course.journey.track} step={d.course.journey.step} />}
                     </div>
-                    {d.course.stayAvailable && needsStay === true && (
-                      <div className="flex justify-between gap-4 py-2">
-                        <dt className="text-muted">{t('Accommodation with food')}</dt>
-                        <dd className="text-right">{d.course.stayFeeRupees != null ? rupees(d.course.stayFeeRupees) : t('To be confirmed')}</dd>
-                      </div>
-                    )}
-                    <div className="flex justify-between py-2 text-base">
-                      <dt className="font-bold">{t('Total amount')}</dt>
-                      <dd className="font-bold">{rupees(fee)}</dd>
-                    </div>
+                  </div>
+                  <dl className="mt-5 grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-sm">
+                    <dt className="text-muted">{t('Mode')}</dt>
+                    <dd>{MODE_LABEL()[d.course.deliveryMode] ?? d.course.deliveryMode}</dd>
+                    <dt className="text-muted">{t('Duration')}</dt>
+                    <dd>{durationText(d.course.durationValue, d.course.durationUnit)}</dd>
+                    <dt className="text-muted">{t('Batch')}</dt>
+                    <dd>{t('AutoTalent Grid assigns a training partner and batch near you, and tells you the dates.')}</dd>
                   </dl>
-                  {d.blocker ? (
-                    <div className="mt-4">
-                      <ErrorNote message={d.blocker} />
-                    </div>
-                  ) : fee > 0 && d.paymentMode === 'none' ? (
-                    <p className="mt-4 rounded-lg bg-surface px-4 py-3 text-sm">{t('Online payment is not switched on yet. Contact the training centre to enrol.')}</p>
-                  ) : (
-                    <>
-                      {fee > 0 && d.paymentMode === 'razorpay' && (
-                        <p className="mt-4 flex items-start gap-2.5 rounded-lg bg-surface px-4 py-3 text-sm">
-                          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-                          <span>{t('You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. Your seat is confirmed as soon as the payment goes through.')}</span>
-                        </p>
-                      )}
-                      {fee > 0 && d.paymentMode === 'test' && (
-                        <fieldset className="mt-5">
-                          <legend className="font-semibold">{t('Select payment method')}</legend>
-                          <div className="mt-2 space-y-2" role="radiogroup" aria-label={t('Payment method')}>
-                            {PAY_METHODS.map((m) => {
-                              const Icon = METHOD_ICON[m];
-                              return (
-                                <label key={m} className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm ${method === m ? 'border-[#D7141C] bg-brand-tint' : 'border-line hover:bg-surface'}`}>
-                                  <input type="radio" name="method" className="size-4 accent-[#D7141C]" checked={method === m} onChange={() => setMethod(m)} />
-                                  <Icon className="size-4 text-ink/60" aria-hidden />
-                                  {t(PAY_METHOD_LABEL[m])}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </fieldset>
-                      )}
-                      {fee > 0 && d.paymentMode === 'test' && (
-                        <p role="note" className="mt-4 rounded-lg bg-warning-tint px-4 py-3 text-sm text-warning">
-                          {tn('{label} This staging copy has no payment provider: no money is taken and no card or bank details are asked for.', { label: <span className="font-semibold">{t('Test payment.')}</span> })}
-                        </p>
-                      )}
-                      <label className="mt-4 flex items-start gap-2.5 text-sm">
-                        <input type="checkbox" className="mt-0.5 size-4 accent-[#D7141C]" checked={terms} onChange={(e) => setTerms(e.target.checked)} />
-                        <span>
-                          {tn('I agree to the {link}.', {
-                            link: (
-                              <Link to="/terms" target="_blank" className="font-medium text-[#C8101A] underline">
-                                {t('terms of use')}
-                              </Link>
-                            ),
-                          })}
-                        </span>
-                      </label>
-                      {err?.fields.acceptTerms && (
-                        <p className="field-error" role="alert">
-                          {t(err.fields.acceptTerms)}
-                        </p>
-                      )}
-                      {err && !err.fields.acceptTerms && (
-                        <div className="mt-3">
-                          <ErrorNote message={err.message} />
-                        </div>
-                      )}
-                      {note && (
-                        <p role="status" className="mt-3 rounded-lg bg-warning-tint px-4 py-3 text-sm text-warning">
-                          {t(note)}
-                        </p>
-                      )}
-                      <button type="submit" className="btn-primary mt-5 h-12 w-full bg-[#C8101A] text-base hover:bg-brand-hover" disabled={pay.isPending}>
-                        {stage === 'verifying' ? t('Confirming your payment…') : stage === 'paying' ? t('Complete the payment in the Razorpay window…') : pay.isPending ? t('Please wait…') : fee > 0 ? t('Pay {amount}', { amount: rupees(fee) }) : t('Confirm enrolment')}
-                      </button>
-                    </>
-                  )}
-                </form>
+                  <Link to={`/courses/${d.course.id}`} className="mt-4 inline-block text-sm font-semibold text-[#C8101A] underline">
+                    {t('Back to the course')}
+                  </Link>
+                </section>
+                <PayPanel
+                  course={d.course}
+                  blocker={d.blocker}
+                  paymentMode={d.paymentMode}
+                  contactText={t('Online payment is not switched on yet. Contact AutoTalent Grid to enrol.')}
+                  confirmText={t('You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. Your enrolment is confirmed as soon as the payment goes through.')}
+                  post={async (body) => {
+                    const r = await api.post<{ bookingId: string } | RazorpayStart>('/me/bookings', { courseId, ...body });
+                    return 'razorpay' in r ? r : { id: r.bookingId };
+                  }}
+                  onDone={(id) => navigate(`/enrol/booked/${id}`, { replace: true })}
+                />
               </div>
             );
           })()
@@ -726,7 +908,6 @@ export function EnrolPage() {
 }
 
 interface Receipt {
-  enrolmentId: string;
   receiptNumber: string;
   amountRupees: number;
   stayRupees: number;
@@ -738,14 +919,21 @@ interface Receipt {
   status: string;
   learner: { name: string; code: string };
   course: { title: string; deliveryMode: string; durationValue: number; durationUnit: string };
-  batch: { name: string; startDate: string; endDate: string; centre: string; city: string | null; provider: string };
+  /** Missing for a career journey course until AutoTalent Grid assigns the batch. */
+  batch?: { name: string; startDate: string; endDate: string; centre: string; city: string | null; provider: string };
 }
 
-const NEXT_STEPS = () => [t('The training centre has your enrolment and will contact you about the batch.'), t('Attend the training as per the schedule.'), t('Complete the assessment with your trainer.'), t('Get certified and apply for jobs.')];
+const NEXT_STEPS = (assigned: boolean) => [
+  assigned ? t('The training centre has your enrolment and will contact you about the batch.') : t('AutoTalent Grid will assign your training partner and batch, and tell you the dates.'),
+  t('Attend the training as per the schedule.'),
+  t('Complete the assessment with your trainer.'),
+  t('Get certified and apply for jobs.'),
+];
 
-export function EnrolDonePage() {
+/** Confirmation and receipt: a batch enrolment, or (booking) a career journey course waiting for its batch. */
+export function EnrolDonePage({ booking = false }: { booking?: boolean }) {
   const { id = '' } = useParams();
-  const q = useQuery({ queryKey: ['enrol', 'receipt', id], queryFn: () => api.get<Receipt>(`/me/enrolments/${id}/receipt`) });
+  const q = useQuery({ queryKey: ['enrol', 'receipt', booking, id], queryFn: () => api.get<Receipt>(booking ? `/me/bookings/${id}/receipt` : `/me/enrolments/${id}/receipt`) });
   if (q.isLoading) return <Spinner />;
   if (q.isError)
     return (
@@ -762,8 +950,12 @@ export function EnrolDonePage() {
     [t('Amount paid'), r.free ? t('Free course') : rupees(r.amountRupees)],
     [statusLabel, r.free ? t('Not needed') : r.test ? t('Paid (test)') : t('Paid')],
     ...(r.needsStay ? [[t('Accommodation with food'), r.stayRupees > 0 ? t('{amount}, included in the amount paid', { amount: rupees(r.stayRupees) }) : t('Requested. The charge will be confirmed.')] as [string, string]] : []),
-    [t('Batch starts'), day(r.batch.startDate)],
-    [t('Location'), `${r.batch.centre}${r.batch.city ? `, ${r.batch.city}` : ''}`],
+    ...(r.batch
+      ? ([
+          [t('Batch starts'), day(r.batch.startDate)],
+          [t('Location'), `${r.batch.centre}${r.batch.city ? `, ${r.batch.city}` : ''}`],
+        ] as [string, string][])
+      : ([[t('Batch'), t('To be assigned by AutoTalent Grid')]] as [string, string][])),
   ];
   return (
     <PublicShell>
@@ -787,9 +979,11 @@ export function EnrolDonePage() {
             <div className="mt-6 flex gap-3 border-t border-line pt-5">
               <div>
                 <p className="font-semibold">{r.course.title}</p>
-                <p className="text-sm text-muted">
-                  {r.batch.name}, {r.batch.provider}
-                </p>
+                {r.batch && (
+                  <p className="text-sm text-muted">
+                    {r.batch.name}, {r.batch.provider}
+                  </p>
+                )}
                 <p className="text-sm text-muted">
                   {r.learner.name} ({r.learner.code})
                 </p>
@@ -819,7 +1013,7 @@ export function EnrolDonePage() {
               {t('What\'s next?')}
             </h2>
             <ol className="mt-3 space-y-4">
-              {NEXT_STEPS().map((s, i) => (
+              {NEXT_STEPS(!!r.batch).map((s, i) => (
                 <li key={s} className="flex gap-3 text-sm">
                   <span className="grid size-7 shrink-0 place-items-center rounded-full bg-brand-tint font-semibold text-[#C8101A]">{i + 1}</span>
                   <span className="pt-1">{s}</span>

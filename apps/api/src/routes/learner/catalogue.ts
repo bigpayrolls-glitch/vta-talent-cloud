@@ -7,6 +7,7 @@ import {
   type CatalogueCourseDetail,
   type DurationBucket,
   type FeeBucket,
+  TRACKS,
 } from '@vta/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
@@ -23,6 +24,7 @@ import { notify, orgMembers, vtaReviewers } from '../../lib/notify.js';
 import { iso, parse } from '../../lib/validate.js';
 import { basicsRequired, consentRequired } from './service.js';
 import { courseImageUrl } from '../training/courses.js';
+import { journeyOf } from './bookings.js';
 
 /**
  * Phase 13: the public course catalogue and learner self-enrolment.
@@ -91,6 +93,8 @@ function feeBucket(paise: number): FeeBucket {
   return r === 0 ? 'free' : r <= 5000 ? 'upto5k' : r <= 20000 ? '5kto20k' : 'over20k';
 }
 
+const journeyRank = (c: Pick<Course, 'track' | 'track_step'>) => (c.track ? TRACKS.indexOf(c.track) * 10 + (c.track_step ?? 0) : 1000);
+
 function courseDto(c: Course, batches: CatalogueBatch[]): CatalogueCourse {
   const sorted = [...batches].sort((a, b) => a.startDate.localeCompare(b.startDate));
   return {
@@ -108,6 +112,8 @@ function courseDto(c: Course, batches: CatalogueBatch[]): CatalogueCourse {
     gstPct: c.gst_pct,
     stayAvailable: c.stay_available,
     stayFeeRupees: c.stay_available && c.stay_fee_paise !== null ? rupees(c.stay_fee_paise) : null,
+    track: c.track,
+    trackStep: c.track_step,
     courseType: c.course_type,
     imageUrl: courseImageUrl(c, true),
     skillTags: c.skills.slice(0, 6),
@@ -122,6 +128,18 @@ function courseDto(c: Course, batches: CatalogueBatch[]): CatalogueCourse {
 
 /** Why this learner cannot enrol in this batch, or null. Checked again, with the batch locked, when enrolling. */
 export async function blocker(trx: DB, userId: string, batch: { id: string; capacity: number; status: string; start_date: string }): Promise<string | null> {
+  const who = await learnerBlocker(trx, userId);
+  if (who) return who;
+  if (!(batch.status === 'planned' || batch.status === 'active') || batch.start_date < todayIst()) return 'This batch is no longer open for enrolment.';
+  const mine = await trx.selectFrom('enrolments').select('id').where('batch_id', '=', batch.id).where('candidate_id', '=', userId).where('status', '!=', 'withdrawn').executeTakeFirst();
+  if (mine) return 'You are already enrolled in this batch.';
+  const { n } = await trx.selectFrom('enrolments').select(sql<string>`count(*)`.as('n')).where('batch_id', '=', batch.id).where('status', '!=', 'withdrawn').executeTakeFirstOrThrow();
+  if (Number(n) >= batch.capacity) return 'This batch is full. Choose another batch.';
+  return null;
+}
+
+/** Why this person cannot enrol in anything right now (account, consent, profile), or null. */
+export async function learnerBlocker(trx: DB, userId: string): Promise<string | null> {
   const p = await trx
     .selectFrom('candidate_profiles as cp')
     .innerJoin('users as u', 'u.id', 'cp.user_id')
@@ -134,11 +152,6 @@ export async function blocker(trx: DB, userId: string, batch: { id: string; capa
   if (p.status !== 'active') return 'Your account is not active. Contact AutoTalent Grid.';
   if (p.verification_status === 'rejected' || p.verification_status === 'needs_correction') return 'Correct your profile first: AutoTalent Grid asked for changes.';
   if (p.duplicate_of) return 'AutoTalent Grid is checking your profile. Try again later or contact your centre.';
-  if (!(batch.status === 'planned' || batch.status === 'active') || batch.start_date < todayIst()) return 'This batch is no longer open for enrolment.';
-  const mine = await trx.selectFrom('enrolments').select('id').where('batch_id', '=', batch.id).where('candidate_id', '=', userId).where('status', '!=', 'withdrawn').executeTakeFirst();
-  if (mine) return 'You are already enrolled in this batch.';
-  const { n } = await trx.selectFrom('enrolments').select(sql<string>`count(*)`.as('n')).where('batch_id', '=', batch.id).where('status', '!=', 'withdrawn').executeTakeFirstOrThrow();
-  if (Number(n) >= batch.capacity) return 'This batch is full. Choose another batch.';
   return null;
 }
 
@@ -246,7 +259,8 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
     let items = courses
       .map((c) => {
         const mine = batches.filter((b) => b.courseId === c.id && (!f.city || b.dto.city === f.city)).map((b) => b.dto);
-        return mine.length ? { c, dto: courseDto(c, mine) } : null;
+        // Career journey courses are enrolled in directly (AutoTalent Grid assigns the batch), so they show without one.
+        return mine.length || c.track ? { c, dto: courseDto(c, mine) } : null;
       })
       .filter((x): x is { c: Course; dto: CatalogueCourse } => !!x);
     if (f.skill.length) items = items.filter((i) => (f.skill as string[]).includes(i.c.skill_area));
@@ -258,7 +272,12 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
       items = items.filter((i) => i.c.title.toLowerCase().includes(q) || (i.c.code ?? '').toLowerCase().includes(q) || i.c.skills.some((s) => s.toLowerCase().includes(q)));
     }
     items.sort((a, b) =>
-      f.sort === 'fee_asc' ? totalPaise(a.c) - totalPaise(b.c) : f.sort === 'fee_desc' ? totalPaise(b.c) - totalPaise(a.c) : a.dto.nextStart.localeCompare(b.dto.nextStart) || a.c.title.localeCompare(b.c.title),
+      f.sort === 'fee_asc'
+        ? totalPaise(a.c) - totalPaise(b.c)
+        : f.sort === 'fee_desc'
+          ? totalPaise(b.c) - totalPaise(a.c)
+          : // Career journeys first, in track and step order; then courses by their next batch.
+            journeyRank(a.c) - journeyRank(b.c) || a.dto.nextStart.localeCompare(b.dto.nextStart) || a.c.title.localeCompare(b.c.title),
     );
     return { items: items.map((i) => i.dto), total: items.length, cities };
   });
@@ -268,6 +287,7 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
     const c = await db.selectFrom('courses').selectAll().where('id', '=', id).executeTakeFirst();
     if (!c || !listed(c)) throw notFound('Course');
     const batches = (await openBatches(db).where('b.course_id', '=', id).orderBy('b.start_date').execute()).map(batchDto);
+    const journey = await journeyOf(db, c);
     const skills = await db.selectFrom('assessment_criteria').select(['label', 'required']).where('course_id', '=', id).orderBy('sort_order').execute();
     return {
       ...courseDto(c, batches),
@@ -280,6 +300,7 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
       modules: c.modules,
       learningOutcomes: c.learning_outcomes,
       certificateType: c.certificate_type,
+      journey,
       batches,
     };
   });

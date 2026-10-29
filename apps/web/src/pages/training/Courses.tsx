@@ -9,6 +9,10 @@ import {
   SKILL_AREA_LABEL,
   SKILL_AREAS,
   type Page,
+  TRACK_LABEL,
+  TRACK_STEP_LABEL,
+  type Track,
+  type TrackStep,
 } from '@vta/shared';
 import { ArrowLeft, Lock, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
@@ -39,6 +43,8 @@ export interface CourseRow {
   feeRupees: number;
   stayAvailable: boolean;
   stayFeeRupees: number | null;
+  track: Track | null;
+  trackStep: number | null;
   status: 'active' | 'inactive';
   approvalStatus?: 'draft' | 'submitted' | 'changes_requested' | 'rejected' | 'published';
   owner?: { id: string; name: string } | null;
@@ -195,6 +201,14 @@ export function CourseDetailPage() {
             <dd>{c.passMarkPct}% of total marks, and every required criterion passed</dd>
             <dt className="text-muted">Fee</dt>
             <dd>{c.feeRupees ? `₹${c.feeRupees.toLocaleString('en-IN')} (learners who enrol themselves pay it online)` : 'Free'}</dd>
+            {c.track && c.trackStep && (
+              <>
+                <dt className="text-muted">Career journey</dt>
+                <dd>
+                  {TRACK_LABEL[c.track]}, step {c.trackStep} of 4 ({TRACK_STEP_LABEL[c.trackStep as TrackStep]}). Learners enrol and pay for the course; assign their batch in Course enrolments.
+                </dd>
+              </>
+            )}
             <dt className="text-muted">Accommodation with food</dt>
             <dd>{c.stayAvailable ? (c.stayFeeRupees != null ? `Available, ₹${c.stayFeeRupees.toLocaleString('en-IN')} for the course` : 'Available, charge to be confirmed') : 'Not offered'}</dd>
             <dt className="text-muted">Prerequisites</dt>
