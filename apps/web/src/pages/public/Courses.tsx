@@ -169,7 +169,7 @@ export function CoursesPage() {
             <ul className="mt-6 grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {q.data!.items.map((c) => (
                 <li key={c.id} className="card flex flex-col overflow-hidden">
-                  <img src={c.imageUrl ?? courseImage(c.skillArea)} alt="" className="aspect-[16/10] w-full object-cover" loading="lazy" />
+                  <img src={c.imageUrl ?? courseImage(c.skillArea)} alt="" className="aspect-video w-full object-cover" loading="lazy" />
                   <div className="flex flex-1 flex-col px-4 py-4">
                     {c.track && c.trackStep && <JourneyBadge track={c.track} step={c.trackStep as TrackStep} />}
                     <h2 className="font-bold leading-snug">{c.title}</h2>
@@ -310,7 +310,7 @@ export function CourseDetailPage() {
           {t('Back to courses')}
         </Link>
         <section className="mt-4 grid gap-6 lg:grid-cols-[minmax(0,420px)_1fr]">
-          <img src={c.imageUrl ?? courseImage(c.skillArea)} alt="" className="aspect-[16/10] w-full rounded-2xl object-cover" />
+          <img src={c.imageUrl ?? courseImage(c.skillArea)} alt="" className="aspect-video w-full rounded-2xl object-cover" />
           <div>
             <p className="text-[13px] font-semibold tracking-wide text-[#C8101A] uppercase">{t(SKILL_AREA_LABEL[c.skillArea as SkillArea] ?? c.skillArea)}</p>
             <h1 className="mt-1 text-[28px] leading-tight font-bold tracking-tight sm:text-[32px]">

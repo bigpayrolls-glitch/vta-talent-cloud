@@ -13,9 +13,15 @@ import { courseReadScope, courseVisible, type CourseScope } from '../../policy/i
 
 const idParam = z.object({ id: uuidSchema });
 
+/**
+ * AutoTalent Grid career journey courses that have a ready-made picture in the web app (29 Oct 2026). An image
+ * uploaded later replaces it.
+ */
+const JOURNEY_PICTURES = new Set(['ATG-PARTS-1', 'ATG-PARTS-2', 'ATG-PARTS-3', 'ATG-TECH-4', 'ATG-SA-1', 'ATG-SA-2', 'ATG-SA-3', 'ATG-FS-1', 'ATG-FS-2', 'ATG-FS-3', 'ATG-FS-4']);
+
 /** Where the browser loads a course picture from (cache-busted by the last change). */
-export function courseImageUrl(c: Pick<Course, 'id' | 'image_key' | 'updated_at'>, publicRoute = false): string | null {
-  if (!c.image_key) return null;
+export function courseImageUrl(c: Pick<Course, 'id' | 'image_key' | 'updated_at'> & { code?: string | null }, publicRoute = false): string | null {
+  if (!c.image_key) return c.code && JOURNEY_PICTURES.has(c.code) ? `/courses/journeys/${c.code}.webp` : null;
   const v = new Date(c.updated_at).getTime().toString(36);
   return publicRoute ? `/api/v1/public/courses/${c.id}/image?v=${v}` : `/api/v1/courses/${c.id}/image?v=${v}`;
 }

@@ -37,6 +37,10 @@ describe('career journey courses', () => {
     const items = (await pub('/public/courses')).json().items;
     expect(items[0]).toMatchObject({ id: step1, track: 'technician', trackStep: 1, feeRupees: 2000, batchCount: 0, nextBatchId: null });
     expect(items[1]).toMatchObject({ id: step2, trackStep: 2 });
+    // Courses with a ready-made picture use it; the others fall back to the skill picture on screen.
+    const sa1 = await ctx.db.selectFrom('courses').selectAll().where('code', '=', 'ATG-SA-1').executeTakeFirstOrThrow();
+    expect((await c.admin!.get(`/courses/${sa1.id}`)).body.imageUrl).toBe('/courses/journeys/ATG-SA-1.webp');
+    expect(items[0].imageUrl).toBeNull();
     const d = (await pub(`/public/courses/${step2}`)).json();
     expect(d.journey).toMatchObject({ track: 'technician', step: 2, previous: { id: step1 } });
   });
