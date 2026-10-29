@@ -45,7 +45,18 @@ export const registerFields = z.object({
 });
 export const registerSchema = registerFields.refine((v) => !!v.code || !!v.signupToken, { message: 'Enter the 6-digit code', path: ['code'] });
 
-export const PROFILE_FIELDS = ['name', 'dateOfBirth', 'email', 'city', 'state', 'preferredWorkArea', 'skillAreas', 'experienceMonths', 'education', 'languages', 'availability'] as const;
+export const PROFILE_FIELDS = ['name', 'dateOfBirth', 'email', 'city', 'state', 'preferredWorkArea', 'skillAreas', 'experienceMonths', 'education', 'languages', 'availability', 'willingToRelocate'] as const;
+
+/** "When can you join?" (29 Oct 2026). Older profiles may still hold free text, shown as written. */
+export const JOIN_WHEN = ['immediately', 'within_15_days', 'within_1_month', 'after_1_month'] as const;
+export type JoinWhen = (typeof JOIN_WHEN)[number];
+export const JOIN_WHEN_LABEL: Record<JoinWhen, string> = {
+  immediately: 'Immediately',
+  within_15_days: 'Within 15 days',
+  within_1_month: 'Within 1 month',
+  after_1_month: 'After 1 month',
+};
+export const availabilityLabel = (v: string | null | undefined): string | null => (v ? (JOIN_WHEN_LABEL[v as JoinWhen] ?? v) : null);
 
 /** EE-02: what a learner may change on their own profile. Name and date of birth only while unverified. */
 export const learnerProfileSchema = z
@@ -60,7 +71,8 @@ export const learnerProfileSchema = z
     experienceMonths: z.coerce.number().int().min(0, 'Not below 0').max(600, 'Check the number of months'),
     education: z.string().trim().max(160),
     languages: z.array(z.string().trim().min(2).max(40)).max(10),
-    availability: z.string().trim().max(120),
+    availability: z.union([z.enum(JOIN_WHEN), z.literal('')], { error: 'Choose when you can join' }),
+    willingToRelocate: z.boolean().nullable(),
   })
   .partial();
 
@@ -98,7 +110,7 @@ export function profileCompleteness(p: {
     ['Experience', p.experienceMonths !== null && p.experienceMonths !== undefined && p.experienceMonths > 0],
     ['Education', !!p.education],
     ['Languages', !!p.languages?.length],
-    ['Availability', !!p.availability],
+    ['When you can join', !!p.availability],
     ['Preferred work area', !!p.preferredWorkArea],
   ];
   const done = checks.filter(([, ok]) => ok).length;

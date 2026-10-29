@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { SKILL_AREAS, type Page, type SearchUsageDto } from '@vta/shared';
+import { availabilityLabel, SKILL_AREAS, type Page, type SearchUsageDto } from '@vta/shared';
 import { ArrowLeft, Award, ExternalLink, FileText, Lock, Send, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
@@ -176,7 +176,7 @@ export function CandidateSearchPage() {
                   <p className="mt-2 text-sm">
                     {c.skillAreas.map(skillLabel).join(', ') || 'Skills not added'}, {experienceHave(c.experienceMonths)}
                   </p>
-                  {c.availability && <p className="text-sm text-muted">Available: {c.availability}</p>}
+                  {c.availability && <p className="text-sm text-muted">Can join: {availabilityLabel(c.availability)}</p>}
                   {c.vtaCertificates.length > 0 && (
                     <p className="mt-2 inline-flex items-center gap-1 text-[13px] font-medium text-brand">
                       <Award className="size-3.5" aria-hidden />
@@ -212,6 +212,7 @@ interface CandidateProfile {
   education: string | null;
   languages: string[];
   availability: string | null;
+  willingToRelocate: boolean | null;
   verified: boolean;
   certificates: { id: string; course: string; issueDate: string; verifyPath: string }[];
   documents: { id: string; title: string; verificationStatus: string }[];
@@ -268,7 +269,8 @@ export function CandidateProfilePage() {
               ['Experience', experienceHave(c.experienceMonths)],
               ['Education', c.education],
               ['Languages', c.languages.join(', ')],
-              ['Availability', c.availability],
+              ['Can join', availabilityLabel(c.availability)],
+              ['Willing to relocate', c.willingToRelocate == null ? null : c.willingToRelocate ? 'Yes' : 'No'],
             ] as const
           ).map(([k, v]) => (
             <div key={k} className="grid gap-0.5 px-5 py-2.5 text-sm sm:grid-cols-[180px_1fr]">

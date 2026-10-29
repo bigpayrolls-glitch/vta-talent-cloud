@@ -256,7 +256,13 @@ describe('EM-05 to EM-08, EM-10 the employer’s pipeline', () => {
   });
 
   it('offer, then joined with a joining date; AutoTalent Grid verifies the outcome', async () => {
-    await c.employerAdminA!.post(`/employer/applications/${appId}/move`, { to: 'offer' });
+    expect((await c.employerAdminA!.post(`/employer/applications/${appId}/move`, { to: 'offer' })).body.error.fields.expectedJoiningDate).toBe('Enter the expected joining date');
+    expect((await c.employerAdminA!.post(`/employer/applications/${appId}/move`, { to: 'offer', expectedJoiningDate: '2020-01-01' })).body.error.fields.expectedJoiningDate).toBe('Today or later');
+    // An offer carries the expected joining date, which may be in the future; the learner sees it.
+    const expected = new Date(Date.now() + 20 * 86_400_000).toISOString().slice(0, 10);
+    expect((await c.employerAdminA!.post(`/employer/applications/${appId}/move`, { to: 'offer', expectedJoiningDate: expected })).body.status).toBe('offer');
+    expect((await c.employerAdminA!.get(`/employer/applications/${appId}`)).body.expectedJoiningDate).toBe(expected);
+    expect((await c.ravi!.get(`/me/applications/${appId}`)).body.expectedJoiningDate).toBe(expected);
     expect((await c.employerAdminA!.post(`/employer/applications/${appId}/move`, { to: 'joined' })).body.error.fields.joiningDate).toBe('Enter the joining date');
     expect((await c.employerAdminA!.post(`/employer/applications/${appId}/move`, { to: 'joined', joiningDate: '2026-11-30' })).body.error.fields.joiningDate).toBe('Not in the future');
     expect((await c.employerAdminA!.post(`/employer/applications/${appId}/move`, { to: 'joined', joiningDate: '2026-10-26' })).body.status).toBe('joined');

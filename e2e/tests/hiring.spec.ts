@@ -76,10 +76,15 @@ test.describe.serial('hiring: vacancy to verified joining', () => {
     await expect(page.getByText('Good on brakes; check electrical basics')).toBeVisible();
 
     await page.getByRole('button', { name: 'Record offer' }).click();
-    await expect(page.getByText('Moved to Offer made')).toBeVisible();
+    const offer = page.getByRole('dialog', { name: 'Record offer' });
+    const expected = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10);
+    await offer.getByLabel('Expected joining date').fill(expected);
+    await offer.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText('Offer recorded')).toBeVisible();
+    await expect(page.getByText(/Expected to join on/)).toBeVisible();
     await page.getByRole('button', { name: 'Record joining' }).click();
     const join = page.getByRole('dialog', { name: 'Record joining' });
-    await join.getByLabel('Joining date').fill('2026-10-26');
+    await join.getByLabel('Date the person started work').fill('2026-10-26');
     await join.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByText('Joined on 26 Oct 2026')).toBeVisible();
     await expect(page.getByRole('listitem').filter({ hasText: 'Joined' }).first()).toBeVisible();
