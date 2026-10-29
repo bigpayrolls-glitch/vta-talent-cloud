@@ -132,8 +132,9 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
       page: f.page,
       pageSize: f.pageSize,
       total: lim.results === null ? Number(total) : Math.min(Number(total), lim.results),
-      // All matches, for "N more candidates: upgrade to see them all".
-      matched: Number(total),
+      // Plans that cap results do not see how many matched in all, only whether more do.
+      matched: lim.results === null ? Number(total) : null,
+      more: lim.results !== null && Number(total) > lim.results,
       limitedTo: lim.results,
     };
   });
@@ -143,7 +144,7 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
     assertVerified(org);
     const { id } = parse(idParam, req.params);
     const p = await searchable()
-      .select(['cp.user_id', 'u.name', 'cp.city', 'cp.state', 'cp.preferred_work_area', 'cp.skill_areas', 'cp.experience_months', 'cp.education', 'cp.languages', 'cp.availability', 'cp.verification_status'])
+      .select(['cp.user_id', 'u.name', 'u.phone', 'u.email', 'cp.city', 'cp.state', 'cp.preferred_work_area', 'cp.skill_areas', 'cp.experience_months', 'cp.education', 'cp.languages', 'cp.availability', 'cp.verification_status'])
       .where('cp.user_id', '=', id)
       .executeTakeFirst();
     if (!p) throw notFound('Candidate');
@@ -158,6 +159,11 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
       await db.insertInto('candidate_profile_views').values({ organisation_id: org.id, candidate_id: id, period: m.period, viewed_by: req.actor!.userId }).onConflict((oc) => oc.doNothing()).execute();
     }
     await audit(db, auditCtx(req), { action: 'candidate.profile_viewed', entityType: 'user', entityId: id, after: { organisationId: org.id, via: 'search' } });
+    // Contact details come with the plan ("View candidate contact details": Starter and above). Each reveal is logged.
+    const contactOnPlan = PLAN_INFO[(await currentSubscription(db, org.id)).plan].contactDetails;
+    if (contactOnPlan) {
+      await audit(db, auditCtx(req), { action: 'candidate.contact_viewed', entityType: 'user', entityId: id, after: { organisationId: org.id, via: 'search' } });
+    }
     const invited = await db
       .selectFrom('job_invitations as i')
       .innerJoin('jobs as j', 'j.id', 'i.job_id')
@@ -167,7 +173,7 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
       .execute();
     return {
       id: p.user_id,
-      name: maskedName(p.name),
+      name: contactOnPlan ? p.name : maskedName(p.name),
       city: p.city,
       state: p.state,
       preferredWorkArea: p.preferred_work_area,
@@ -181,6 +187,9 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
       // Titles only. Files open once the person applies to one of your jobs.
       documents: (await sharedDocumentsOf(db, id)).map(({ id: docId, kind, title, verificationStatus }) => ({ id: docId, kind, title, verificationStatus })),
       contact: 'Shared when they apply to one of your jobs',
+      phone: contactOnPlan ? p.phone : null,
+      email: contactOnPlan ? p.email : null,
+      contactNeedsUpgrade: !contactOnPlan,
       invitations: invited.map((i) => ({ jobId: i.job_id, title: i.title, at: iso(i.created_at) })),
     };
   });

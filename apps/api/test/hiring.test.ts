@@ -306,7 +306,9 @@ describe('EM-04 / EM-05 candidate search', () => {
 
   it('opening a profile is logged; inviting to apply shows up for the learner', async () => {
     const view = await c.employerAdminA!.get(`/employer/candidates/${ctx.ids.learner}`);
-    expect(view.body).toMatchObject({ name: 'Venkatesh L.', contact: 'Shared when they apply to one of your jobs' });
+    // Employer A is on a paid plan: contact details and the full name are shown, and that is logged too.
+    expect(view.body).toMatchObject({ name: 'Venkatesh Learner', phone: expect.stringMatching(/^\+91\d{10}$/), contactNeedsUpgrade: false });
+    expect(await ctx.db.selectFrom('audit_events').select('id').where('action', '=', 'candidate.contact_viewed').executeTakeFirst()).toBeTruthy();
     const log = await ctx.db.selectFrom('audit_events').select('entity_id').where('action', '=', 'candidate.profile_viewed').executeTakeFirstOrThrow();
     expect(log.entity_id).toBe(ctx.ids.learner);
 

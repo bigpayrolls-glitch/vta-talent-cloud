@@ -105,19 +105,20 @@ test.describe.serial('hiring: vacancy to verified joining', () => {
     await expect(page.getByText('Outcome confirmed')).toBeVisible();
   });
 
-  test('the employer searches candidates (masked) and invites one to apply', async ({ page, browser }) => {
+  test('the employer searches candidates (masked), sees contact on a paid plan and invites one to apply', async ({ page, browser }) => {
     await signInEmail(page, EMAIL.employerAdminA);
     await page.getByRole('navigation', { name: 'Employer Portal' }).getByRole('link', { name: 'Candidates' }).click();
     await page.getByLabel('Skill area').selectOption('2W');
     await page.getByRole('link', { name: /Venkatesh L\./ }).click();
-    await expect(page.getByText('Contact: shared when they apply to one of your jobs.')).toBeVisible();
-    await expect(page.getByText(/\+91|Learner/)).toHaveCount(0);
+    // Employer A is on a paid plan, so the profile shows the full name and mobile number.
+    await expect(page.getByRole('heading', { name: 'Venkatesh Learner' })).toBeVisible();
+    await expect(page.getByRole('link', { name: /^\+91 \d{10}$/ })).toBeVisible();
     await page.getByRole('button', { name: 'Invite to apply' }).click();
     const dialog = page.getByRole('dialog', { name: 'Invite to apply' });
     await dialog.getByLabel('Job').selectOption({ label: 'Two-wheeler service technician' });
     await dialog.getByLabel('Message (optional)').fill('We liked your profile');
     await dialog.getByRole('button', { name: 'Send invitation' }).click();
-    await expect(page.getByText('Venkatesh L. was invited.', { exact: false })).toBeVisible();
+    await expect(page.getByText('Venkatesh Learner was invited.', { exact: false })).toBeVisible();
 
     const learner = await browser.newContext();
     const l = await learner.newPage();

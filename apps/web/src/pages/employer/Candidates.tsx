@@ -70,7 +70,7 @@ export function UpgradeNote({ message }: { message: string }) {
 
 const isPlanLimit = (e: unknown) => e instanceof ApiError && e.fields.plan === 'limit';
 
-/** EM-04: search people who chose to be found by employers. Contact details are never shown here. */
+/** EM-04: search people who chose to be found by employers. Contact details open on the profile on paid plans. */
 export function CandidateSearchPage() {
   const usage = useSearchUsage();
   const allFilters = usage.data?.allFilters ?? true;
@@ -80,7 +80,7 @@ export function CandidateSearchPage() {
   const filters = { skillArea: get('skillArea'), city: get('city'), minExperienceMonths: get('minExperienceMonths'), hasCertificate: get('hasCertificate'), page: get('page') || '1' };
   const q = useQuery({
     queryKey: ['employer', 'candidates', filters],
-    queryFn: () => api.get<Page<CandidateRow> & { matched: number; limitedTo: number | null }>(`/employer/candidates${qs({ ...filters, ...(allFilters ? {} : { minExperienceMonths: '', hasCertificate: '' }), pageSize: 20 })}`),
+    queryFn: () => api.get<Page<CandidateRow> & { matched: number | null; more?: boolean; limitedTo: number | null }>(`/employer/candidates${qs({ ...filters, ...(allFilters ? {} : { minExperienceMonths: '', hasCertificate: '' }), pageSize: 20 })}`),
     enabled: !usage.isLoading,
     placeholderData: (p) => p,
   });
@@ -94,7 +94,7 @@ export function CandidateSearchPage() {
 
   return (
     <>
-      <PageHeader title="Find candidates" description="People who can be found by employers. Contact details are shared when they apply to your job." />
+      <PageHeader title="Find candidates" description="People who can be found by employers. Contact details are shown on paid plans." />
       {usage.data && <UsageBar u={usage.data} />}
       <form
         className="card mb-4 grid gap-3 px-4 py-4 sm:grid-cols-2 lg:grid-cols-5"
@@ -158,7 +158,7 @@ export function CandidateSearchPage() {
         </div>
       ) : (
         <>
-          <p className="mb-2 text-sm text-muted">{q.data!.matched ?? q.data!.total} found{q.data!.limitedTo !== null && q.data!.matched > q.data!.limitedTo ? `, first ${q.data!.limitedTo} shown` : ''}</p>
+          <p className="mb-2 text-sm text-muted">{q.data!.matched !== null ? `${q.data!.matched.toLocaleString('en-IN')} found` : `${q.data!.total} candidates shown${q.data!.more ? ` (your plan shows the first ${q.data!.limitedTo})` : ''}`}</p>
           <ul className="grid gap-3 md:grid-cols-2">
             {q.data!.items.map((c) => (
               <li key={c.id}>
@@ -188,9 +188,9 @@ export function CandidateSearchPage() {
           <div className="card mt-3">
             <Pagination page={q.data!.page} pageSize={q.data!.pageSize} total={q.data!.total} onPage={(p) => setParams(new URLSearchParams({ ...Object.fromEntries(params), page: String(p) }))} />
           </div>
-          {q.data!.limitedTo !== null && q.data!.matched > q.data!.limitedTo && (
+          {q.data!.more && (
             <div className="mt-3">
-              <UpgradeNote message={`${(q.data!.matched - q.data!.limitedTo).toLocaleString('en-IN')} more candidates match. Upgrade to Starter to see them all and use every filter.`} />
+              <UpgradeNote message="More candidates match this search. Upgrade to Starter to see them all, use every filter and view contact details." />
             </div>
           )}
         </>
@@ -214,6 +214,9 @@ interface CandidateProfile {
   certificates: { id: string; course: string; issueDate: string; verifyPath: string }[];
   documents: { id: string; title: string; verificationStatus: string }[];
   contact: string;
+  phone: string | null;
+  email: string | null;
+  contactNeedsUpgrade: boolean;
   invitations: { jobId: string; title: string; at: string }[];
 }
 
@@ -271,10 +274,36 @@ export function CandidateProfilePage() {
               <span>{v || '—'}</span>
             </div>
           ))}
-          <div className="flex items-center gap-2 px-5 py-3 text-sm text-muted">
-            <Lock className="size-4" aria-hidden />
-            Contact: {c.contact.toLowerCase()}.
-          </div>
+          {c.phone || c.email ? (
+            <div className="grid gap-0.5 px-5 py-2.5 text-sm sm:grid-cols-[180px_1fr]">
+              <span className="text-muted">Contact</span>
+              <span className="flex flex-wrap gap-x-4 gap-y-1">
+                {c.phone && (
+                  <a href={`tel:${c.phone}`} className="font-semibold text-brand underline">
+                    {c.phone.replace('+91', '+91 ')}
+                  </a>
+                )}
+                {c.email && (
+                  <a href={`mailto:${c.email}`} className="font-semibold text-brand underline">
+                    {c.email}
+                  </a>
+                )}
+              </span>
+            </div>
+          ) : c.contactNeedsUpgrade ? (
+            <div className="flex flex-wrap items-center gap-2 px-5 py-3 text-sm text-muted">
+              <Lock className="size-4" aria-hidden />
+              Contact details are in the Starter plan and above.
+              <Link to="/employer/subscription/plans" className="font-semibold text-brand underline">
+                Upgrade
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-5 py-3 text-sm text-muted">
+              <Lock className="size-4" aria-hidden />
+              Contact: not given.
+            </div>
+          )}
         </section>
         <aside className="space-y-6">
           <section className="card px-5 py-4 text-sm">
