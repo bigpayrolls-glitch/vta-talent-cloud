@@ -135,6 +135,8 @@ export async function createCandidates(trx: Transaction<Database>, req: FastifyR
           languages: input.languages,
           verification_status: 'pending' as const,
           duplicate_of: duplicateOf,
+          // Imported candidates can be found by employers straight away (29 Oct 2026); they can turn it off.
+          searchable: true,
           source,
           created_by: req.actor?.userId ?? null,
         })),
