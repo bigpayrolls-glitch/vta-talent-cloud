@@ -6,13 +6,20 @@ import { SkillAreaPicker } from '../../components/form';
 import { useToast } from '../../components/toast';
 import { ErrorNote, Field, formatPhone, PageHeader, Spinner, StatusBadge } from '../../components/ui';
 import { api } from '../../lib/api';
+import { t } from '../../lib/i18n';
 import { useAuth } from '../../lib/auth';
 import { useDraft } from '../../lib/draft';
 import { useForm } from '../../lib/useForm';
 import { fmtDate } from './attendance';
 import type { LearnerProfile } from './types';
 
-const years = (m: number) => (m >= 12 ? `${Math.floor(m / 12)} yr${m >= 24 ? 's' : ''}${m % 12 ? ` ${m % 12} mo` : ''}` : `${m} months`);
+const years = (m: number) => {
+  if (m < 12) return t('{n} months', { n: m });
+  const y = Math.floor(m / 12);
+  const mo = m % 12;
+  if (mo) return m >= 24 ? t('{y} yrs {m} mo', { y, m: mo }) : t('{y} yr {m} mo', { y, m: mo });
+  return m >= 24 ? t('{y} yrs', { y }) : t('{y} yr', { y });
+};
 
 /** EE-02: the learner's own profile. Saves part at a time; unfinished edits are kept on the device (EE-12). */
 export function ProfilePage() {
@@ -24,20 +31,20 @@ export function ProfilePage() {
   return (
     <>
       <PageHeader
-        title="My profile"
-        description={`Candidate ID ${p.candidateCode}`}
+        title={t('My profile')}
+        description={t('Candidate ID {code}', { code: p.candidateCode })}
         actions={
           !editing && (
             <button type="button" className="btn-primary" onClick={() => setEditing(true)}>
               <Pencil className="size-4" aria-hidden />
-              Edit profile
+              {t('Edit profile')}
             </button>
           )
         }
       />
       {p.verificationStatus === 'needs_correction' && p.verificationReason && (
         <p role="status" className="mb-4 rounded-lg bg-warning-tint px-4 py-3 text-sm text-warning">
-          <span className="font-semibold">AutoTalent Grid asked for a correction:</span> {p.verificationReason}
+          <span className="font-semibold">{t('AutoTalent Grid asked for a correction:')}</span> {p.verificationReason}
         </p>
       )}
       {editing ? <ProfileForm profile={p} onDone={() => setEditing(false)} /> : <ProfileView p={p} />}
@@ -49,7 +56,7 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   return (
     <div className="grid gap-0.5 px-5 py-3 sm:grid-cols-[200px_1fr]">
       <dt className="text-sm text-muted">{label}</dt>
-      <dd className="font-medium">{children || <span className="font-normal text-muted">Not added</span>}</dd>
+      <dd className="font-medium">{children || <span className="font-normal text-muted">{t('Not added')}</span>}</dd>
     </div>
   );
 }
@@ -58,29 +65,29 @@ function ProfileView({ p }: { p: LearnerProfile }) {
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_280px]">
       <dl className="card divide-y divide-line">
-        <Row label="Name">{p.name}</Row>
-        <Row label="Date of birth">{p.dateOfBirth ? fmtDate(p.dateOfBirth) : ''}</Row>
-        <Row label="Mobile">{formatPhone(p.phone)}</Row>
-        <Row label="Email">{p.email}</Row>
-        <Row label="City">{[p.city, p.state].filter(Boolean).join(', ')}</Row>
-        <Row label="Preferred work area">{p.preferredWorkArea}</Row>
-        <Row label="Skills">{p.skillAreas.map((s) => SKILL_AREA_LABEL[s as SkillArea] ?? s).join(', ')}</Row>
-        <Row label="Experience">{p.experienceMonths ? years(p.experienceMonths) : ''}</Row>
-        <Row label="Education">{p.education}</Row>
-        <Row label="Languages">{p.languages.join(', ')}</Row>
-        <Row label="Availability">{p.availability}</Row>
+        <Row label={t('Name')}>{p.name}</Row>
+        <Row label={t('Date of birth')}>{p.dateOfBirth ? fmtDate(p.dateOfBirth) : ''}</Row>
+        <Row label={t('Mobile')}>{formatPhone(p.phone)}</Row>
+        <Row label={t('Email')}>{p.email}</Row>
+        <Row label={t('City')}>{[p.city, p.state].filter(Boolean).join(', ')}</Row>
+        <Row label={t('Preferred work area')}>{p.preferredWorkArea}</Row>
+        <Row label={t('Skills')}>{p.skillAreas.map((s) => (SKILL_AREA_LABEL[s as SkillArea] ? t(SKILL_AREA_LABEL[s as SkillArea]) : s)).join(', ')}</Row>
+        <Row label={t('Experience')}>{p.experienceMonths ? years(p.experienceMonths) : ''}</Row>
+        <Row label={t('Education')}>{p.education}</Row>
+        <Row label={t('Languages')}>{p.languages.join(', ')}</Row>
+        <Row label={t('Availability')}>{p.availability}</Row>
       </dl>
       <aside className="card h-fit px-5 py-4">
-        <p className="text-sm text-muted">Verification</p>
+        <p className="text-sm text-muted">{t('Verification')}</p>
         <div className="mt-1">
           <StatusBadge status={p.verificationStatus} />
         </div>
-        <p className="mt-4 text-sm text-muted">Profile complete</p>
+        <p className="mt-4 text-sm text-muted">{t('Profile complete')}</p>
         <p className="text-2xl font-bold">{p.completeness.pct}%</p>
         <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface" aria-hidden>
           <div className="h-full rounded-full bg-brand" style={{ width: `${p.completeness.pct}%` }} />
         </div>
-        {p.completeness.missing.length > 0 && <p className="mt-2 text-[13px] text-muted">Still to add: {p.completeness.missing.join(', ')}</p>}
+        {p.completeness.missing.length > 0 && <p className="mt-2 text-[13px] text-muted">{t('Still to add: {list}', { list: p.completeness.missing.join(', ') })}</p>}
       </aside>
     </div>
   );
@@ -129,7 +136,7 @@ function ProfileForm({ profile: p, onDone }: { profile: LearnerProfile; onDone: 
         const res = await api.patch<LearnerProfile>('/me/profile', data);
         draft.clear();
         qc.setQueryData(['me', 'profile'], res);
-        toast('success', res.verificationStatus === 'pending' && p.verificationStatus === 'needs_correction' ? 'Saved and sent back to AutoTalent Grid for checking' : 'Profile saved');
+        toast('success', res.verificationStatus === 'pending' && p.verificationStatus === 'needs_correction' ? t('Saved and sent back to AutoTalent Grid for checking') : t('Profile saved'));
         onDone();
       },
     );
@@ -143,60 +150,60 @@ function ProfileForm({ profile: p, onDone }: { profile: LearnerProfile; onDone: 
         void save();
       }}
     >
-      {draft.restored && <p className="rounded-lg bg-info-tint px-3 py-2 text-sm text-info">Your unsaved changes from last time were kept on this phone.</p>}
+      {draft.restored && <p className="rounded-lg bg-info-tint px-3 py-2 text-sm text-info">{t('Your unsaved changes from last time were kept on this phone.')}</p>}
       {f.formError && <ErrorNote message={f.formError} />}
       {p.identityLocked ? (
         <p className="flex items-start gap-2 rounded-lg bg-surface px-3 py-2 text-sm">
           <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
-          Your name and date of birth were checked by AutoTalent Grid. To correct them, ask your training centre.
+          {t('Your name and date of birth were checked by AutoTalent Grid. To correct them, ask your training centre.')}
         </p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Full name" htmlFor="p-name" error={f.errors.name}>
+          <Field label={t('Full name')} htmlFor="p-name" error={f.errors.name}>
             <input id="p-name" className="field-input" value={v.name} onChange={set('name')} />
           </Field>
-          <Field label="Date of birth" htmlFor="p-dob" error={f.errors.dateOfBirth}>
+          <Field label={t('Date of birth')} htmlFor="p-dob" error={f.errors.dateOfBirth}>
             <input id="p-dob" type="date" className="field-input" value={v.dateOfBirth} onChange={set('dateOfBirth')} />
           </Field>
         </div>
       )}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="City or town" htmlFor="p-city" error={f.errors.city}>
+        <Field label={t('City or town')} htmlFor="p-city" error={f.errors.city}>
           <input id="p-city" className="field-input" value={v.city} onChange={set('city')} />
         </Field>
-        <Field label="State" htmlFor="p-state" error={f.errors.state}>
+        <Field label={t('State')} htmlFor="p-state" error={f.errors.state}>
           <input id="p-state" className="field-input" value={v.state} onChange={set('state')} />
         </Field>
       </div>
-      <Field label="Preferred work area" htmlFor="p-area" error={f.errors.preferredWorkArea} hint="Where you would like to work, for example Peenya or anywhere in Bengaluru.">
+      <Field label={t('Preferred work area')} htmlFor="p-area" error={f.errors.preferredWorkArea} hint={t('Where you would like to work, for example Peenya or anywhere in Bengaluru.')}>
         <input id="p-area" className="field-input" value={v.preferredWorkArea} onChange={set('preferredWorkArea')} />
       </Field>
       <div>
         <span className="field-label" id="p-skills-label">
-          Skills
+          {t('Skills')}
         </span>
         <SkillAreaPicker id="p-skills-label" value={v.skillAreas} onChange={(s) => draft.setValue({ ...v, skillAreas: s })} />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Experience (months)" htmlFor="p-exp" error={f.errors.experienceMonths}>
+        <Field label={t('Experience (months)')} htmlFor="p-exp" error={f.errors.experienceMonths}>
           <input id="p-exp" type="number" min={0} inputMode="numeric" className="field-input" value={v.experienceMonths} onChange={set('experienceMonths')} />
         </Field>
-        <Field label="Availability" htmlFor="p-avail" error={f.errors.availability} hint="For example: weekdays, from 1 December.">
+        <Field label={t('Availability')} htmlFor="p-avail" error={f.errors.availability} hint={t('For example: weekdays, from 1 December.')}>
           <input id="p-avail" className="field-input" value={v.availability} onChange={set('availability')} />
         </Field>
       </div>
-      <Field label="Education" htmlFor="p-edu" error={f.errors.education} hint="For example: ITI Motor Mechanic, 10th pass.">
+      <Field label={t('Education')} htmlFor="p-edu" error={f.errors.education} hint={t('For example: ITI Motor Mechanic, 10th pass.')}>
         <input id="p-edu" className="field-input" value={v.education} onChange={set('education')} />
       </Field>
-      <Field label="Languages" htmlFor="p-lang" error={f.errors.languages} hint="Separate with commas.">
+      <Field label={t('Languages')} htmlFor="p-lang" error={f.errors.languages} hint={t('Separate with commas.')}>
         <input id="p-lang" className="field-input" value={v.languages} onChange={set('languages')} />
       </Field>
-      <Field label="Email (optional)" htmlFor="p-email" error={f.errors.email}>
+      <Field label={t('Email (optional)')} htmlFor="p-email" error={f.errors.email}>
         <input id="p-email" type="email" inputMode="email" className="field-input" value={v.email} onChange={set('email')} />
       </Field>
       <div className="flex flex-wrap gap-2 pt-2">
         <button type="submit" className="btn-primary" disabled={f.submitting}>
-          {f.submitting ? 'Saving…' : 'Save profile'}
+          {f.submitting ? t('Saving…') : t('Save profile')}
         </button>
         <button
           type="button"
@@ -206,7 +213,7 @@ function ProfileForm({ profile: p, onDone }: { profile: LearnerProfile; onDone: 
             onDone();
           }}
         >
-          Cancel
+          {t('Cancel')}
         </button>
       </div>
     </form>

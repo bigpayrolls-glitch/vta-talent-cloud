@@ -5,13 +5,14 @@ import { useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router';
 import { ErrorNote, Field, Spinner, Wordmark } from '../components/ui';
 import { api } from '../lib/api';
+import { t, tn } from '../lib/i18n';
 import { homePathFor, PORTAL_PATH, useAuth } from '../lib/auth';
 import { useForm } from '../lib/useForm';
 
 export function Centered({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col px-5 py-8">
-      <Link to="/" aria-label="AutoTalent Grid home" className="inline-block w-fit rounded-lg">
+      <Link to="/" aria-label={t('AutoTalent Grid home')} className="inline-block w-fit rounded-lg">
             <Wordmark tagline />
           </Link>
       <main className="mx-auto my-auto w-full max-w-md py-10">{children}</main>
@@ -39,13 +40,13 @@ export function AccessDenied({ portal }: { portal: Portal }) {
       <span className="grid size-12 place-items-center rounded-xl bg-brand-tint text-brand">
         <ShieldAlert className="size-6" aria-hidden />
       </span>
-      <h1 className="mt-5 text-2xl font-bold">Access denied</h1>
+      <h1 className="mt-5 text-2xl font-bold">{t('Access denied')}</h1>
       <p className="mt-2 text-muted">
-        Your account doesn’t have access to the {PORTAL_LABEL[portal]}. If you think it should, ask an AutoTalent Grid administrator to check your role.
+        {t('Your account doesn’t have access to the {portal}. If you think it should, ask an AutoTalent Grid administrator to check your role.', { portal: t(PORTAL_LABEL[portal]) })}
       </p>
       {me && (
         <Link to={homePathFor(me)} className="btn-primary mt-6">
-          Go to my portal
+          {t('Go to my portal')}
         </Link>
       )}
     </Centered>
@@ -58,13 +59,13 @@ export function ChoosePortal() {
   if (!me) return <Navigate to="/login" replace />;
   return (
     <Centered>
-      <h1 className="text-2xl font-bold">Choose a portal</h1>
-      <p className="mt-2 text-muted">Your account has more than one role. You can switch any time from your name at the top right.</p>
+      <h1 className="text-2xl font-bold">{t('Choose a portal')}</h1>
+      <p className="mt-2 text-muted">{t('Your account has more than one role. You can switch any time from your name at the top right.')}</p>
       <ul className="mt-6 space-y-3">
         {me.portals.map((p) => (
           <li key={p}>
             <Link to={PORTAL_PATH[p]} className="card flex items-center justify-between px-5 py-4 font-semibold hover:border-brand">
-              {PORTAL_LABEL[p]}
+              {t(PORTAL_LABEL[p])}
               <ArrowRight className="size-5 text-brand" aria-hidden />
             </Link>
           </li>
@@ -78,10 +79,10 @@ export function NoAccess() {
   const { signOut } = useAuth();
   return (
     <Centered>
-      <h1 className="text-2xl font-bold">Your account has no role yet</h1>
-      <p className="mt-2 text-muted">You’re signed in, but no portal has been assigned to you. An AutoTalent Grid administrator needs to give your account a role.</p>
+      <h1 className="text-2xl font-bold">{t('Your account has no role yet')}</h1>
+      <p className="mt-2 text-muted">{t('You’re signed in, but no portal has been assigned to you. An AutoTalent Grid administrator needs to give your account a role.')}</p>
       <button className="btn-secondary mt-6" onClick={signOut}>
-        Sign out
+        {t('Sign out')}
       </button>
     </Centered>
   );
@@ -90,10 +91,10 @@ export function NoAccess() {
 export function NotFound() {
   return (
     <Centered>
-      <h1 className="text-2xl font-bold">Page not found</h1>
-      <p className="mt-2 text-muted">The page you opened doesn’t exist or has moved.</p>
+      <h1 className="text-2xl font-bold">{t('Page not found')}</h1>
+      <p className="mt-2 text-muted">{t('The page you opened doesn’t exist or has moved.')}</p>
       <Link to="/" className="btn-primary mt-6">
-        Go home
+        {t('Go home')}
       </Link>
     </Centered>
   );
@@ -119,14 +120,14 @@ export function AcceptInvitation() {
     retry: false,
   });
 
-  if (invite.isLoading) return <Spinner label="Checking your invitation" />;
+  if (invite.isLoading) return <Spinner label={t('Checking your invitation')} />;
   if (invite.isError)
     return (
       <Centered>
-        <h1 className="text-2xl font-bold">This link can’t be used</h1>
-        <p className="mt-2 text-muted">{(invite.error as Error).message}</p>
+        <h1 className="text-2xl font-bold">{t('This link can’t be used')}</h1>
+        <p className="mt-2 text-muted">{t((invite.error as Error).message)}</p>
         <Link to="/login" className="btn-secondary mt-6">
-          Go to sign in
+          {t('Go to sign in')}
         </Link>
       </Centered>
     );
@@ -134,15 +135,17 @@ export function AcceptInvitation() {
   const self = invite.data!.selfRegistered;
   return (
     <Centered>
-      <h1 className="text-[28px] font-bold tracking-tight">{self ? 'Confirm your email' : `Welcome, ${invite.data!.name.split(' ')[0]}`}</h1>
+      <h1 className="text-[28px] font-bold tracking-tight">{self ? t('Confirm your email') : t('Welcome, {name}', { name: invite.data!.name.split(' ')[0] ?? '' })}</h1>
       {self ? (
         <p className="mt-2 text-muted">
-          Set a password for <span className="font-semibold text-ink">{invite.data!.email}</span> to finish registering{' '}
-          <span className="font-semibold text-ink">{invite.data!.organisationName}</span>. Next you add your details and a registration document so AutoTalent Grid can verify you.
+          {tn('Set a password for {email} to finish registering {organisation}. Next you add your details and a registration document so AutoTalent Grid can verify you.', {
+            email: <span className="font-semibold text-ink">{invite.data!.email}</span>,
+            organisation: <span className="font-semibold text-ink">{invite.data!.organisationName}</span>,
+          })}
         </p>
       ) : (
         <p className="mt-2 text-muted">
-          Set a password to finish creating your account for <span className="font-semibold text-ink">{invite.data!.email}</span>.
+          {tn('Set a password to finish creating your account for {email}.', { email: <span className="font-semibold text-ink">{invite.data!.email}</span> })}
         </p>
       )}
       <form
@@ -165,14 +168,14 @@ export function AcceptInvitation() {
         }}
       >
         {f.formError && <ErrorNote message={f.formError} />}
-        <Field label="New password" htmlFor="password" error={f.errors.password} hint="At least 10 characters. Avoid common passwords.">
+        <Field label={t('New password')} htmlFor="password" error={f.errors.password} hint={t('At least 10 characters. Avoid common passwords.')}>
           <input id="password" type="password" autoComplete="new-password" className="field-input" value={password} onChange={(e) => setPassword(e.target.value)} />
         </Field>
-        <Field label="Confirm password" htmlFor="confirm" error={mismatch}>
+        <Field label={t('Confirm password')} htmlFor="confirm" error={mismatch}>
           <input id="confirm" type="password" autoComplete="new-password" className="field-input" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
         </Field>
         <button type="submit" className="btn-primary h-11 w-full" disabled={f.submitting}>
-          {f.submitting ? 'Saving…' : self ? 'Confirm and sign in' : 'Create account and sign in'}
+          {f.submitting ? t('Saving…') : self ? t('Confirm and sign in') : t('Create account and sign in')}
         </button>
       </form>
     </Centered>

@@ -4,6 +4,7 @@ import { Bell, CheckCheck } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { api } from '../lib/api';
 import { PORTAL_PATH } from '../lib/auth';
+import { t } from '../lib/i18n';
 import { EmptyState, ErrorNote, PageHeader, Spinner } from './ui';
 
 /** SH-07: the header bell. Checks for new notifications every minute while the page is open and visible. */
@@ -21,7 +22,7 @@ export function NotificationBell({ portal }: { portal: Portal }) {
     <Link
       to={`${PORTAL_PATH[portal]}/notifications`}
       className="relative grid size-10 place-items-center rounded-full text-ink hover:bg-surface"
-      aria-label={n ? `Notifications, ${n} unread` : 'Notifications'}
+      aria-label={n ? t('Notifications, {n} unread', { n }) : t('Notifications')}
     >
       <Bell className="size-5" aria-hidden />
       {n > 0 && (
@@ -35,10 +36,10 @@ export function NotificationBell({ portal }: { portal: Portal }) {
 
 function timeAgo(iso: string): string {
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
-  if (s < 60) return 'just now';
-  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
-  if (s < 86_400) return `${Math.floor(s / 3600)} h ago`;
-  if (s < 7 * 86_400) return `${Math.floor(s / 86_400)} d ago`;
+  if (s < 60) return t('just now');
+  if (s < 3600) return t('{n} min ago', { n: Math.floor(s / 60) });
+  if (s < 86_400) return t('{n} h ago', { n: Math.floor(s / 3600) });
+  if (s < 7 * 86_400) return t('{n} d ago', { n: Math.floor(s / 86_400) });
   return new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short' }).format(new Date(iso));
 }
 
@@ -76,8 +77,8 @@ export function NotificationsPage() {
   return (
     <div className="mx-auto max-w-3xl">
       <PageHeader
-        title="Notifications"
-        description={unread ? `${unread} unread` : 'You are up to date.'}
+        title={t('Notifications')}
+        description={unread ? t('{n} unread', { n: unread }) : t('You are up to date.')}
         actions={
           unread > 0 && (
             <button
@@ -89,7 +90,7 @@ export function NotificationsPage() {
               }}
             >
               <CheckCheck className="size-4" aria-hidden />
-              Mark all as read
+              {t('Mark all as read')}
             </button>
           )
         }
@@ -100,7 +101,7 @@ export function NotificationsPage() {
         <ErrorNote message={(q.error as Error).message} />
       ) : items.length === 0 ? (
         <div className="card">
-          <EmptyState title="No notifications yet" body="Updates about your work on the platform appear here." />
+          <EmptyState title={t('No notifications yet')} body={t('Updates about your work on the platform appear here.')} />
         </div>
       ) : (
         <>
@@ -112,7 +113,7 @@ export function NotificationsPage() {
                   <span className="min-w-0 flex-1">
                     <span className={`block ${n.readAt ? 'font-medium' : 'font-semibold'}`}>
                       {n.title}
-                      {!n.readAt && <span className="sr-only"> (unread)</span>}
+                      {!n.readAt && <span className="sr-only"> {t('(unread)')}</span>}
                     </span>
                     {n.body && <span className="mt-0.5 block text-sm text-muted">{n.body}</span>}
                   </span>
@@ -124,7 +125,7 @@ export function NotificationsPage() {
           {q.hasNextPage && (
             <div className="mt-4 text-center">
               <button type="button" className="btn-secondary" disabled={q.isFetchingNextPage} onClick={() => void q.fetchNextPage()}>
-                {q.isFetchingNextPage ? 'Loading…' : 'Show older'}
+                {q.isFetchingNextPage ? t('Loading…') : t('Show older')}
               </button>
             </div>
           )}

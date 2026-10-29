@@ -7,6 +7,7 @@ import { ErrorNote, Field } from '../../components/ui';
 import { useForm } from '../../lib/useForm';
 import { api, ApiError } from '../../lib/api';
 import { firstName, useAuth } from '../../lib/auth';
+import { t } from '../../lib/i18n';
 import { PrivacyNotice, TermsOfUse } from '../public/NoticePages';
 
 export const LEARNER_NAV: NavItem[] = [
@@ -38,8 +39,8 @@ function BasicsGate() {
   const [v, setV] = useState({ dateOfBirth: '', city: '' });
   return (
     <section className="mx-auto max-w-xl">
-      <h1 className="text-[26px] font-bold tracking-tight">One more step, {firstName(me?.name ?? '')}</h1>
-      <p className="mt-2 text-muted">Your training centre did not give us your date of birth or city. Add them to finish setting up your account.</p>
+      <h1 className="text-[26px] font-bold tracking-tight">{t('One more step, {name}', { name: firstName(me?.name ?? '') })}</h1>
+      <p className="mt-2 text-muted">{t('Your training centre did not give us your date of birth or city. Add them to finish setting up your account.')}</p>
       <form
         noValidate
         className="card mt-6 space-y-4 px-5 py-5"
@@ -52,14 +53,14 @@ function BasicsGate() {
         }}
       >
         {f.formError && <ErrorNote message={f.formError} />}
-        <Field label="Date of birth" htmlFor="b-dob" error={f.errors.dateOfBirth} hint="You must be 18 or older.">
+        <Field label={t('Date of birth')} htmlFor="b-dob" error={f.errors.dateOfBirth} hint={t('You must be 18 or older.')}>
           <input id="b-dob" type="date" autoComplete="bday" className="field-input" value={v.dateOfBirth} onChange={(e) => setV({ ...v, dateOfBirth: e.target.value })} />
         </Field>
-        <Field label="City or town" htmlFor="b-city" error={f.errors.city}>
+        <Field label={t('City or town')} htmlFor="b-city" error={f.errors.city}>
           <input id="b-city" autoComplete="address-level2" className="field-input" value={v.city} onChange={(e) => setV({ ...v, city: e.target.value })} />
         </Field>
         <button type="submit" className="btn-primary h-11 w-full sm:w-auto" disabled={f.submitting}>
-          {f.submitting ? 'Saving…' : 'Save and continue'}
+          {f.submitting ? t('Saving…') : t('Save and continue')}
         </button>
       </form>
     </section>
@@ -93,15 +94,15 @@ function ConsentGate() {
 
   return (
     <section className="mx-auto max-w-xl">
-      <h1 className="text-[26px] font-bold tracking-tight">Welcome, {firstName(me?.name ?? '')}</h1>
+      <h1 className="text-[26px] font-bold tracking-tight">{t('Welcome, {name}', { name: firstName(me?.name ?? '') })}</h1>
       <p className="mt-2 text-muted">
-        Your training centre created your AutoTalent Grid account. Before you continue, please read how your information is used and agree to the terms.
+        {t('Your training centre created your AutoTalent Grid account. Before you continue, please read how your information is used and agree to the terms.')}
       </p>
       <div className="card mt-6 divide-y divide-line">
         {(
           [
-            ['privacy', 'Privacy notice', 'What we keep about you, who sees it and your choices.', privacy, setPrivacy, 'I have read the privacy notice'],
-            ['terms', 'Terms of use', 'Rules for using your account and what AutoTalent Grid certificates mean.', terms, setTerms, 'I agree to the terms of use'],
+            ['privacy', t('Privacy notice'), t('What we keep about you, who sees it and your choices.'), privacy, setPrivacy, t('I have read the privacy notice')],
+            ['terms', t('Terms of use'), t('Rules for using your account and what AutoTalent Grid certificates mean.'), terms, setTerms, t('I agree to the terms of use')],
           ] as const
         ).map(([key, title, body, checked, setChecked, label]) => (
           <div key={key} className="px-5 py-4">
@@ -111,7 +112,7 @@ function ConsentGate() {
                 <p className="text-sm text-muted">{body}</p>
               </div>
               <button type="button" className="btn-secondary btn-sm shrink-0" aria-expanded={open === key} onClick={() => setOpen(open === key ? null : key)}>
-                {open === key ? 'Hide' : 'Read'}
+                {open === key ? t('Hide') : t('Read')}
               </button>
             </div>
             {open === key && (
@@ -132,9 +133,9 @@ function ConsentGate() {
         </div>
       )}
       <button type="button" className="btn-primary mt-5 h-11 w-full sm:w-auto" disabled={busy} onClick={() => void accept()}>
-        {busy ? 'Saving…' : 'Agree and continue'}
+        {busy ? t('Saving…') : t('Agree and continue')}
       </button>
-      <p className="mt-3 text-[13px] text-muted">Draft wording for AutoTalent Grid review (version {NOTICE_VERSION}).</p>
+      <p className="mt-3 text-[13px] text-muted">{t('Draft wording for AutoTalent Grid review (version {version}).', { version: NOTICE_VERSION })}</p>
     </section>
   );
 }

@@ -5,6 +5,8 @@ import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { PORTAL_PATH, useAuth } from '../lib/auth';
 import { syncNow } from '../offline/sync';
 import { useOffline } from '../offline/useOffline';
+import { t } from '../lib/i18n';
+import { LanguagePicker } from './LanguagePicker';
 import { NotificationBell } from './Notifications';
 import { Modal, Wordmark } from './ui';
 
@@ -21,7 +23,7 @@ export interface NavItem {
 
 function NavBadge({ n }: { n?: number }) {
   if (!n) return null;
-  return <span className="ml-auto rounded-full bg-brand px-2 py-0.5 text-[11px] font-bold leading-none text-white" aria-label={`${n} waiting`}>{n}</span>;
+  return <span className="ml-auto rounded-full bg-brand px-2 py-0.5 text-[11px] font-bold leading-none text-white" aria-label={t('{n} waiting', { n })}>{n}</span>;
 }
 
 function initials(name: string) {
@@ -43,8 +45,8 @@ function SignOutGuard({ open, onClose }: { open: boolean; onClose: () => void })
   if (!open) return null;
   if (!off.online) {
     return (
-      <Modal open onClose={onClose} title="You are offline" footer={<button type="button" className="btn-primary" onClick={onClose}>OK</button>}>
-        <p>Signing out needs a connection, so your session can be ended on the server too. Try again when you are back online.</p>
+      <Modal open onClose={onClose} title={t('You are offline')} footer={<button type="button" className="btn-primary" onClick={onClose}>{t('OK')}</button>}>
+        <p>{t('Signing out needs a connection, so your session can be ended on the server too. Try again when you are back online.')}</p>
       </Modal>
     );
   }
@@ -52,11 +54,11 @@ function SignOutGuard({ open, onClose }: { open: boolean; onClose: () => void })
     <Modal
       open
       onClose={onClose}
-      title="Changes not synced"
+      title={t('Changes not synced')}
       footer={
         <>
-          <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button type="button" className="btn-secondary" disabled={busy} onClick={() => void signOut()}>Sign out and delete them</button>
+          <button type="button" className="btn-secondary" onClick={onClose}>{t('Cancel')}</button>
+          <button type="button" className="btn-secondary" disabled={busy} onClick={() => void signOut()}>{t('Sign out and delete them')}</button>
           <button
             type="button"
             className="btn-primary"
@@ -68,15 +70,17 @@ function SignOutGuard({ open, onClose }: { open: boolean; onClose: () => void })
               if (!r.error && !r.conflicts && !r.rejected && off.conflicts.length + off.rejected.length === 0) void signOut();
             }}
           >
-            {busy ? 'Syncing…' : 'Sync, then sign out'}
+            {busy ? t('Syncing…') : t('Sync, then sign out')}
           </button>
         </>
       }
     >
       <p>
-        {off.unsynced} attendance {off.unsynced === 1 ? 'change on this phone has' : 'changes on this phone have'} not reached the server. Signing out deletes them from this phone.
+        {off.unsynced === 1
+          ? t('{n} attendance change on this phone has not reached the server. Signing out deletes them from this phone.', { n: off.unsynced })
+          : t('{n} attendance changes on this phone have not reached the server. Signing out deletes them from this phone.', { n: off.unsynced })}
       </p>
-      {off.conflicts.length + off.rejected.length > 0 && <p className="mt-3 text-sm text-muted">Some need your choice first: open Sync status to sort them out.</p>}
+      {off.conflicts.length + off.rejected.length > 0 && <p className="mt-3 text-sm text-muted">{t('Some need your choice first: open Sync status to sort them out.')}</p>}
     </Modal>
   );
 }
@@ -108,7 +112,7 @@ function UserMenu({ portal }: { portal: Portal }) {
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label={`Account menu, ${me.name}`}
+        aria-label={t('Account menu, {name}', { name: me.name })}
         className="flex items-center gap-2.5 rounded-full py-1 pl-1 pr-2 hover:bg-surface"
       >
         <span className="grid size-9 place-items-center rounded-full bg-ink text-[13px] font-semibold text-white" aria-hidden>
@@ -116,7 +120,7 @@ function UserMenu({ portal }: { portal: Portal }) {
         </span>
         <span className="hidden text-left leading-tight sm:block">
           <span className="block text-sm font-semibold">{me.name}</span>
-          <span className="block text-xs text-muted">{primary ? ROLE_LABEL[primary.role] : ''}</span>
+          <span className="block text-xs text-muted">{primary ? t(ROLE_LABEL[primary.role]) : ''}</span>
         </span>
         <ChevronDown className="hidden size-4 text-muted sm:block" aria-hidden />
       </button>
@@ -128,7 +132,7 @@ function UserMenu({ portal }: { portal: Portal }) {
             <ul className="mt-2 space-y-0.5 text-[13px] text-muted">
               {me.roles.map((r) => (
                 <li key={r.id}>
-                  {ROLE_LABEL[r.role]}
+                  {t(ROLE_LABEL[r.role])}
                   {r.organisationName ? `, ${r.organisationName}` : ''}
                   {r.centreName ? `, ${r.centreName}` : ''}
                 </li>
@@ -136,17 +140,17 @@ function UserMenu({ portal }: { portal: Portal }) {
             </ul>
           </div>
           {/* Only actions sit inside the menu role; the account details above are plain text. */}
-          <div role="menu" aria-label="Account">
+          <div role="menu" aria-label={t('Account')}>
           {others.map((p, i) => (
             <Link key={p} role="menuitem" to={PORTAL_PATH[p]} onClick={() => setOpen(false)} className={`flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-surface ${i === others.length - 1 ? 'border-b border-line' : ''}`}>
               <Repeat className="size-4 text-muted" aria-hidden />
-              Switch to {PORTAL_LABEL[p]}
+              {t('Switch to {portal}', { portal: t(PORTAL_LABEL[p]) })}
             </Link>
           ))}
           {me.hasPassword && (
             <Link role="menuitem" to={`${PORTAL_PATH[portal]}/account`} onClick={() => setOpen(false)} className="flex items-center gap-2.5 border-b border-line px-4 py-3 text-sm hover:bg-surface">
               <KeyRound className="size-4 text-muted" aria-hidden />
-              Change password
+              {t('Change password')}
             </Link>
           )}
           <button
@@ -159,7 +163,7 @@ function UserMenu({ portal }: { portal: Portal }) {
             }}
             className="flex w-full items-center gap-2.5 px-4 py-3 text-left text-sm hover:bg-surface">
             <LogOut className="size-4 text-muted" aria-hidden />
-            Sign out
+            {t('Sign out')}
           </button>
           </div>
         </div>
@@ -185,31 +189,32 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
   return (
     <div className="min-h-dvh bg-white">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:shadow">
-        Skip to content
+        {t('Skip to content')}
       </a>
       <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-line bg-white/95 px-4 backdrop-blur lg:px-6">
-        {showNav && <button type="button" className="rounded-lg p-2 hover:bg-surface lg:hidden" onClick={() => setDrawer(true)} aria-label="Open menu">
+        {showNav && <button type="button" className="rounded-lg p-2 hover:bg-surface lg:hidden" onClick={() => setDrawer(true)} aria-label={t('Open menu')}>
           <Menu className="size-5" />
         </button>}
-        <Link to={PORTAL_PATH[portal]} className="shrink-0 lg:w-[216px]" aria-label={`AutoTalent Grid, ${PORTAL_LABEL[portal]} home`}>
-          <Wordmark compact tight={!!headerExtra} />
+        <Link to={PORTAL_PATH[portal]} className="shrink-0 lg:w-[216px]" aria-label={t('AutoTalent Grid, {portal} home', { portal: t(PORTAL_LABEL[portal]) })}>
+          <Wordmark compact tight={!!headerExtra || portal === 'learn'} />
         </Link>
-        <span className="hidden text-sm font-medium text-muted md:block">{PORTAL_LABEL[portal]}</span>
+        <span className="hidden text-sm font-medium text-muted md:block">{t(PORTAL_LABEL[portal])}</span>
         <div className="ml-auto flex min-w-0 items-center gap-1.5 sm:gap-2">
           {headerExtra}
+          {portal === 'learn' && <LanguagePicker compact />}
           <NotificationBell portal={portal} />
           <UserMenu portal={portal} />
         </div>
       </header>
 
       <div className="flex">
-        <nav aria-label={PORTAL_LABEL[portal]} className={`sticky top-16 hidden ${showNav ? '' : 'lg:!hidden'} h-[calc(100dvh-4rem)] w-60 shrink-0 overflow-y-auto border-r border-line px-3 py-5 lg:block`}>
+        <nav aria-label={t(PORTAL_LABEL[portal])} className={`sticky top-16 hidden ${showNav ? '' : 'lg:!hidden'} h-[calc(100dvh-4rem)] w-60 shrink-0 overflow-y-auto border-r border-line px-3 py-5 lg:block`}>
           <ul className="space-y-1">
             {nav.map((n) => (
               <li key={n.to}>
                 <NavLink to={n.to} end={n.end} className={navClass}>
                   <n.icon className="size-[18px]" aria-hidden />
-                  {n.label}
+                  {t(n.label)}
                   <NavBadge n={n.badge} />
                 </NavLink>
               </li>
@@ -224,7 +229,7 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
 
       {/* Mobile bottom navigation, as in the PWA designs */}
       {showNav && bottom.length > 1 && (
-        <nav aria-label="Quick navigation" className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
+        <nav aria-label={t('Quick navigation')} className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
           <ul className="grid" style={{ gridTemplateColumns: `repeat(${bottom.length}, minmax(0, 1fr))` }}>
             {bottom.map((n) => (
               <li key={n.to}>
@@ -234,7 +239,7 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
                   className={({ isActive }) => `flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${isActive ? 'text-brand' : 'text-muted'}`}
                 >
                   <n.icon className="size-5" aria-hidden />
-                  {n.label}
+                  {t(n.label)}
                 </NavLink>
               </li>
             ))}
@@ -244,12 +249,12 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
 
       {/* Mobile drawer with the full menu */}
       {drawer && (
-        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu">
-          <button type="button" className="absolute inset-0 bg-ink/40" onClick={() => setDrawer(false)} aria-label="Close menu" />
+        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true" aria-label={t('Menu')}>
+          <button type="button" className="absolute inset-0 bg-ink/40" onClick={() => setDrawer(false)} aria-label={t('Close menu')} />
           <div className="absolute inset-y-0 left-0 w-72 bg-white p-4 shadow-xl">
             <div className="mb-6 flex items-center justify-between">
               <Wordmark compact />
-              <button type="button" onClick={() => setDrawer(false)} className="rounded-lg p-2 hover:bg-surface" aria-label="Close menu">
+              <button type="button" onClick={() => setDrawer(false)} className="rounded-lg p-2 hover:bg-surface" aria-label={t('Close menu')}>
                 <X className="size-5" />
               </button>
             </div>
@@ -258,7 +263,7 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
                 <li key={n.to}>
                   <NavLink to={n.to} end={n.end} className={navClass}>
                     <n.icon className="size-[18px]" aria-hidden />
-                    {n.label}
+                    {t(n.label)}
                     <NavBadge n={n.badge} />
                   </NavLink>
                 </li>
