@@ -38,7 +38,17 @@ export const criterionSchema = z.object({
 export const staySchema = z.object({
   stayAvailable: z.boolean().optional(),
   stayFeeRupees: z.coerce.number().int('Whole rupees only').min(0, 'Cannot be negative').max(200_000, 'At most ₹2,00,000').nullable().optional(),
+  /** Meals a day that come with the stay (1 to 3). */
+  stayMeals: z.coerce.number().int().min(1, 'Choose 1, 2 or 3 meals a day').max(3, 'Choose 1, 2 or 3 meals a day').optional(),
 });
+
+/** What the stay includes, as learners see it. */
+export const STAY_MEALS_LABEL: Record<number, string> = {
+  1: 'Accommodation with 1 meal a day',
+  2: 'Accommodation with 2 meals a day',
+  3: 'Accommodation with 3 meals a day',
+};
+export const stayLabel = (meals: number | null | undefined) => STAY_MEALS_LABEL[meals ?? 1] ?? STAY_MEALS_LABEL[1]!;
 
 export const courseSchema = z.object({
   code: z

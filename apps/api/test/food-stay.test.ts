@@ -36,8 +36,9 @@ describe('accommodation with food', () => {
   });
 
   it('with a charge set, it is added to what the learner pays; not needed adds nothing', async () => {
-    expect((await c.admin!.patch(`/admin/courses/${ctx.ids.course2w}`, { stayFeeRupees: 3000 })).status).toBe(200);
-    expect((await pub(`/public/courses/${ctx.ids.course2w}`)).json()).toMatchObject({ stayAvailable: true, stayFeeRupees: 3000 });
+    expect((await c.admin!.patch(`/admin/courses/${ctx.ids.course2w}`, { stayFeeRupees: 3000, stayMeals: 2 })).status).toBe(200);
+    expect((await pub(`/public/courses/${ctx.ids.course2w}`)).json()).toMatchObject({ stayAvailable: true, stayFeeRupees: 3000, stayMeals: 2 });
+    expect((await c.admin!.patch(`/admin/courses/${ctx.ids.course2w}`, { stayMeals: 4 })).status).toBe(400);
     const r = await c.learner!.post('/me/enrolments', { batchId: ctx.ids.batchOpen2w, method: 'upi', needsStay: true, acceptTerms: true });
     expect(r.status).toBe(201);
     expect((await c.learner!.get(`/me/enrolments/${r.body.enrolmentId}/receipt`)).body).toMatchObject({ amountRupees: 7999, stayRupees: 3000, needsStay: true });

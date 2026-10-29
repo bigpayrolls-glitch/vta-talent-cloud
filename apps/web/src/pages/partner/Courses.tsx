@@ -294,6 +294,7 @@ interface WizardValues {
   certificateType: string;
   stayAvailable: boolean;
   stayFeeRupees: string;
+  stayMeals: string;
   batch: { name: string; centreId: string; trainerId: string; startDate: string; endDate: string; capacity: string; classTimings: string };
 }
 
@@ -316,6 +317,7 @@ const EMPTY: WizardValues = {
   certificateType: '',
   stayAvailable: false,
   stayFeeRupees: '',
+  stayMeals: '1',
   batch: { name: '', centreId: '', trainerId: '', startDate: '', endDate: '', capacity: '25', classTimings: '' },
 };
 
@@ -339,6 +341,7 @@ function fromCourse(c: PartnerCourse): WizardValues {
     certificateType: c.certificateType ?? '',
     stayAvailable: c.stayAvailable,
     stayFeeRupees: c.stayFeeRupees === null ? '' : String(c.stayFeeRupees),
+    stayMeals: String(c.stayMeals ?? 1),
     batch: c.firstBatch
       ? { name: c.firstBatch.name, centreId: c.firstBatch.centreId, trainerId: c.firstBatch.trainerId, startDate: c.firstBatch.startDate, endDate: c.firstBatch.endDate, capacity: String(c.firstBatch.capacity), classTimings: c.firstBatch.classTimings ?? '' }
       : EMPTY.batch,
@@ -352,6 +355,7 @@ const feeStepSchema = z.object({
   firstBatch: firstBatchSchema.nullable(),
   stayAvailable: z.boolean(),
   stayFeeRupees: z.coerce.number().int('Whole rupees only').min(0, 'Cannot be negative').max(200_000, 'At most ₹2,00,000').nullable(),
+  stayMeals: z.coerce.number().int().min(1).max(3),
 });
 
 /** Field errors keyed by server field names, mapped to the step that holds them. */
@@ -470,6 +474,7 @@ export function CourseWizardPage() {
         certificateType: v.certificateType,
         stayAvailable: v.stayAvailable,
         stayFeeRupees: v.stayAvailable && v.stayFeeRupees !== '' ? v.stayFeeRupees : null,
+        stayMeals: v.stayMeals,
         firstBatch: anyBatch ? { ...b, classTimings: b.classTimings || undefined } : null,
       };
       if (!local(feeStepSchema, body)) return null;
@@ -944,10 +949,12 @@ function StepFee({ v, set, errors }: StepProps) {
           <StayFields
             available={v.stayAvailable}
             fee={v.stayFeeRupees}
+            meals={Number(v.stayMeals) || 1}
             error={errors.stayFeeRupees}
             onChange={(x) => {
               set('stayAvailable', x.available);
               set('stayFeeRupees', x.fee);
+              set('stayMeals', String(x.meals));
             }}
           />
         </div>

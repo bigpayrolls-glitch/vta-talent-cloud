@@ -804,5 +804,12 @@
  "Within 15 days": "15 दिवसांच्या आत",
  "Yes": "होय",
  "Yes, I can move to another city": "होय, मी दुसऱ्या शहरात जाऊ शकतो/शकते",
- "You have an offer. Expected joining date: {date}.": "तुम्हाला जॉबची ऑफर मिळाली आहे. जॉइन करण्याची अपेक्षित तारीख: {date}."
+ "You have an offer. Expected joining date: {date}.": "तुम्हाला जॉबची ऑफर मिळाली आहे. जॉइन करण्याची अपेक्षित तारीख: {date}.",
+ "{stay} available": "{stay} उपलब्ध",
+ "{stay}: {amount}": "{stay}: {amount}",
+ "Accommodation with 1 meal a day": "राहण्याची सोय, दिवसातून 1 वेळ जेवण",
+ "Accommodation with 2 meals a day": "राहण्याची सोय, दिवसातून 2 वेळा जेवण",
+ "Accommodation with 3 meals a day": "राहण्याची सोय, दिवसातून 3 वेळा जेवण",
+ "Choose 0, 5, 12, 18 or 28%": "0, 5, 12, 18 किंवा 28% निवडा",
+ "Choose 1, 2 or 3 meals a day": "दिवसातून 1, 2 किंवा 3 वेळा जेवण निवडा"
 }
