@@ -50,7 +50,8 @@ test.describe.serial('Learner portal', () => {
     await page.getByRole('button', { name: '2W', exact: false }).first().click();
     await page.getByLabel('Experience (months)').fill('14');
     await page.getByLabel('Languages').fill('Kannada, English');
-    await page.getByLabel('Availability').fill('Weekdays');
+    await page.getByLabel('When can you join a job?').selectOption('within_15_days');
+    await page.getByLabel('Willing to relocate for a job?').selectOption('yes');
     await page.getByLabel('Preferred work area').fill('Mandya or Mysuru');
     await page.getByRole('button', { name: 'Save profile' }).click();
     await expect(page.getByText('Profile saved')).toBeVisible();

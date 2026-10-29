@@ -60,6 +60,7 @@ export const learnerRoutes: FastifyPluginAsync = async (app) => {
         'cp.education',
         'cp.languages',
         'cp.availability',
+        'cp.willing_to_relocate',
         'cp.searchable',
         'cp.verification_status',
         'cp.verification_reason',
@@ -86,6 +87,7 @@ export const learnerRoutes: FastifyPluginAsync = async (app) => {
       education: p.education,
       languages: p.languages,
       availability: p.availability,
+      willingToRelocate: p.willing_to_relocate,
       searchable: p.searchable,
       verificationStatus: p.verification_status,
       // Staff write this reason for the candidate to act on (needs correction / rejected).
@@ -176,6 +178,7 @@ export const learnerRoutes: FastifyPluginAsync = async (app) => {
         education: 'education',
         languages: 'languages',
         availability: 'availability',
+        willingToRelocate: 'willing_to_relocate',
       } as const;
       for (const [k, col] of Object.entries(map)) {
         const v = input[k as keyof typeof map];

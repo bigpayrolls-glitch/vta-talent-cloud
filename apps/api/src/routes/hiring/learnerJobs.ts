@@ -232,7 +232,7 @@ export const learnerJobRoutes: FastifyPluginAsync = async (app) => {
       .selectFrom('job_applications as a')
       .innerJoin('jobs as j', 'j.id', 'a.job_id')
       .innerJoin('organisations as o', 'o.id', 'j.organisation_id')
-      .select(['a.id', 'a.status', 'a.applied_at', 'a.joining_date', 'a.consent_snapshot', 'a.note', 'j.id as job_id', 'j.title', 'j.city', 'o.legal_name'])
+      .select(['a.id', 'a.status', 'a.applied_at', 'a.joining_date', 'a.expected_joining_date', 'a.consent_snapshot', 'a.note', 'j.id as job_id', 'j.title', 'j.city', 'o.legal_name'])
       .where('a.id', '=', id)
       .where('a.candidate_id', '=', me(req))
       .executeTakeFirst();
@@ -257,6 +257,7 @@ export const learnerJobRoutes: FastifyPluginAsync = async (app) => {
       status: a.status,
       appliedAt: iso(a.applied_at),
       joiningDate: a.joining_date,
+      expectedJoiningDate: a.expected_joining_date,
       note: a.note,
       job: { id: a.job_id, title: a.title, city: a.city, employer: a.legal_name },
       shared: a.consent_snapshot,

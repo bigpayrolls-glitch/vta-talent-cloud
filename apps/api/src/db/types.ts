@@ -217,6 +217,7 @@ export interface CandidateProfilesTable {
   education: string | null;
   languages: TextArray;
   availability: string | null;
+  willing_to_relocate: boolean | null;
   searchable: Generated<boolean>;
   verification_status: CandidateStatus;
   verification_reason: string | null;
@@ -499,6 +500,7 @@ export interface JobApplicationsTable {
   consent_snapshot: Json<Record<string, unknown>>;
   note: string | null;
   joining_date: ColumnType<string | null, string | null | undefined, string | null>;
+  expected_joining_date: ColumnType<string | null, string | null | undefined, string | null>;
   outcome_verification: Generated<'unverified' | 'verified' | 'flagged'>;
   outcome_note: string | null;
   outcome_reviewed_by: string | null;

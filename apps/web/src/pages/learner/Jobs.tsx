@@ -404,6 +404,7 @@ interface MyApplicationDetail {
   id: string;
   status: ApplicationStatus;
   appliedAt: string;
+  expectedJoiningDate?: string | null;
   joiningDate: string | null;
   note: string | null;
   job: { id: string; title: string; city: string; employer: string };
@@ -437,6 +438,9 @@ export function ApplicationDetailPage() {
           <StatusBadge status={a.status} label={t(APPLICATION_STATUS_LABEL[a.status])} />
         </div>
       </header>
+      {a.status === 'offer' && a.expectedJoiningDate && (
+        <p className="mb-4 rounded-lg bg-success-tint px-4 py-3 text-sm text-success">{t('You have an offer. Expected joining date: {date}.', { date: shortDate(a.expectedJoiningDate) })}</p>
+      )}
       {a.status === 'joined' && a.joiningDate && <p className="mb-4 rounded-lg bg-success-tint px-4 py-3 text-sm text-success">{t('Congratulations! The employer recorded that you joined on {date}.', { date: shortDate(a.joiningDate) })}</p>}
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         <div className="space-y-6">

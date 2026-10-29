@@ -749,5 +749,20 @@
  "Two-wheeler": "ടൂ-വീലർ",
  "Use 2–24 letters, numbers or hyphens": "2–24 അക്ഷരങ്ങൾ, അക്കങ്ങൾ അല്ലെങ്കിൽ ഹൈഫനുകൾ ഉപയോഗിക്കുക",
  "Use the format YYYY-MM-DD": "YYYY-MM-DD ഫോർമാറ്റ് ഉപയോഗിക്കുക",
- "Whole rupees only": "മുഴുവൻ രൂപ മാത്രം"
+ "Whole rupees only": "മുഴുവൻ രൂപ മാത്രം",
+ "After 1 month": "1 മാസത്തിന് ശേഷം",
+ "Choose": "തിരഞ്ഞെടുക്കുക",
+ "Choose when you can join": "എപ്പോൾ ജോലിയിൽ ചേരാമെന്ന് തിരഞ്ഞെടുക്കുക",
+ "Immediately": "ഉടനെ",
+ "No": "ഇല്ല",
+ "No, only near where I live": "ഇല്ല, ഞാൻ താമസിക്കുന്നതിന് അടുത്ത് മാത്രം",
+ "When can you join a job?": "എപ്പോൾ ജോലിയിൽ ചേരാൻ കഴിയും?",
+ "When you can join": "എപ്പോൾ ചേരാം",
+ "Willing to relocate": "മറ്റൊരു സ്ഥലത്തേക്ക് മാറാൻ തയ്യാർ",
+ "Willing to relocate for a job?": "ജോലിക്കായി മറ്റൊരു സ്ഥലത്തേക്ക് മാറാൻ തയ്യാറാണോ?",
+ "Within 1 month": "1 മാസത്തിനുള്ളിൽ",
+ "Within 15 days": "15 ദിവസത്തിനുള്ളിൽ",
+ "Yes": "അതെ",
+ "Yes, I can move to another city": "അതെ, എനിക്ക് മറ്റൊരു സ്ഥലത്തേക്ക് മാറാം",
+ "You have an offer. Expected joining date: {date}.": "നിങ്ങൾക്ക് ജോലി ഓഫർ ലഭിച്ചു. ചേരേണ്ട പ്രതീക്ഷിത തീയതി: {date}."
 }
