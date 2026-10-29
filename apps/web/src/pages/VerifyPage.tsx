@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { BadgeCheck, CircleSlash, ShieldQuestion } from 'lucide-react';
 import { useParams, Link } from 'react-router';
+import { LanguagePicker } from '../components/LanguagePicker';
 import { Spinner, Wordmark } from '../components/ui';
 import { api, ApiError } from '../lib/api';
+import { t } from '../lib/i18n';
 
 interface Verification {
   type: string;
@@ -32,23 +34,26 @@ export function VerifyPage() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-surface px-4 py-8">
-      <header className="mx-auto w-full max-w-lg">
-        <Link to="/" aria-label="AutoTalent Grid home" className="inline-block w-fit rounded-lg">
+      <header className="mx-auto flex w-full max-w-lg flex-wrap items-center gap-3">
+        <Link to="/" aria-label={t('AutoTalent Grid home')} className="inline-block w-fit rounded-lg">
             <Wordmark tagline />
           </Link>
+        <div className="ml-auto">
+          <LanguagePicker compact />
+        </div>
       </header>
       <main className="mx-auto my-auto w-full max-w-lg py-8">
-        <h1 className="mb-4 text-sm font-semibold text-muted">Certificate check</h1>
+        <h1 className="mb-4 text-sm font-semibold text-muted">{t('Certificate check')}</h1>
         {q.isLoading ? (
-          <Spinner label="Checking" />
+          <Spinner label={t('Checking')} />
         ) : notFound ? (
           <div className="card px-6 py-8 text-center">
             <ShieldQuestion className="mx-auto size-10 text-muted" aria-hidden />
-            <p className="mt-3 text-lg font-bold">No certificate found</p>
-            <p className="mt-1 text-sm text-muted">This code does not match any certificate. Check that the link or QR code was copied in full.</p>
+            <p className="mt-3 text-lg font-bold">{t('No certificate found')}</p>
+            <p className="mt-1 text-sm text-muted">{t('This code does not match any certificate. Check that the link or QR code was copied in full.')}</p>
           </div>
         ) : q.isError ? (
-          <div className="card px-6 py-8 text-center text-sm text-muted">The check could not be completed. Try again in a minute.</div>
+          <div className="card px-6 py-8 text-center text-sm text-muted">{t('The check could not be completed. Try again in a minute.')}</div>
         ) : (
           <Result v={q.data!} />
         )}
@@ -64,20 +69,20 @@ function Result({ v }: { v: Verification }) {
       <div className={`flex items-center gap-3 px-6 py-4 ${ok ? 'bg-success-tint text-success' : 'bg-brand-tint text-brand'}`} role="status">
         {ok ? <BadgeCheck className="size-7 shrink-0" aria-hidden /> : <CircleSlash className="size-7 shrink-0" aria-hidden />}
         <div>
-          <p className="text-lg font-bold">{ok ? 'Valid certificate' : v.status === 'revoked' ? 'This certificate has been revoked' : 'This certificate has been replaced'}</p>
-          {!ok && v.statusChangedAt && <p className="text-sm">Since {day(v.statusChangedAt)}{v.status === 'superseded' ? '. A newer certificate was issued to the same person.' : '.'}</p>}
+          <p className="text-lg font-bold">{ok ? t('Valid certificate') : v.status === 'revoked' ? t('This certificate has been revoked') : t('This certificate has been replaced')}</p>
+          {!ok && v.statusChangedAt && <p className="text-sm">{v.status === 'superseded' ? t('Since {date}. A newer certificate was issued to the same person.', { date: day(v.statusChangedAt) }) : t('Since {date}.', { date: day(v.statusChangedAt) })}</p>}
         </div>
       </div>
       <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 px-6 py-6 text-[15px]">
-        <dt className="text-muted">Name</dt>
+        <dt className="text-muted">{t('Name')}</dt>
         <dd className="font-semibold">{v.holderName}</dd>
-        <dt className="text-muted">Course</dt>
+        <dt className="text-muted">{t('Course')}</dt>
         <dd className="font-semibold">{v.courseTitle}</dd>
-        <dt className="text-muted">Record</dt>
+        <dt className="text-muted">{t('Record')}</dt>
         <dd>{v.type}</dd>
-        <dt className="text-muted">Issued</dt>
+        <dt className="text-muted">{t('Issued')}</dt>
         <dd>{day(v.issueDate)}</dd>
-        <dt className="text-muted">Issued by</dt>
+        <dt className="text-muted">{t('Issued by')}</dt>
         <dd>{v.issuerName}</dd>
       </dl>
       <p className="border-t border-line px-6 py-4 text-[13px] leading-relaxed text-muted">{v.disclaimer}</p>

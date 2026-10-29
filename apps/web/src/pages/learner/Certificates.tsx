@@ -4,6 +4,7 @@ import { ArrowLeft, Award, ExternalLink, Info, Printer } from 'lucide-react';
 import { Link, useParams } from 'react-router';
 import { EmptyState, ErrorNote, PageHeader, Spinner } from '../../components/ui';
 import { api } from '../../lib/api';
+import { t } from '../../lib/i18n';
 import { useQr } from '../../lib/useQr';
 import { fmtDate } from './attendance';
 import type { LearnerCredential } from './types';
@@ -15,7 +16,7 @@ const STATUS: Record<LearnerCredential['status'], { label: string; className: st
 };
 
 function Status({ s }: { s: LearnerCredential['status'] }) {
-  return <span className={`rounded-full px-2.5 py-1 text-[13px] font-semibold ${STATUS[s].className}`}>{STATUS[s].label}</span>;
+  return <span className={`rounded-full px-2.5 py-1 text-[13px] font-semibold ${STATUS[s].className}`}>{t(STATUS[s].label)}</span>;
 }
 
 /** EE-06: the learner's certificate wallet. VTA completion records are labelled as such, never as official qualifications. */
@@ -23,17 +24,17 @@ export function WalletPage() {
   const q = useQuery({ queryKey: ['me', 'credentials'], queryFn: () => api.get<{ items: LearnerCredential[] }>('/me/credentials') });
   return (
     <>
-      <PageHeader title="My certificates" description="Share the QR code or check link with an employer so they can confirm a certificate is real." />
+      <PageHeader title={t('My certificates')} description={t('Share the QR code or check link with an employer so they can confirm a certificate is real.')} />
       <p className="mb-5 flex items-start gap-2 rounded-lg bg-info-tint px-3 py-2 text-sm text-info">
         <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
-        These are AutoTalent Grid course completion records. They are not government, NSDC or ASDC qualifications.
+        {t('These are AutoTalent Grid course completion records. They are not government, NSDC or ASDC qualifications.')}
       </p>
       {q.isLoading ? (
         <Spinner />
       ) : q.isError ? (
         <ErrorNote message={(q.error as Error).message} />
       ) : !q.data!.items.length ? (
-        <EmptyState title="No certificates yet" body="When you complete a course and pass its assessment, AutoTalent Grid issues a certificate and it appears here." />
+        <EmptyState title={t('No certificates yet')} body={t('When you complete a course and pass its assessment, AutoTalent Grid issues a certificate and it appears here.')} />
       ) : (
         <ul className="grid gap-3 sm:grid-cols-2">
           {q.data!.items.map((c) => (
@@ -45,7 +46,7 @@ export function WalletPage() {
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{c.course}</span>
                   <span className="block text-sm text-muted">
-                    {c.typeLabel}, issued {fmtDate(c.issueDate)}
+                    {t('{type}, issued {date}', { type: t(c.typeLabel), date: fmtDate(c.issueDate) })}
                   </span>
                   <span className="mt-2 inline-block">
                     <Status s={c.status} />
@@ -69,7 +70,7 @@ export function CertificatePage() {
     <>
       <Link to="/learn/certificates" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-ink print:hidden">
         <ArrowLeft className="size-4" aria-hidden />
-        My certificates
+        {t('My certificates')}
       </Link>
       {q.isLoading ? (
         <Spinner />
@@ -83,42 +84,42 @@ export function CertificatePage() {
           return (
             <>
               <article className="card mx-auto mt-4 max-w-xl px-6 py-7 text-center print:border-0">
-                <p className="text-[13px] font-semibold uppercase tracking-wide text-muted">{c.typeLabel}</p>
+                <p className="text-[13px] font-semibold uppercase tracking-wide text-muted">{t(c.typeLabel)}</p>
                 <h1 className="mt-2 text-2xl font-bold tracking-tight">{c.holderName}</h1>
-                <p className="mt-1 text-muted">completed</p>
+                <p className="mt-1 text-muted">{t('completed')}</p>
                 <p className="mt-1 text-xl font-semibold">{c.course}</p>
                 <p className="mt-3 text-sm text-muted">
-                  Issued {fmtDate(c.issueDate)} by {c.issuer}
+                  {t('Issued {date} by {issuer}', { date: fmtDate(c.issueDate), issuer: c.issuer })}
                 </p>
                 <div className="mt-4">
                   <Status s={c.status} />
                 </div>
                 {c.status === 'active' ? (
-                  qr && <img src={qr} alt="QR code that opens this certificate's check page" className="mx-auto mt-5 size-52" />
+                  qr && <img src={qr} alt={t(`QR code that opens this certificate's check page`)} className="mx-auto mt-5 size-52" />
                 ) : (
                   <p className="mt-5 text-sm text-muted">
-                    {c.status === 'revoked' ? 'This certificate is no longer valid. Contact your training centre if you think this is wrong.' : 'A corrected copy was issued.'}
+                    {c.status === 'revoked' ? t('This certificate is no longer valid. Contact your training centre if you think this is wrong.') : t('A corrected copy was issued.')}
                     {c.replacedBy && (
                       <>
                         {' '}
                         <Link to={`/learn/certificates/${c.replacedBy}`} className="font-medium text-brand underline">
-                          Open the newer copy
+                          {t('Open the newer copy')}
                         </Link>
                       </>
                     )}
                   </p>
                 )}
-                <p className="mt-5 text-[13px] text-muted">{CREDENTIAL_DISCLAIMER}</p>
+                <p className="mt-5 text-[13px] text-muted">{t(CREDENTIAL_DISCLAIMER)}</p>
               </article>
               {c.status === 'active' && (
                 <div className="mx-auto mt-4 flex max-w-xl flex-wrap justify-center gap-2 print:hidden">
                   <a href={c.verifyPath} target="_blank" rel="noreferrer" className="btn-secondary">
                     <ExternalLink className="size-4" aria-hidden />
-                    Open check page
+                    {t('Open check page')}
                   </a>
                   <button type="button" className="btn-secondary" onClick={() => window.print()}>
                     <Printer className="size-4" aria-hidden />
-                    Print
+                    {t('Print')}
                   </button>
                 </div>
               )}

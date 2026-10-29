@@ -1,6 +1,7 @@
 import { SKILL_AREA_LABEL, SKILL_AREAS, type SkillArea } from '@vta/shared';
 import { Search } from 'lucide-react';
 import { useState } from 'react';
+import { t } from '../lib/i18n';
 
 /** Toggle chips for picking skill areas (2W, 4W, EV, CV, other). */
 export function SkillAreaPicker({ value, onChange, id }: { value: string[]; onChange: (v: SkillArea[]) => void; id: string }) {
@@ -16,8 +17,8 @@ export function SkillAreaPicker({ value, onChange, id }: { value: string[]; onCh
             onClick={() => onChange((on ? value.filter((x) => x !== s) : [...value, s]) as SkillArea[])}
             className={`h-9 rounded-full border px-3.5 text-sm font-medium transition-colors ${on ? 'border-brand bg-brand-tint text-brand' : 'border-line bg-white text-ink hover:bg-surface'}`}
           >
-            {s === 'other' ? 'Other' : s}
-            <span className="sr-only"> ({SKILL_AREA_LABEL[s]})</span>
+            {s === 'other' ? t('Other') : s}
+            <span className="sr-only"> ({t(SKILL_AREA_LABEL[s])})</span>
           </button>
         );
       })}
@@ -30,8 +31,8 @@ export function SkillTags({ areas }: { areas: string[] }) {
   return (
     <span className="inline-flex flex-wrap gap-1">
       {areas.map((a) => (
-        <span key={a} className="rounded-md bg-surface px-1.5 py-0.5 text-xs font-semibold text-ink" title={SKILL_AREA_LABEL[a as SkillArea]}>
-          {a === 'other' ? 'Other' : a}
+        <span key={a} className="rounded-md bg-surface px-1.5 py-0.5 text-xs font-semibold text-ink" title={SKILL_AREA_LABEL[a as SkillArea] && t(SKILL_AREA_LABEL[a as SkillArea])}>
+          {a === 'other' ? t('Other') : a}
         </span>
       ))}
     </span>
@@ -79,7 +80,11 @@ export function Select({ id, label, value, onChange, options, className = '' }: 
 
 /** "3 months", "6 weeks" */
 export function durationText(value: number, unit: string) {
-  const u = value === 1 ? unit.replace(/s$/, '') : unit;
+  const one = value === 1;
+  if (unit === 'days') return one ? t('{n} day', { n: value }) : t('{n} days', { n: value });
+  if (unit === 'weeks') return one ? t('{n} week', { n: value }) : t('{n} weeks', { n: value });
+  if (unit === 'months') return one ? t('{n} month', { n: value }) : t('{n} months', { n: value });
+  const u = one ? unit.replace(/s$/, '') : unit;
   return `${value} ${u}`;
 }
 

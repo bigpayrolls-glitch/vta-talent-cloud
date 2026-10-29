@@ -44,9 +44,17 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Language files are not downloaded in advance: each phone keeps only the language it uses (cached below).
+        globIgnores: ['**/assets/{hi,kn,ta,te,ml,mr,bn,gu}-*.js'],
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
-        runtimeCaching: [],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => /^\/assets\/(hi|kn|ta|te|ml|mr|bn|gu)-[\w-]+\.js$/.test(url.pathname),
+            handler: 'CacheFirst',
+            options: { cacheName: 'site-languages', expiration: { maxEntries: 20 } },
+          },
+        ],
         cleanupOutdatedCaches: true,
       },
     }),

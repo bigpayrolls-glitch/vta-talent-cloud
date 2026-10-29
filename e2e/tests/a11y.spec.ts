@@ -98,7 +98,7 @@ test.describe('accessibility: dialogs, menus and keyboard', () => {
     await page.goto('/login');
     await page.keyboard.press('Tab'); // first stop: the mobile wordmark is hidden on desktop, so the method tabs come first
     const order: string[] = [];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 10; i++) { // includes the language menu
       order.push(await page.evaluate(() => { const el = document.activeElement as HTMLElement | null; return el?.getAttribute('aria-label') || el?.id || el?.textContent?.trim() || ''; }));
       await page.keyboard.press('Tab');
     }
