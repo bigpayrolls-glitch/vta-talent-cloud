@@ -14,7 +14,7 @@ import {
   type Track,
   type TrackStep,
 } from '@vta/shared';
-import { ArrowLeft, Lock, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, IndianRupee, Lock, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { durationText, SearchBox, Select, SkillTags } from '../../components/form';
@@ -80,10 +80,16 @@ export function CoursesPage() {
         description="The course catalogue: duration, pass rules and the criteria trainers assess."
         actions={
           can('course.manage') && (
-            <button className="btn-primary" onClick={() => setCreating(true)}>
-              <Plus className="size-4" aria-hidden />
-              Add course
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <Link to="/admin/courses/fees" className="btn-secondary">
+                <IndianRupee className="size-4" aria-hidden />
+                Fees and accommodation
+              </Link>
+              <button className="btn-primary" onClick={() => setCreating(true)}>
+                <Plus className="size-4" aria-hidden />
+                Add course
+              </button>
+            </div>
           )
         }
       />

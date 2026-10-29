@@ -60,6 +60,7 @@ const router = createBrowserRouter([
       { path: 'notifications', lazy: () => import('./components/Notifications').then((m) => ({ Component: m.NotificationsPage })) },
       { path: 'account', lazy: () => import('./pages/PasswordPages').then((m) => ({ Component: m.AccountPage })) },
       { path: 'courses', lazy: () => import('./pages/training/Courses').then((m) => ({ Component: m.CoursesPage })) },
+      { path: 'courses/fees', lazy: () => import('./pages/admin/CourseFees').then((m) => ({ Component: m.CourseFeesPage })) },
       { path: 'courses/:id', lazy: () => import('./pages/training/Courses').then((m) => ({ Component: m.CourseDetailPage })) },
       { path: 'trainers', lazy: () => import('./pages/training/Trainers').then((m) => ({ Component: m.TrainersPage })) },
       { path: 'trainers/:id', lazy: () => import('./pages/training/Trainers').then((m) => ({ Component: m.TrainerDetailPage })) },

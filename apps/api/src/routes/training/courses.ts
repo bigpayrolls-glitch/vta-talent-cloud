@@ -110,6 +110,7 @@ function toRow(b: z.infer<typeof courseSchema>) {
     attendance_threshold_pct: b.attendanceThresholdPct,
     pass_mark_pct: b.passMarkPct,
     fee_paise: (b.feeRupees ?? 0) * 100,
+    gst_pct: b.gstPct ?? 0,
     stay_available: b.stayAvailable ?? false,
     stay_fee_paise: b.stayAvailable && b.stayFeeRupees != null ? b.stayFeeRupees * 100 : null,
   };
@@ -271,6 +272,7 @@ function courseFromRow(c: Course): z.infer<typeof courseSchema> {
     attendanceThresholdPct: c.attendance_threshold_pct,
     passMarkPct: c.pass_mark_pct,
     feeRupees: Math.round(c.fee_paise / 100),
+    gstPct: c.gst_pct,
     stayAvailable: c.stay_available,
     stayFeeRupees: c.stay_fee_paise === null ? null : Math.round(c.stay_fee_paise / 100),
   };

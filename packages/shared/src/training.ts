@@ -61,6 +61,8 @@ export const courseSchema = z.object({
   /** Phase 13: course fee in whole rupees, paid by learners who enrol themselves. 0 = free. No GST for now. */
   // Optional, not defaulted: a partial update without a fee must not reset it to 0.
   feeRupees: z.coerce.number().int('Whole rupees only').min(0, 'Cannot be negative').max(500_000, 'At most ₹5,00,000').optional(),
+  /** GST added on top of the course fee (29 Oct 2026; Admin courses). */
+  gstPct: z.coerce.number().int().refine((v) => [0, 5, 12, 18, 28].includes(v), 'Choose 0, 5, 12, 18 or 28%').optional(),
   ...staySchema.shape,
 });
 
