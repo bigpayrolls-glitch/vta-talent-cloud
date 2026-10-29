@@ -1,3 +1,4 @@
+import { t } from '../lib/i18n';
 import { X } from 'lucide-react';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { MARK_DARK, MARK_RED, MARK_VIEWBOX } from './logo-paths';
@@ -79,7 +80,7 @@ export function Field({
       {hint && !error && <p className="mt-1.5 text-[13px] text-muted">{hint}</p>}
       {error && (
         <p className="field-error" id={`${htmlFor}-error`} role="alert">
-          {error}
+          {t(error)}
         </p>
       )}
     </div>
@@ -138,7 +139,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 /** Status chip: colour is always paired with the word (never colour alone, §16). */
 export function StatusBadge({ status, label: override }: { status: string; label?: string }) {
-  const label = override ?? STATUS_LABEL[status] ?? status.charAt(0).toUpperCase() + status.slice(1);
+  const label = override ?? t(STATUS_LABEL[status] ?? status.charAt(0).toUpperCase() + status.slice(1));
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_STYLE[status] ?? 'bg-surface text-muted'}`}>
       <span className="size-1.5 rounded-full bg-current" aria-hidden />
@@ -188,7 +189,7 @@ export function Modal({
             <h2 id={titleId} className="text-lg font-semibold">
               {title}
             </h2>
-            <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-muted hover:bg-surface" aria-label="Close">
+            <button type="button" onClick={onClose} className="rounded-lg p-1.5 text-muted hover:bg-surface" aria-label={t('Close')}>
               <X className="size-5" />
             </button>
           </div>
@@ -229,25 +230,25 @@ export function Pagination({ page, pageSize, total, onPage }: { page: number; pa
   return (
     <div className="flex items-center justify-between gap-3 border-t border-line px-4 py-3 text-sm text-muted">
       <span>
-        {from}–{to} of {total}
+        {t('{from}–{to} of {total}', { from, to, total })}
       </span>
       <div className="flex gap-2">
         <button className="btn-secondary btn-sm" disabled={page <= 1} onClick={() => onPage(page - 1)}>
-          Previous
+          {t('Previous')}
         </button>
         <button className="btn-secondary btn-sm" disabled={page >= pages} onClick={() => onPage(page + 1)}>
-          Next
+          {t('Next')}
         </button>
       </div>
     </div>
   );
 }
 
-export function Spinner({ label = 'Loading' }: { label?: string }) {
+export function Spinner({ label }: { label?: string }) {
   return (
     <div className="flex items-center justify-center gap-3 py-16 text-muted" role="status">
       <span className="size-5 animate-spin rounded-full border-2 border-line border-t-brand" aria-hidden />
-      <span className="text-sm">{label}…</span>
+      <span className="text-sm">{label ?? t('Loading')}…</span>
     </div>
   );
 }
@@ -255,7 +256,7 @@ export function Spinner({ label = 'Loading' }: { label?: string }) {
 export function ErrorNote({ message }: { message: string }) {
   return (
     <div role="alert" className="rounded-lg border border-brand/30 bg-brand-tint px-4 py-3 text-sm text-brand">
-      {message}
+      {t(message)}
     </div>
   );
 }

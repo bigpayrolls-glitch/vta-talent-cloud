@@ -1,12 +1,13 @@
 // First: see zod-config.ts.
 import './zod-config';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { StrictMode } from 'react';
+import { StrictMode, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router';
 import { ToastProvider } from './components/toast';
 import { UpdatePrompt } from './components/UpdatePrompt';
 import { AuthProvider } from './lib/auth';
+import { currentLang, initI18n, onLangChange } from './lib/i18n';
 import { AcceptInvitation, ChoosePortal, NoAccess, NotFound, RequirePortal } from './pages/AccessPages';
 import { LoginPage } from './pages/LoginPage';
 import { PartnerLayout } from './pages/PortalHomes';
@@ -182,7 +183,13 @@ const router = createBrowserRouter([
 // The staging banner takes 30px; one-screen pages (home, sign-in) subtract it so they still fit the window.
 if (import.meta.env.VITE_APP_ENV === 'staging') document.documentElement.style.setProperty('--banner-h', '30px');
 
-createRoot(document.getElementById('root')!).render(
+/** A new language re-renders every screen (the address and loaded data stay). */
+function Translated() {
+  const lang = useSyncExternalStore(onLangChange, currentLang);
+  return <RouterProvider key={lang} router={router} />;
+}
+
+void initI18n().then(() => createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
@@ -192,10 +199,10 @@ createRoot(document.getElementById('root')!).render(
               Staging copy with demo data. Do not enter real personal information.
             </p>
           )}
-          <RouterProvider router={router} />
+          <Translated />
           <UpdatePrompt />
         </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>
   </StrictMode>,
-);
+));

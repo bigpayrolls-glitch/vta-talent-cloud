@@ -1,3 +1,4 @@
+import { t as tr } from '../lib/i18n';
 import { CheckCircle2, XCircle } from 'lucide-react';
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react';
 
@@ -18,7 +19,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((t) => (
           <div key={t.id} className="pointer-events-auto flex max-w-md items-center gap-2 rounded-xl bg-ink px-4 py-3 text-sm text-white shadow-lg">
             {t.kind === 'success' ? <CheckCircle2 className="size-4 text-green-300" aria-hidden /> : <XCircle className="size-4 text-red-300" aria-hidden />}
-            {t.text}
+            {tr(t.text)}
           </div>
         ))}
       </div>
