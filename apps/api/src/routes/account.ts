@@ -85,6 +85,7 @@ export const accountRoutes: FastifyPluginAsync = async (app) => {
             education: profile.education,
             languages: profile.languages,
             availability: profile.availability,
+            willingToRelocate: profile.willing_to_relocate,
             employersCanFindMe: profile.searchable,
             verificationStatus: profile.verification_status,
             verifiedAt: iso(profile.verified_at),

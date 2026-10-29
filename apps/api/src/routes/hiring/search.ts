@@ -144,7 +144,7 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
     assertVerified(org);
     const { id } = parse(idParam, req.params);
     const p = await searchable()
-      .select(['cp.user_id', 'u.name', 'u.phone', 'u.email', 'cp.city', 'cp.state', 'cp.preferred_work_area', 'cp.skill_areas', 'cp.experience_months', 'cp.education', 'cp.languages', 'cp.availability', 'cp.verification_status'])
+      .select(['cp.user_id', 'u.name', 'u.phone', 'u.email', 'cp.city', 'cp.state', 'cp.preferred_work_area', 'cp.skill_areas', 'cp.experience_months', 'cp.education', 'cp.languages', 'cp.availability', 'cp.willing_to_relocate', 'cp.verification_status'])
       .where('cp.user_id', '=', id)
       .executeTakeFirst();
     if (!p) throw notFound('Candidate');
@@ -182,6 +182,7 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
       education: p.education,
       languages: p.languages,
       availability: p.availability,
+      willingToRelocate: p.willing_to_relocate,
       verified: p.verification_status === 'verified',
       certificates: await certificatesOf(db, id),
       // Titles only. Files open once the person applies to one of your jobs.

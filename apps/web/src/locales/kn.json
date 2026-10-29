@@ -749,5 +749,20 @@
  "Two-wheeler": "ಟೂ-ವೀಲರ್",
  "Use 2–24 letters, numbers or hyphens": "2–24 ಅಕ್ಷರಗಳು, ಅಂಕಿಗಳು ಅಥವಾ ಹೈಫನ್‌ಗಳನ್ನು ಬಳಸಿ",
  "Use the format YYYY-MM-DD": "YYYY-MM-DD ಮಾದರಿಯಲ್ಲಿ ನಮೂದಿಸಿ",
- "Whole rupees only": "ಪೂರ್ಣ ರೂಪಾಯಿಗಳು ಮಾತ್ರ"
+ "Whole rupees only": "ಪೂರ್ಣ ರೂಪಾಯಿಗಳು ಮಾತ್ರ",
+ "After 1 month": "1 ತಿಂಗಳ ನಂತರ",
+ "Choose": "ಆಯ್ಕೆಮಾಡಿ",
+ "Choose when you can join": "ನೀವು ಯಾವಾಗ ಸೇರಬಹುದು ಎಂದು ಆಯ್ಕೆಮಾಡಿ",
+ "Immediately": "ತಕ್ಷಣ",
+ "No": "ಇಲ್ಲ",
+ "No, only near where I live": "ಇಲ್ಲ, ನಾನು ಇರುವ ಸ್ಥಳದ ಹತ್ತಿರ ಮಾತ್ರ",
+ "When can you join a job?": "ನೀವು ಉದ್ಯೋಗಕ್ಕೆ ಯಾವಾಗ ಸೇರಬಹುದು?",
+ "When you can join": "ಯಾವಾಗ ಸೇರಬಹುದು",
+ "Willing to relocate": "ಬೇರೆ ಊರಿಗೆ ಹೋಗಲು ಸಿದ್ಧ",
+ "Willing to relocate for a job?": "ಉದ್ಯೋಗಕ್ಕಾಗಿ ಬೇರೆ ಊರಿಗೆ ಹೋಗಲು ಸಿದ್ಧರಿದ್ದೀರಾ?",
+ "Within 1 month": "1 ತಿಂಗಳೊಳಗೆ",
+ "Within 15 days": "15 ದಿನಗಳೊಳಗೆ",
+ "Yes": "ಹೌದು",
+ "Yes, I can move to another city": "ಹೌದು, ನಾನು ಬೇರೆ ಊರಿಗೆ ಹೋಗಬಲ್ಲೆ",
+ "You have an offer. Expected joining date: {date}.": "ನಿಮಗೆ ಉದ್ಯೋಗದ ಆಫರ್ ಬಂದಿದೆ. ಸೇರುವ ನಿರೀಕ್ಷಿತ ದಿನಾಂಕ: {date}."
 }

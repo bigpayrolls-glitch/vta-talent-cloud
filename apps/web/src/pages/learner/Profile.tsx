@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { learnerProfileSchema, SKILL_AREA_LABEL, type SkillArea } from '@vta/shared';
+import { availabilityLabel, JOIN_WHEN, JOIN_WHEN_LABEL, learnerProfileSchema, SKILL_AREA_LABEL, type SkillArea } from '@vta/shared';
 import { Lock, Pencil } from 'lucide-react';
 import { useState } from 'react';
 import { SkillAreaPicker } from '../../components/form';
@@ -75,7 +75,8 @@ function ProfileView({ p }: { p: LearnerProfile }) {
         <Row label={t('Experience')}>{p.experienceMonths ? years(p.experienceMonths) : ''}</Row>
         <Row label={t('Education')}>{p.education}</Row>
         <Row label={t('Languages')}>{p.languages.join(', ')}</Row>
-        <Row label={t('Availability')}>{p.availability}</Row>
+        <Row label={t('When you can join')}>{p.availability ? t(availabilityLabel(p.availability)!) : ''}</Row>
+        <Row label={t('Willing to relocate')}>{p.willingToRelocate == null ? '' : p.willingToRelocate ? t('Yes') : t('No')}</Row>
       </dl>
       <aside className="card h-fit px-5 py-4">
         <p className="text-sm text-muted">{t('Verification')}</p>
@@ -109,7 +110,8 @@ function ProfileForm({ profile: p, onDone }: { profile: LearnerProfile; onDone: 
     experienceMonths: String(p.experienceMonths),
     education: p.education ?? '',
     languages: p.languages.join(', '),
-    availability: p.availability ?? '',
+    availability: (JOIN_WHEN as readonly string[]).includes(p.availability ?? '') ? p.availability! : '',
+    willingToRelocate: p.willingToRelocate == null ? '' : p.willingToRelocate ? 'yes' : 'no',
   };
   const draft = useDraft(`profile:${me?.id ?? 'anon'}`, initial);
   const v = draft.value;
@@ -131,6 +133,7 @@ function ProfileForm({ profile: p, onDone }: { profile: LearnerProfile; onDone: 
           .map((x) => x.trim())
           .filter(Boolean),
         availability: v.availability,
+        willingToRelocate: v.willingToRelocate === '' ? null : v.willingToRelocate === 'yes',
       },
       async (data) => {
         const res = await api.patch<LearnerProfile>('/me/profile', data);
@@ -188,10 +191,24 @@ function ProfileForm({ profile: p, onDone }: { profile: LearnerProfile; onDone: 
         <Field label={t('Experience (months)')} htmlFor="p-exp" error={f.errors.experienceMonths}>
           <input id="p-exp" type="number" min={0} inputMode="numeric" className="field-input" value={v.experienceMonths} onChange={set('experienceMonths')} />
         </Field>
-        <Field label={t('Availability')} htmlFor="p-avail" error={f.errors.availability} hint={t('For example: weekdays, from 1 December.')}>
-          <input id="p-avail" className="field-input" value={v.availability} onChange={set('availability')} />
+        <Field label={t('When can you join a job?')} htmlFor="p-avail" error={f.errors.availability}>
+          <select id="p-avail" className="field-input" value={v.availability} onChange={set('availability')}>
+            <option value="">{t('Choose')}</option>
+            {JOIN_WHEN.map((w) => (
+              <option key={w} value={w}>
+                {t(JOIN_WHEN_LABEL[w])}
+              </option>
+            ))}
+          </select>
         </Field>
       </div>
+      <Field label={t('Willing to relocate for a job?')} htmlFor="p-relocate" error={f.errors.willingToRelocate}>
+        <select id="p-relocate" className="field-input" value={v.willingToRelocate} onChange={set('willingToRelocate')}>
+          <option value="">{t('Choose')}</option>
+          <option value="yes">{t('Yes, I can move to another city')}</option>
+          <option value="no">{t('No, only near where I live')}</option>
+        </select>
+      </Field>
       <Field label={t('Education')} htmlFor="p-edu" error={f.errors.education} hint={t('For example: ITI Motor Mechanic, 10th pass.')}>
         <input id="p-edu" className="field-input" value={v.education} onChange={set('education')} />
       </Field>
