@@ -52,6 +52,10 @@ test.describe.serial('training operations', () => {
     await enrol.getByRole('checkbox', { name: /Deepa/ }).check();
     await expect(enrol.getByText('2 selected, 2 places left')).toBeVisible();
     await enrol.getByRole('button', { name: 'Enrol 2' }).click();
+    // A second screen lists the names before anyone is enrolled.
+    await expect(enrol.getByText(/You are about to enrol these 2 candidates/)).toBeVisible();
+    await expect(enrol.getByRole('listitem').filter({ hasText: 'Pooja' })).toBeVisible();
+    await enrol.getByRole('button', { name: 'Confirm and enrol 2' }).click();
 
     await expect(page.getByText('2 of 2 enrolled')).toBeVisible();
     await expect(page.getByRole('link', { name: 'Pooja Naik' })).toBeVisible();

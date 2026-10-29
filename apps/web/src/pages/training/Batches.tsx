@@ -260,6 +260,10 @@ export function BatchDetailPage({ base }: { base: string }) {
   const [search, setSearch] = useState('');
   const [enrolling, setEnrolling] = useState(false);
   const [withdrawing, setWithdrawing] = useState<RosterRow | null>(null);
+  // Several candidates ticked on the roster, to withdraw together.
+  const [ticked, setTicked] = useState<Record<string, string>>({});
+  const [bulkWithdraw, setBulkWithdraw] = useState(false);
+  const tickedCount = Object.keys(ticked).length;
   const [cancelling, setCancelling] = useState(false);
   const [editing, setEditing] = useState(false);
   const [issued, setIssued] = useState<{ issuedTo: string[]; skipped: { name: string; reason: string }[] } | null>(null);
@@ -380,6 +384,11 @@ export function BatchDetailPage({ base }: { base: string }) {
             <div className="w-full sm:w-72">
               <SearchBox initial={search} onSearch={setSearch} placeholder="Search name or candidate ID" label="Search roster" />
             </div>
+            {manage && open && tickedCount > 0 && (
+              <button className="btn-secondary" onClick={() => setBulkWithdraw(true)}>
+                Withdraw {tickedCount} selected
+              </button>
+            )}
             {manage && open && (
               <button className="btn-primary" onClick={() => setEnrolling(true)} disabled={b.enrolled >= b.capacity} title={b.enrolled >= b.capacity ? 'This batch is full' : undefined}>
                 <Plus className="size-4" aria-hidden />
@@ -396,6 +405,16 @@ export function BatchDetailPage({ base }: { base: string }) {
           <ul className="divide-y divide-line">
             {roster.data.items.map((r) => (
               <li key={r.enrolmentId} className={`flex flex-wrap items-center gap-x-4 gap-y-1 px-5 py-3 ${r.status === 'withdrawn' ? 'opacity-60' : ''}`}>
+                {manage && open && (
+                  <input
+                    type="checkbox"
+                    className="size-4 shrink-0 accent-[var(--color-brand)] disabled:invisible"
+                    aria-label={`Select ${r.name}`}
+                    disabled={r.status !== 'enrolled'}
+                    checked={!!ticked[r.enrolmentId]}
+                    onChange={() => setTicked((t) => (t[r.enrolmentId] ? Object.fromEntries(Object.entries(t).filter(([k]) => k !== r.enrolmentId)) : { ...t, [r.enrolmentId]: r.name }))}
+                  />
+                )}
                 <div className="min-w-0 flex-1">
                   {candidateLinks ? (
                     <Link to={`/admin/candidates/${r.candidateId}`} className="font-medium hover:text-brand">{r.name}</Link>
@@ -476,6 +495,24 @@ export function BatchDetailPage({ base }: { base: string }) {
           onSubmit={(reason) => api.post(`/admin/enrolments/${withdrawing.enrolmentId}/withdraw`, { reason }).then(refresh).then(() => toast('success', 'Candidate withdrawn'))}
         />
       )}
+      {bulkWithdraw && (
+        <ReasonModal
+          title={`Withdraw ${tickedCount} ${tickedCount === 1 ? 'candidate' : 'candidates'}?`}
+          label="Reason for withdrawal"
+          action={`Withdraw ${tickedCount}`}
+          intro={`${Object.values(ticked).join(', ')}. Their places become free. They can be enrolled again later.`}
+          onClose={() => setBulkWithdraw(false)}
+          onSubmit={(reason) =>
+            api
+              .post<{ withdrawn: number }>(`/admin/batches/${b.id}/withdraw`, { enrolmentIds: Object.keys(ticked), reason })
+              .then(async (r) => {
+                setTicked({});
+                await refresh();
+                toast('success', `${r.withdrawn} ${r.withdrawn === 1 ? 'candidate' : 'candidates'} withdrawn`);
+              })
+          }
+        />
+      )}
       {cancelling && (
         <ReasonModal
           title={`Cancel ${b.name}?`}
@@ -505,6 +542,8 @@ function EnrolModal({ batch, onClose, onDone }: { batch: BatchDetail; onClose: (
   const [picked, setPicked] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // Enrolling is confirmed on a second screen that lists every name, so nobody is added by a stray tap.
+  const [confirming, setConfirming] = useState(false);
   const free = batch.capacity - batch.enrolled;
   const options = useQuery({
     queryKey: ['candidate-options', batch.id, q],
@@ -537,13 +576,37 @@ function EnrolModal({ batch, onClose, onDone }: { batch: BatchDetail; onClose: (
       footer={
         <>
           <span className="mr-auto self-center text-sm text-muted">{count} selected, {free} {free === 1 ? 'place' : 'places'} left</span>
-          <button className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn-primary" disabled={busy || count === 0 || count > free} onClick={() => void submit()}>
-            {count > free ? 'Too many selected' : `Enrol ${count || ''}`.trim()}
-          </button>
+          {confirming ? (
+            <>
+              <button className="btn-secondary" onClick={() => setConfirming(false)} disabled={busy}>Back</button>
+              <button className="btn-primary" disabled={busy} onClick={() => void submit()}>
+                {busy ? 'Enrolling…' : `Confirm and enrol ${count}`}
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="btn-secondary" onClick={onClose}>Cancel</button>
+              <button className="btn-primary" disabled={count === 0 || count > free} onClick={() => setConfirming(true)}>
+                {count > free ? 'Too many selected' : `Enrol ${count || ''}`.trim()}
+              </button>
+            </>
+          )}
         </>
       }
     >
+      {confirming ? (
+        <div className="space-y-3">
+          {error && <ErrorNote message={error} />}
+          <p className="text-sm">
+            You are about to enrol {count === 1 ? 'this candidate' : `these ${count} candidates`} in <span className="font-semibold">{batch.name}</span>. Each of them is told by notification.
+          </p>
+          <ol className="max-h-72 list-decimal space-y-1 overflow-y-auto rounded-xl border border-line py-3 pl-9 pr-4 text-sm">
+            {Object.values(picked).map((n, i) => (
+              <li key={i}>{n}</li>
+            ))}
+          </ol>
+        </div>
+      ) : (
       <div className="space-y-3">
         {error && <ErrorNote message={error} />}
         <SearchBox initial="" onSearch={setQ} placeholder="Search name or candidate ID" label="Search candidates to enrol" />
@@ -551,19 +614,19 @@ function EnrolModal({ batch, onClose, onDone }: { batch: BatchDetail; onClose: (
         <ul className="max-h-80 divide-y divide-line overflow-y-auto rounded-xl border border-line">
           {options.data?.items.length === 0 && <li className="px-4 py-6 text-center text-sm text-muted">No matching candidates</li>}
           {options.data?.items.map((c) => (
-            <li key={c.id}>
-              <label className="flex cursor-pointer items-center gap-3 px-4 py-2.5 hover:bg-surface/60">
-                <input type="checkbox" className="size-4 accent-[var(--color-brand)]" checked={!!picked[c.id]} onChange={() => toggle(c.id, c.name)} />
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium">{c.name}</span>
-                  <span className="block text-[13px] text-muted">{c.code}, {c.city}</span>
-                </span>
-                <StatusBadge status={c.verificationStatus} />
-              </label>
+            <li key={c.id} className="flex items-center gap-3 px-4 py-2.5">
+              {/* Only the box ticks a name: scrolling the list on a phone must not select anyone. */}
+              <input id={`enrol-${c.id}`} type="checkbox" className="size-5 shrink-0 accent-[var(--color-brand)]" checked={!!picked[c.id]} onChange={() => toggle(c.id, c.name)} aria-label={`Select ${c.name}`} />
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">{c.name}</span>
+                <span className="block text-[13px] text-muted">{c.code}, {c.city}</span>
+              </span>
+              <StatusBadge status={c.verificationStatus} />
             </li>
           ))}
         </ul>
       </div>
+      )}
     </Modal>
   );
 }

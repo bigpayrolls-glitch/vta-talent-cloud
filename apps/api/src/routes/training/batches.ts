@@ -3,7 +3,7 @@ import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { sql, type Kysely, type Transaction } from 'kysely';
 import { z } from 'zod';
 import { auditCtx } from '../../app.js';
-import { audit } from '../../audit/service.js';
+import { audit, auditMany } from '../../audit/service.js';
 import type { DB } from '../../db/index.js';
 import type { Batch, Database } from '../../db/types.js';
 import { newId } from '../../lib/crypto.js';
@@ -399,6 +399,26 @@ export const batchRoutes: FastifyPluginAsync = async (app) => {
     });
     reply.code(201);
     return result;
+  });
+
+  /** Withdraw several candidates from one batch at once (29 Oct 2026). All or nothing. */
+  app.post('/admin/batches/:id/withdraw', { config: { permission: 'batch.manage' } }, async (req) => {
+    const { id } = parse(idParam, req.params);
+    const b = parse(z.object({ enrolmentIds: z.array(uuidSchema).min(1, 'Choose at least one candidate').max(500), reason: z.string().trim().min(3, 'Give a reason').max(500) }), req.body);
+    return db.transaction().execute(async (trx) => {
+      const batch = await loadManagedBatch(trx, req, id, true);
+      if (batch.status === 'completed' || batch.status === 'cancelled') throw invalid(`Enrolments in a ${batch.status} batch cannot change.`);
+      const ids = [...new Set(b.enrolmentIds)];
+      const rows = await trx.selectFrom('enrolments').select(['id', 'candidate_id', 'status']).where('batch_id', '=', id).where('id', 'in', ids).execute();
+      if (rows.length !== ids.length || rows.some((r) => r.status !== 'enrolled')) throw invalid('Only enrolled candidates of this batch can be withdrawn. Reload and try again.');
+      await trx.updateTable('enrolments').set({ status: 'withdrawn', withdrawn_at: new Date(), withdraw_reason: b.reason, updated_at: new Date() }).where('id', 'in', ids).execute();
+      await auditMany(
+        trx,
+        auditCtx(req),
+        rows.map((r) => ({ action: 'enrolment.withdrawn', entityType: 'batch', entityId: id, before: { candidateId: r.candidate_id, status: 'enrolled' }, after: { candidateId: r.candidate_id, status: 'withdrawn', reason: b.reason } })),
+      );
+      return { withdrawn: ids.length };
+    });
   });
 
   app.post('/admin/enrolments/:id/withdraw', { config: { permission: 'batch.manage' } }, async (req) => {
