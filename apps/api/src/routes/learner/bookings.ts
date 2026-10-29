@@ -167,6 +167,7 @@ export const bookingRoutes: FastifyPluginAsync = async (app) => {
         feeRupees: rupees(coursePaise(c)),
         stayAvailable: c.stay_available,
         stayFeeRupees: c.stay_available && c.stay_fee_paise !== null ? rupees(c.stay_fee_paise) : null,
+        stayMeals: c.stay_meals,
         journey: await journeyOf(db, c),
       },
       blocker: await bookingBlocker(db, req.actor!.userId, c),

@@ -29,6 +29,12 @@ describe('career journey courses', () => {
     expect((await pub('/public/courses')).json().items.some((i: { track: string | null }) => i.track)).toBe(false);
   });
 
+  it('a journey course cannot be switched on without a fee', async () => {
+    const r = await c.admin!.post(`/admin/courses/${step1}/activate`);
+    expect(r.status).toBe(400);
+    expect(r.body.error.message).toBe('Set the course fee before switching this course on.');
+  });
+
   it('once switched on with a fee, a journey course is listed without a batch, first, with its step', async () => {
     await c.admin!.patch(`/admin/courses/${step1}`, { feeRupees: 2000 });
     await c.admin!.patch(`/admin/courses/${step2}`, { feeRupees: 1500 });

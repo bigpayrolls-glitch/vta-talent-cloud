@@ -16,6 +16,7 @@ interface FeeCourse {
   gstPct: number;
   stayAvailable: boolean;
   stayFeeRupees: number | null;
+  stayMeals: number;
   track: Track | null;
   trackStep: number | null;
   imageUrl: string | null;
@@ -38,7 +39,7 @@ export function CourseFeesPage() {
       </Link>
       <PageHeader
         title="Fees and accommodation"
-        description="Set the fee of each AutoTalent Grid career course and the charge for accommodation with food, then switch it on. Learners see a course only when it is on. Changes apply to new enrolments."
+        description="Set the fee of each AutoTalent Grid career course and the charge for accommodation (a place to stay) with the meals a day included, then switch it on. Learners see a course only when it is on. Changes apply to new enrolments."
       />
       {q.isLoading ? (
         <Spinner />
@@ -57,7 +58,7 @@ export function CourseFeesPage() {
                     <th className="px-4 py-2 font-semibold">Course</th>
                     <th className="px-2 py-2 font-semibold">Course fee (₹)</th>
                     <th className="px-2 py-2 font-semibold">GST</th>
-                    <th className="px-2 py-2 font-semibold">Accommodation with food</th>
+                    <th className="px-2 py-2 font-semibold">Accommodation (stay) with food</th>
                     <th className="px-2 py-2 font-semibold">Charge (₹, whole course)</th>
                     <th className="px-2 py-2 font-semibold">Learner pays</th>
                     <th className="px-2 py-2 font-semibold">Status</th>
@@ -87,11 +88,12 @@ function FeeRow({ c }: { c: FeeCourse }) {
   const [gst, setGst] = useState(String(c.gstPct));
   const [stay, setStay] = useState(c.stayAvailable);
   const [stayFee, setStayFee] = useState(c.stayFeeRupees != null ? String(c.stayFeeRupees) : '');
+  const [meals, setMeals] = useState(String(c.stayMeals ?? 1));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const feeN = Number(fee) || 0;
   const gstN = Math.round((feeN * Number(gst)) / 100);
-  const changed = feeN !== c.feeRupees || Number(gst) !== c.gstPct || stay !== c.stayAvailable || (stay && (stayFee === '' ? null : Number(stayFee)) !== c.stayFeeRupees);
+  const changed = feeN !== c.feeRupees || Number(gst) !== c.gstPct || stay !== c.stayAvailable || (stay && ((stayFee === '' ? null : Number(stayFee)) !== c.stayFeeRupees || Number(meals) !== c.stayMeals));
 
   const run = async (fn: () => Promise<unknown>, done: string) => {
     setBusy(true);
@@ -106,10 +108,10 @@ function FeeRow({ c }: { c: FeeCourse }) {
       setBusy(false);
     }
   };
-  const save = () => run(() => api.patch(`/admin/courses/${c.id}`, { feeRupees: fee || '0', gstPct: gst, stayAvailable: stay, stayFeeRupees: stay && stayFee !== '' ? stayFee : null }), `${c.title}: saved`);
+  const save = () => run(() => api.patch(`/admin/courses/${c.id}`, { feeRupees: fee || '0', gstPct: gst, stayAvailable: stay, stayFeeRupees: stay && stayFee !== '' ? stayFee : null, stayMeals: meals }), `${c.title}: saved`);
   const toggle = () =>
     run(async () => {
-      if (c.status === 'inactive' && changed) await api.patch(`/admin/courses/${c.id}`, { feeRupees: fee || '0', gstPct: gst, stayAvailable: stay, stayFeeRupees: stay && stayFee !== '' ? stayFee : null });
+      if (c.status === 'inactive' && changed) await api.patch(`/admin/courses/${c.id}`, { feeRupees: fee || '0', gstPct: gst, stayAvailable: stay, stayFeeRupees: stay && stayFee !== '' ? stayFee : null, stayMeals: meals });
       await api.post(`/admin/courses/${c.id}/${c.status === 'active' ? 'deactivate' : 'activate'}`);
     }, c.status === 'active' ? `${c.title}: switched off` : `${c.title}: now shown to learners`);
 
@@ -153,6 +155,13 @@ function FeeRow({ c }: { c: FeeCourse }) {
           <BedDouble className="size-4 text-muted" aria-hidden />
           {stay ? 'Offered' : 'Not offered'}
         </label>
+        {stay && (
+          <select aria-label={`Meals a day with the stay for ${label}`} className="field-input mt-1.5 h-9 w-36 text-[13px]" value={meals} onChange={(e) => setMeals(e.target.value)}>
+            <option value="1">1 meal a day</option>
+            <option value="2">2 meals a day</option>
+            <option value="3">3 meals a day</option>
+          </select>
+        )}
       </td>
       <td className="px-2 py-3">
         <input
@@ -171,7 +180,11 @@ function FeeRow({ c }: { c: FeeCourse }) {
       <td className="px-2 py-3 text-[13px]">
         <span className="font-semibold">{rupees(feeN + gstN)}</span>
         {gstN > 0 && <span className="block text-muted">incl. {rupees(gstN)} GST</span>}
-        {stay && <span className="block text-muted">+ {stayFee ? rupees(Number(stayFee)) : 'charge to confirm'} if they need a stay</span>}
+        {stay && (
+          <span className="block text-muted">
+            + {stayFee ? rupees(Number(stayFee)) : 'charge to confirm'} if they need a stay ({meals === '1' ? '1 meal' : `${meals} meals`} a day)
+          </span>
+        )}
       </td>
       <td className="px-2 py-3">
         <StatusBadge status={c.status} label={c.status === 'active' ? 'On' : 'Off'} />

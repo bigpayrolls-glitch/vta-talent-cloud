@@ -9,6 +9,7 @@ import {
   SKILL_AREA_LABEL,
   SKILL_AREAS,
   type Page,
+  stayLabel,
   TRACK_LABEL,
   TRACK_STEP_LABEL,
   type Track,
@@ -43,6 +44,7 @@ export interface CourseRow {
   feeRupees: number;
   stayAvailable: boolean;
   stayFeeRupees: number | null;
+  stayMeals: number;
   track: Track | null;
   trackStep: number | null;
   status: 'active' | 'inactive';
@@ -216,7 +218,7 @@ export function CourseDetailPage() {
               </>
             )}
             <dt className="text-muted">Accommodation with food</dt>
-            <dd>{c.stayAvailable ? (c.stayFeeRupees != null ? `Available, ₹${c.stayFeeRupees.toLocaleString('en-IN')} for the course` : 'Available, charge to be confirmed') : 'Not offered'}</dd>
+            <dd>{c.stayAvailable ? `${stayLabel(c.stayMeals)}, ${c.stayFeeRupees != null ? `₹${c.stayFeeRupees.toLocaleString('en-IN')} for the course` : 'charge to be confirmed'}` : 'Not offered'}</dd>
             <dt className="text-muted">Prerequisites</dt>
             <dd className="whitespace-pre-line">{c.prerequisites || '—'}</dd>
             <dt className="text-muted">Description</dt>
@@ -328,7 +330,7 @@ function CourseModal({ course, onClose }: { course?: CourseDetail; onClose: () =
     prerequisites: course?.prerequisites ?? '',
     description: course?.description ?? '',
   });
-  const [stay, setStay] = useState({ available: course?.stayAvailable ?? false, fee: course?.stayFeeRupees != null ? String(course.stayFeeRupees) : '' });
+  const [stay, setStay] = useState({ available: course?.stayAvailable ?? false, fee: course?.stayFeeRupees != null ? String(course.stayFeeRupees) : '', meals: course?.stayMeals ?? 1 });
   const [criteria, setCriteria] = useState<Criterion[]>([{ label: '', maxScore: 50, required: true }]);
   const upd = (k: keyof typeof v) => (e: { target: { value: string } }) => setV({ ...v, [k]: e.target.value });
   const err = f.errors;
@@ -355,6 +357,7 @@ function CourseModal({ course, onClose }: { course?: CourseDetail; onClose: () =
           const body: Record<string, unknown> = Object.fromEntries(Object.entries(v).filter(([, x]) => x !== ''));
           body.stayAvailable = stay.available;
           body.stayFeeRupees = stay.available && stay.fee !== '' ? stay.fee : null;
+          body.stayMeals = stay.meals;
           if (!course) body.criteria = criteria;
           void f.submit(body, async (data) => {
             if (course) {
@@ -422,7 +425,7 @@ function CourseModal({ course, onClose }: { course?: CourseDetail; onClose: () =
         <Field label="Course fee (₹)" htmlFor="co-fee" error={err.feeRupees} hint="What a learner pays to enrol online. 0 makes the course free. No GST is added.">
           <input id="co-fee" type="number" min={0} step={1} className="field-input sm:max-w-[240px]" value={v.feeRupees} onChange={upd('feeRupees')} />
         </Field>
-        <StayFields available={stay.available} fee={stay.fee} error={err.stayFeeRupees} onChange={setStay} />
+        <StayFields available={stay.available} fee={stay.fee} meals={stay.meals} error={err.stayFeeRupees} onChange={setStay} />
         <Field label="Prerequisites (optional)" htmlFor="co-pre" error={err.prerequisites}>
           <textarea id="co-pre" rows={2} className="field-input h-auto py-2" value={v.prerequisites} onChange={upd('prerequisites')} />
         </Field>

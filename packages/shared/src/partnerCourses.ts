@@ -154,6 +154,7 @@ export const partnerCourseFeeSchema = z.object({
   firstBatch: firstBatchSchema.nullable().optional(),
   stayAvailable: z.boolean().optional(),
   stayFeeRupees: z.coerce.number().int('Whole rupees only').min(0, 'Cannot be negative').max(200_000, 'At most ₹2,00,000').nullable().optional(),
+  stayMeals: z.coerce.number().int().min(1).max(3).optional(),
 });
 
 /** A save from any step of the wizard. Each part is optional; the course is checked as a whole on submit. */
@@ -210,6 +211,7 @@ export interface PartnerCourse {
   totalFeeRupees: number;
   stayAvailable: boolean;
   stayFeeRupees: number | null;
+  stayMeals: number;
   certificateType: string | null;
   firstBatch: (z.infer<typeof firstBatchSchema> & { centreName?: string; trainerName?: string }) | null;
   imageUrl: string | null;

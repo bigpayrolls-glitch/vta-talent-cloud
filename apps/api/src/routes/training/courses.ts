@@ -47,6 +47,7 @@ export function courseDto(c: Course & { criteria_count?: string | number; batch_
     totalFeeRupees: feeWithGst(fee, c.gst_pct).totalRupees,
     stayAvailable: c.stay_available,
     stayFeeRupees: c.stay_fee_paise === null ? null : Math.round(c.stay_fee_paise / 100),
+    stayMeals: c.stay_meals,
     track: c.track,
     trackStep: c.track_step,
     status: c.status,
@@ -113,6 +114,7 @@ function toRow(b: z.infer<typeof courseSchema>) {
     gst_pct: b.gstPct ?? 0,
     stay_available: b.stayAvailable ?? false,
     stay_fee_paise: b.stayAvailable && b.stayFeeRupees != null ? b.stayFeeRupees * 100 : null,
+    stay_meals: b.stayMeals ?? 1,
   };
 }
 
@@ -245,9 +247,11 @@ export const courseRoutes: FastifyPluginAsync = async (app) => {
   for (const [path, status] of [['deactivate', 'inactive'], ['activate', 'active']] as const) {
     app.post(`/admin/courses/:id/${path}`, { config: { permission: 'course.manage' } }, async (req) => {
       const { id } = parse(idParam, req.params);
-      const c = await db.selectFrom('courses').select(['status']).where('id', '=', id).executeTakeFirst();
+      const c = await db.selectFrom('courses').select(['status', 'track', 'fee_paise']).where('id', '=', id).executeTakeFirst();
       if (!c) throw notFound('Course');
       if (c.status === status) throw invalid(`This course is already ${status}.`);
+      // A career journey course is paid for when enrolling: it cannot go live without a fee.
+      if (status === 'active' && c.track && c.fee_paise <= 0) throw invalid('Set the course fee before switching this course on.', { feeRupees: 'Enter the course fee' });
       await db.transaction().execute(async (trx) => {
         await trx.updateTable('courses').set({ status, updated_at: new Date() }).where('id', '=', id).execute();
         await audit(trx, auditCtx(req), { action: `course.${path}d`, entityType: 'course', entityId: id, before: { status: c.status }, after: { status } });
@@ -275,5 +279,6 @@ function courseFromRow(c: Course): z.infer<typeof courseSchema> {
     gstPct: c.gst_pct,
     stayAvailable: c.stay_available,
     stayFeeRupees: c.stay_fee_paise === null ? null : Math.round(c.stay_fee_paise / 100),
+    stayMeals: c.stay_meals,
   };
 }

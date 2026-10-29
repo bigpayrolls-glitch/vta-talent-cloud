@@ -81,6 +81,7 @@ export interface CatalogueCourse {
   /** Accommodation with food: offered or not, and its charge for the whole course (null = to be confirmed). */
   stayAvailable: boolean;
   stayFeeRupees: number | null;
+  stayMeals: number;
   /** AutoTalent Grid career journey courses: enrolled in directly; AutoTalent Grid assigns the batch. */
   track: Track | null;
   trackStep: number | null;

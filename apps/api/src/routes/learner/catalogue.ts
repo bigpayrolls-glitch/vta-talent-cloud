@@ -113,6 +113,7 @@ function courseDto(c: Course, batches: CatalogueBatch[]): CatalogueCourse {
     gstPct: c.gst_pct,
     stayAvailable: c.stay_available,
     stayFeeRupees: c.stay_available && c.stay_fee_paise !== null ? rupees(c.stay_fee_paise) : null,
+    stayMeals: c.stay_meals,
     track: c.track,
     trackStep: c.track_step,
     courseType: c.course_type,
@@ -182,6 +183,7 @@ export const batchSummary = (trx: DB, batchId: string) =>
       sql<number>`co.fee_paise + round(co.fee_paise * co.gst_pct / 100.0 / 100.0)::int * 100`.as('fee_paise'),
       'co.stay_available',
       'co.stay_fee_paise',
+      'co.stay_meals',
       // A course that is not both published and active cannot be enrolled in.
       sql<'active' | 'inactive'>`case when co.status = 'active' and co.approval_status = 'published' then 'active' else 'inactive' end`.as('course_status'),
       'c.name as centre',
@@ -329,7 +331,7 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
     const { n } = await db.selectFrom('enrolments').select(sql<string>`count(*)`.as('n')).where('batch_id', '=', id).where('status', '!=', 'withdrawn').executeTakeFirstOrThrow();
     return {
       batch: { id: b.id, name: b.name, startDate: b.start_date, endDate: b.end_date, centre: b.centre, city: b.city, provider: b.org && b.org_type !== 'vta' ? b.org : 'AutoTalent Grid', seatsLeft: Math.max(0, b.capacity - Number(n)) },
-      course: { id: b.course_id, title: b.title, skillArea: b.skill_area, deliveryMode: b.delivery_mode, durationValue: b.duration_value, durationUnit: b.duration_unit, feeRupees: rupees(b.fee_paise), stayAvailable: b.stay_available, stayFeeRupees: b.stay_available && b.stay_fee_paise !== null ? rupees(b.stay_fee_paise) : null },
+      course: { id: b.course_id, title: b.title, skillArea: b.skill_area, deliveryMode: b.delivery_mode, durationValue: b.duration_value, durationUnit: b.duration_unit, feeRupees: rupees(b.fee_paise), stayAvailable: b.stay_available, stayFeeRupees: b.stay_available && b.stay_fee_paise !== null ? rupees(b.stay_fee_paise) : null, stayMeals: b.stay_meals },
       blocker: await blocker(db, req.actor!.userId, b),
       paymentMode: app.config.paymentMode,
     };

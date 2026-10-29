@@ -28,6 +28,7 @@ import * as m0025 from './migrations/0025_plan_catalogue.js';
 import * as m0026 from './migrations/0026_partner_plans.js';
 import * as m0027 from './migrations/0027_technician_names.js';
 import * as m0028 from './migrations/0028_remove_mistaken_enrolments.js';
+import * as m0029 from './migrations/0029_stay_meals.js';
 import * as m0020 from './migrations/0020_imported_searchable.js';
 import * as m0019 from './migrations/0019_import_incomplete.js';
 import * as m0018 from './migrations/0018_centre_location.js';
@@ -63,6 +64,7 @@ const MIGRATIONS: Record<string, Migration> = {
   '0026_partner_plans': m0026,
   '0027_technician_names': m0027,
   '0028_remove_mistaken_enrolments': m0028,
+  '0029_stay_meals': m0029,
 };
 
 const provider: MigrationProvider = { getMigrations: async () => MIGRATIONS };

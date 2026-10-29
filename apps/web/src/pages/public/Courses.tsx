@@ -16,6 +16,7 @@ import {
   type CatalogueCourseDetail,
   type PayMethod,
   type SkillArea,
+  stayLabel,
   type JourneyInfo,
   type Track,
   type TrackStep,
@@ -322,7 +323,7 @@ export function CourseDetailPage() {
               <Meta icon={Clock}>{durationText(c.durationValue, c.durationUnit)}</Meta>
               <Meta icon={School}>{MODE_LABEL()[c.deliveryMode] ?? c.deliveryMode}</Meta>
               <Meta icon={Award}>{t('Certificate')}</Meta>
-              {c.stayAvailable && <Meta icon={BedDouble}>{c.stayFeeRupees != null ? t('Accommodation with food: {amount}', { amount: rupees(c.stayFeeRupees) }) : t('Accommodation with food available')}</Meta>}
+              {c.stayAvailable && <Meta icon={BedDouble}>{c.stayFeeRupees != null ? t('{stay}: {amount}', { stay: t(stayLabel(c.stayMeals)), amount: rupees(c.stayFeeRupees) }) : t('{stay} available', { stay: t(stayLabel(c.stayMeals)) })}</Meta>}
             </div>
             <div className="mt-5 flex flex-wrap items-center gap-4">
               <p className="text-[32px] font-extrabold tracking-tight">
@@ -510,7 +511,7 @@ export function CourseDetailPage() {
 
 interface Quote {
   batch: { id: string; name: string; startDate: string; endDate: string; centre: string; city: string | null; provider: string; seatsLeft: number };
-  course: { id: string; title: string; skillArea: string; deliveryMode: string; durationValue: number; durationUnit: string; feeRupees: number; stayAvailable: boolean; stayFeeRupees: number | null };
+  course: { id: string; title: string; skillArea: string; deliveryMode: string; durationValue: number; durationUnit: string; feeRupees: number; stayAvailable: boolean; stayFeeRupees: number | null; stayMeals: number };
   blocker: string | null;
   paymentMode: 'test' | 'none' | 'razorpay';
 }
@@ -541,6 +542,7 @@ interface PayCourse {
   feeRupees: number;
   stayAvailable: boolean;
   stayFeeRupees: number | null;
+  stayMeals: number;
 }
 
 /**
@@ -615,13 +617,13 @@ function PayPanel({
       >
         {course.stayAvailable && (
           <fieldset className="mb-5">
-            <legend className="font-semibold">{t('Accommodation with food')}</legend>
+            <legend className="font-semibold">{t(stayLabel(course.stayMeals))}</legend>
             <p className="mt-1 text-sm text-muted">
               {course.stayFeeRupees != null
                 ? t('Available during this course for {amount}.', { amount: rupees(course.stayFeeRupees) })
                 : t('Available during this course. The charge will be confirmed by AutoTalent Grid.')}
             </p>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={t('Accommodation with food')}>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label={t(stayLabel(course.stayMeals))}>
               {[
                 { value: true, label: t('Need accommodation with food') },
                 { value: false, label: t('Not needed') },
@@ -658,7 +660,7 @@ function PayPanel({
           </div>
           {course.stayAvailable && needsStay === true && (
             <div className="flex justify-between gap-4 py-2">
-              <dt className="text-muted">{t('Accommodation with food')}</dt>
+              <dt className="text-muted">{t(stayLabel(course.stayMeals))}</dt>
               <dd className="text-right">{course.stayFeeRupees != null ? rupees(course.stayFeeRupees) : t('To be confirmed')}</dd>
             </div>
           )}

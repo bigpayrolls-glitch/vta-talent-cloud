@@ -147,6 +147,7 @@ export interface CoursesTable {
   fee_paise: Generated<number>;
   stay_available: Generated<boolean>;
   stay_fee_paise: number | null;
+  stay_meals: Generated<number>;
   status: 'active' | 'inactive';
   created_at: Timestamp;
   updated_at: Timestamp;
