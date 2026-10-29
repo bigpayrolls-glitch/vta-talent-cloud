@@ -789,5 +789,20 @@
  "The next step of the journey opens once you complete this one.": "ఈ స్టెప్ పూర్తి చేయగానే ప్రయాణంలో తర్వాతి స్టెప్ తెరుచుకుంటుంది.",
  "To be assigned by AutoTalent Grid": "AutoTalent Grid కేటాయిస్తుంది",
  "Training partner assigned by AutoTalent Grid": "AutoTalent Grid కేటాయించిన ట్రైనింగ్ పార్ట్‌నర్",
- "You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. Your enrolment is confirmed as soon as the payment goes through.": "మీరు Razorpay ద్వారా సురక్షితంగా చెల్లిస్తారు: UPI, డెబిట్ లేదా క్రెడిట్ కార్డ్, నెట్ బ్యాంకింగ్ లేదా వాలెట్. పేమెంట్ పూర్తయిన వెంటనే మీ ఎన్‌రోల్‌మెంట్ కన్ఫర్మ్ అవుతుంది."
+ "You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. Your enrolment is confirmed as soon as the payment goes through.": "మీరు Razorpay ద్వారా సురక్షితంగా చెల్లిస్తారు: UPI, డెబిట్ లేదా క్రెడిట్ కార్డ్, నెట్ బ్యాంకింగ్ లేదా వాలెట్. పేమెంట్ పూర్తయిన వెంటనే మీ ఎన్‌రోల్‌మెంట్ కన్ఫర్మ్ అవుతుంది.",
+ "After 1 month": "1 నెల తర్వాత",
+ "Choose": "ఎంచుకోండి",
+ "Choose when you can join": "మీరు ఎప్పుడు చేరగలరో ఎంచుకోండి",
+ "Immediately": "వెంటనే",
+ "No": "లేదు",
+ "No, only near where I live": "లేదు, నేను ఉండే ప్రాంతానికి దగ్గరలో మాత్రమే",
+ "When can you join a job?": "మీరు ఉద్యోగంలో ఎప్పుడు చేరగలరు?",
+ "When you can join": "ఎప్పుడు చేరగలరు",
+ "Willing to relocate": "వేరే ఊరికి వెళ్లడానికి సిద్ధం",
+ "Willing to relocate for a job?": "ఉద్యోగం కోసం వేరే ఊరికి వెళ్లడానికి సిద్ధంగా ఉన్నారా?",
+ "Within 1 month": "1 నెలలోపు",
+ "Within 15 days": "15 రోజుల్లోపు",
+ "Yes": "అవును",
+ "Yes, I can move to another city": "అవును, నేను వేరే ఊరికి వెళ్లగలను",
+ "You have an offer. Expected joining date: {date}.": "మీకు ఉద్యోగ ఆఫర్ వచ్చింది. చేరవలసిన అంచనా తేదీ: {date}."
 }

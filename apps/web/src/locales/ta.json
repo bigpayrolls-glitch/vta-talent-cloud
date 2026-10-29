@@ -789,5 +789,20 @@
  "The next step of the journey opens once you complete this one.": "இந்தப் படியை முடித்ததும் பயணத்தின் அடுத்த படி திறக்கும்.",
  "To be assigned by AutoTalent Grid": "AutoTalent Grid ஒதுக்கும்",
  "Training partner assigned by AutoTalent Grid": "AutoTalent Grid ஒதுக்கிய பயிற்சி நிறுவனம்",
- "You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. Your enrolment is confirmed as soon as the payment goes through.": "Razorpay மூலம் பாதுகாப்பாகச் செலுத்துங்கள்: UPI, டெபிட் அல்லது கிரெடிட் கார்டு, நெட் பேங்கிங் அல்லது வாலட். பணம் செலுத்தியதும் உங்கள் சேர்க்கை உறுதியாகும்."
+ "You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. Your enrolment is confirmed as soon as the payment goes through.": "Razorpay மூலம் பாதுகாப்பாகச் செலுத்துங்கள்: UPI, டெபிட் அல்லது கிரெடிட் கார்டு, நெட் பேங்கிங் அல்லது வாலட். பணம் செலுத்தியதும் உங்கள் சேர்க்கை உறுதியாகும்.",
+ "After 1 month": "1 மாதத்திற்குப் பிறகு",
+ "Choose": "தேர்வு செய்யுங்கள்",
+ "Choose when you can join": "நீங்கள் எப்போது சேரலாம் என்பதைத் தேர்வு செய்யுங்கள்",
+ "Immediately": "உடனே",
+ "No": "இல்லை",
+ "No, only near where I live": "இல்லை, நான் வசிக்கும் இடத்திற்கு அருகில் மட்டும்",
+ "When can you join a job?": "வேலையில் எப்போது சேரலாம்?",
+ "When you can join": "எப்போது சேரலாம்",
+ "Willing to relocate": "வேறு ஊருக்குச் செல்லத் தயார்",
+ "Willing to relocate for a job?": "வேலைக்காக வேறு ஊருக்குச் செல்லத் தயாரா?",
+ "Within 1 month": "1 மாதத்திற்குள்",
+ "Within 15 days": "15 நாட்களுக்குள்",
+ "Yes": "ஆம்",
+ "Yes, I can move to another city": "ஆம், நான் வேறு ஊருக்குச் செல்ல முடியும்",
+ "You have an offer. Expected joining date: {date}.": "உங்களுக்கு வேலை வாய்ப்பு கிடைத்துள்ளது. சேர எதிர்பார்க்கப்படும் தேதி: {date}."
 }

@@ -15,6 +15,7 @@ export interface LearnerProfile {
   education: string | null;
   languages: string[];
   availability: string | null;
+  willingToRelocate: boolean | null;
   searchable: boolean;
   verificationStatus: 'pending' | 'verified' | 'rejected' | 'needs_correction';
   verificationReason: string | null;

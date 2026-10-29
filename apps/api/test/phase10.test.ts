@@ -125,7 +125,7 @@ describe('tests the traceability review found missing', () => {
   it('EM-08: AutoTalent Grid can flag a recorded joining with a note', async () => {
     const rec = await loginEmail(ctx, EMAIL.employerAdminA);
     const app = ctx.ids.applicationAnitha!;
-    expect((await rec.post(`/employer/applications/${app}/move`, { to: 'offer' })).status).toBe(200);
+    expect((await rec.post(`/employer/applications/${app}/move`, { to: 'offer', expectedJoiningDate: new Date(Date.now() + 86_400_000).toISOString().slice(0, 10) })).status).toBe(200);
     expect((await rec.post(`/employer/applications/${app}/move`, { to: 'joined', joiningDate: '2026-10-25' })).status).toBe(200);
     const flagged = await c.ops!.post(`/admin/applications/${app}/outcome-review`, { decision: 'flagged', note: 'Employer could not confirm the start date by phone' });
     expect(flagged.status).toBe(200);
