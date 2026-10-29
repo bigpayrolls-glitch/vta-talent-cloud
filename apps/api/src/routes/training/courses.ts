@@ -41,6 +41,8 @@ export function courseDto(c: Course & { criteria_count?: string | number; batch_
     totalFeeRupees: feeWithGst(fee, c.gst_pct).totalRupees,
     stayAvailable: c.stay_available,
     stayFeeRupees: c.stay_fee_paise === null ? null : Math.round(c.stay_fee_paise / 100),
+    track: c.track,
+    trackStep: c.track_step,
     status: c.status,
     approvalStatus: c.approval_status,
     owner: c.owner_organisation_id ? { id: c.owner_organisation_id, name: c.owner_name ?? '' } : null,

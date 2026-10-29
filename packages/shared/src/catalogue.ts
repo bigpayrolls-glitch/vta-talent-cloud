@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { uuidSchema } from './schemas.js';
 import { DELIVERY_MODES, SKILL_AREAS } from './training.js';
 import type { CourseModuleTime } from './partnerCourses.js';
+import type { JourneyInfo, Track } from './journeys.js';
 
 // ---------------------------------------------------------------------------
 // Phase 13: public course catalogue and learner self-enrolment (brand design of 26 Oct 2026).
@@ -80,6 +81,9 @@ export interface CatalogueCourse {
   /** Accommodation with food: offered or not, and its charge for the whole course (null = to be confirmed). */
   stayAvailable: boolean;
   stayFeeRupees: number | null;
+  /** AutoTalent Grid career journey courses: enrolled in directly; AutoTalent Grid assigns the batch. */
+  track: Track | null;
+  trackStep: number | null;
   courseType: string | null;
   imageUrl: string | null;
   /** Skill chips on the course card. */
@@ -103,5 +107,6 @@ export interface CatalogueCourseDetail extends CatalogueCourse {
   modules: CourseModuleTime[];
   learningOutcomes: string[];
   certificateType: string | null;
+  journey: JourneyInfo | null;
   batches: CatalogueBatch[];
 }

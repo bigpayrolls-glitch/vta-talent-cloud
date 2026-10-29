@@ -168,6 +168,8 @@ export interface CoursesTable {
   reviewed_by: string | null;
   published_at: ColumnType<Date | null, Date | null | undefined, Date | null>;
   created_by: string | null;
+  track: 'technician' | 'parts_manager' | 'service_advisor' | 'floor_supervisor' | null;
+  track_step: number | null;
 }
 
 export type CourseApprovalStatus = 'draft' | 'submitted' | 'changes_requested' | 'rejected' | 'published';
@@ -385,9 +387,29 @@ export interface CandidateProfileViewsTable {
   first_viewed_at: Timestamp;
 }
 
+export interface CourseBookingsTable {
+  id: string;
+  candidate_id: string;
+  course_id: string;
+  status: Generated<'awaiting_batch' | 'placed' | 'cancelled'>;
+  needs_stay: Generated<boolean>;
+  amount_paise: number;
+  stay_paise: Generated<number>;
+  method: 'upi' | 'card' | 'netbanking' | 'wallet' | 'other' | null;
+  provider: 'test' | 'free' | 'razorpay';
+  provider_payment_id: string | null;
+  receipt_number: string;
+  enrolment_id: string | null;
+  assigned_by: string | null;
+  assigned_at: Date | null;
+  created_at: Timestamp;
+  updated_at: Timestamp;
+}
+
 export interface PaymentOrdersTable {
   id: string;
-  purpose: 'plan' | 'course';
+  purpose: 'plan' | 'course' | 'booking';
+  course_id: string | null;
   provider_order_id: string;
   amount_paise: number;
   status: Generated<'created' | 'paid' | 'failed' | 'needs_refund'>;
@@ -621,6 +643,7 @@ export interface Database {
   sessions: SessionsTable;
   otp_challenges: OtpChallengesTable;
   payment_orders: PaymentOrdersTable;
+  course_bookings: CourseBookingsTable;
   candidate_profile_views: CandidateProfileViewsTable;
   payment_webhook_events: PaymentWebhookEventsTable;
   invitations: InvitationsTable;

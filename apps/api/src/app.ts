@@ -18,6 +18,7 @@ import { sharedRoutes } from './routes/shared.js';
 import { healthRoutes } from './routes/health.js';
 import { trainingRoutes } from './routes/training/index.js';
 import { operationsRoutes } from './routes/operations/index.js';
+import { bookingRoutes } from './routes/learner/bookings.js';
 import { catalogueRoutes } from './routes/learner/catalogue.js';
 import { learnerRoutes } from './routes/learner/routes.js';
 import { hiringRoutes } from './routes/hiring/index.js';
@@ -183,6 +184,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
       await api.register(operationsRoutes);
       await api.register(learnerRoutes);
       await api.register(catalogueRoutes);
+      await api.register(bookingRoutes);
       await api.register(hiringRoutes);
       await api.register(programmesRoutes);
       await api.register(signupRoutes);

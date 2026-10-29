@@ -23,7 +23,8 @@ export interface RazorpayStart {
 export type PaymentOutcome =
   | { status: 'paid'; purpose: 'plan'; paymentId: string }
   | { status: 'paid'; purpose: 'course'; enrolmentId: string }
-  | { status: 'needs_refund'; purpose: 'plan' | 'course'; message: string };
+  | { status: 'paid'; purpose: 'booking'; bookingId: string }
+  | { status: 'needs_refund'; purpose: 'plan' | 'course' | 'booking'; message: string };
 
 interface Success {
   razorpay_order_id: string;

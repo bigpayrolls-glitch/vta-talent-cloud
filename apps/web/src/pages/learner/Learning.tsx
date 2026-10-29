@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { SKILL_AREA_LABEL, type SkillArea } from '@vta/shared';
-import { AlertTriangle, ArrowLeft, Award, CheckCircle2, XCircle } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Award, CheckCircle2, Hourglass, XCircle } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { courseImage } from '../public/Courses';
@@ -59,6 +59,12 @@ const TAB_LABEL = (): Record<(typeof TABS)[number]['key'], string> => ({ ongoing
 /** EE-04 and the brand design of 26 Oct 2026: each course with dates, centre, attendance, assessment and certificate. */
 export function LearningPage() {
   const q = useQuery({ queryKey: ['me', 'learning'], queryFn: () => api.get<{ items: LearningItem[] }>('/me/learning') });
+  // Career journey courses paid for and waiting for AutoTalent Grid to assign a batch.
+  const waiting = useQuery({
+    queryKey: ['me', 'bookings'],
+    queryFn: () => api.get<{ items: { id: string; status: string; bookedAt: string; course: { id: string; title: string } }[] }>('/me/bookings'),
+    select: (d) => d.items.filter((b) => b.status === 'awaiting_batch'),
+  });
   const [tab, setTab] = useState<(typeof TABS)[number]['key']>('ongoing');
   const items = q.data?.items ?? [];
   const lists = {
@@ -78,6 +84,21 @@ export function LearningPage() {
           </Link>
         }
       />
+      {!!waiting.data?.length && (
+        <ul className="mb-5 space-y-2">
+          {waiting.data.map((b) => (
+            <li key={b.id} className="card flex items-start gap-3 border-warning/40 bg-warning-tint/40 px-4 py-3 text-sm">
+              <Hourglass className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+              <span>
+                <Link to={`/courses/${b.course.id}`} className="font-semibold hover:text-brand">
+                  {b.course.title}
+                </Link>
+                <span className="block text-muted">{t('Enrolled on {date}. AutoTalent Grid will assign your training partner and batch, and tell you the dates.', { date: fmtDate(b.bookedAt.slice(0, 10)) })}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
       {q.isLoading ? (
         <Spinner />
       ) : q.isError ? (
