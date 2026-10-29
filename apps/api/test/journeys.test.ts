@@ -24,7 +24,7 @@ describe('career journey courses', () => {
     const all = await ctx.db.selectFrom('courses').select(['code', 'title', 'status', 'fee_paise', 'track', 'track_step', 'duration_value']).where('track', 'is not', null).orderBy('code').execute();
     expect(all).toHaveLength(16);
     expect(all.every((x) => x.status === 'inactive' && x.fee_paise === 0)).toBe(true);
-    expect(all.find((x) => x.code === 'ATG-TECH-1')).toMatchObject({ title: 'Technician Beginner: 7 Brands 18 Points Check Up', track: 'technician', track_step: 1, duration_value: 30 });
+    expect(all.find((x) => x.code === 'ATG-TECH-1')).toMatchObject({ title: 'Jr Technician: Beginner Certification', track: 'technician', track_step: 1, duration_value: 30 });
     expect(all.find((x) => x.code === 'ATG-FS-4')).toMatchObject({ title: 'Floor Supervisor Expert: Leadership and Advanced Operations', duration_value: 15 });
     expect((await pub('/public/courses')).json().items.some((i: { track: string | null }) => i.track)).toBe(false);
   });
@@ -47,7 +47,7 @@ describe('career journey courses', () => {
 
   it('step 2 opens only after step 1 is complete', async () => {
     const q = (await c.learner!.get(`/me/book/${step2}`)).body;
-    expect(q.blocker).toMatch(/^Complete Technician Beginner: 7 Brands 18 Points Check Up first/);
+    expect(q.blocker).toMatch(/^Complete Jr Technician: Beginner Certification first/);
     expect((await c.learner!.post('/me/bookings', { courseId: step2, method: 'upi', acceptTerms: true })).status).toBe(409);
   });
 

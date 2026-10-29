@@ -24,7 +24,7 @@ test.describe('career journey courses', () => {
   test('a learner enrols and pays for a journey course; an Admin assigns the batch', async ({ page, browser }) => {
     await signInPhone(page, '9900000201');
     await page.goto('/courses');
-    const card = page.getByRole('listitem').filter({ hasText: 'Technician Beginner: 7 Brands 18 Points Check Up' });
+    const card = page.getByRole('listitem').filter({ hasText: 'Jr Technician: Beginner Certification' });
     await expect(card.getByText('Technician journey · Step 1 of 4 · Beginner')).toBeVisible();
     await card.getByRole('link', { name: /^Enrol now/ }).click();
     await expect(page).toHaveURL(new RegExp(`/enrol/course/${courseId}$`));
@@ -44,7 +44,7 @@ test.describe('career journey courses', () => {
     const admin = await adminCtx.newPage();
     await signInEmail(admin, EMAIL.opsAdmin);
     await admin.goto('/admin/bookings');
-    const row = admin.getByRole('listitem').filter({ hasText: 'Technician Beginner: 7 Brands 18 Points Check Up' }).filter({ hasText: 'Venkatesh' });
+    const row = admin.getByRole('listitem').filter({ hasText: 'Jr Technician: Beginner Certification' }).filter({ hasText: 'Venkatesh' });
     await expect(row.getByText('Needs accommodation with food')).toBeVisible();
     await row.getByRole('button', { name: 'Assign batch' }).click();
     const dialog = admin.getByRole('dialog', { name: 'Assign batch' });
