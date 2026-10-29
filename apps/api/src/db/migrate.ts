@@ -24,6 +24,7 @@ import * as m0021 from './migrations/0021_profile_views.js';
 import * as m0022 from './migrations/0022_join_dates.js';
 import * as m0023 from './migrations/0023_food_stay.js';
 import * as m0024 from './migrations/0024_career_journeys.js';
+import * as m0025 from './migrations/0025_plan_catalogue.js';
 import * as m0020 from './migrations/0020_imported_searchable.js';
 import * as m0019 from './migrations/0019_import_incomplete.js';
 import * as m0018 from './migrations/0018_centre_location.js';
@@ -55,6 +56,7 @@ const MIGRATIONS: Record<string, Migration> = {
   '0022_join_dates': m0022,
   '0023_food_stay': m0023,
   '0024_career_journeys': m0024,
+  '0025_plan_catalogue': m0025,
 };
 
 const provider: MigrationProvider = { getMigrations: async () => MIGRATIONS };

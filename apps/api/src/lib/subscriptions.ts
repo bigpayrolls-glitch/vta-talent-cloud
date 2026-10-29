@@ -1,4 +1,5 @@
-import { PLAN_INFO, type Plan, type SubscriptionDto } from '@vta/shared';
+import { type Plan, type SubscriptionDto } from '@vta/shared';
+import { employerPlan } from './plans.js';
 import { sql } from 'kysely';
 import type { DB } from '../db/index.js';
 import type { EmployerSubscriptionsTable } from '../db/types.js';
@@ -25,7 +26,8 @@ export const planLimit = (message: string) => new ApiError('FORBIDDEN', message,
 /** Sending a job for review or resuming it would make it active: refuse if the plan's active-job limit is reached. */
 export async function assertActiveJobRoom(db: DB, organisationId: string, jobId: string): Promise<void> {
   const { plan } = await currentSubscription(db, organisationId);
-  const limit = PLAN_INFO[plan].activeJobs;
+  const info = await employerPlan(db, plan);
+  const limit = info.activeJobs;
   if (limit === null) return;
   const n = Number(
     (
@@ -40,7 +42,7 @@ export async function assertActiveJobRoom(db: DB, organisationId: string, jobId:
   );
   if (n >= limit) {
     throw planLimit(
-      `Your ${PLAN_INFO[plan].name} plan allows ${limit} active job${limit === 1 ? '' : 's'} at a time (waiting for review, live or paused). Close a job or upgrade your plan.`,
+      `Your ${info.name} plan allows ${limit} active job${limit === 1 ? '' : 's'} at a time (waiting for review, live or paused). Close a job or upgrade your plan.`,
     );
   }
 }
@@ -52,7 +54,7 @@ export async function assertActiveJobRoom(db: DB, organisationId: string, jobId:
 export async function lockedApplicationIds(db: DB, organisationId: string, applicationIds?: string[]): Promise<Set<string>> {
   if (applicationIds && !applicationIds.length) return new Set();
   const { plan } = await currentSubscription(db, organisationId);
-  const rule = PLAN_INFO[plan].applicants;
+  const rule = (await employerPlan(db, plan)).applicants;
   if (!rule) return new Set();
   const partition = rule.per === 'job' ? sql`a.job_id` : sql`date_trunc('month', a.applied_at AT TIME ZONE 'Asia/Kolkata')`;
   const ranked = db
@@ -68,14 +70,15 @@ export async function lockedApplicationIds(db: DB, organisationId: string, appli
 export async function assertApplicationOpen(db: DB, organisationId: string, applicationId: string): Promise<void> {
   if ((await lockedApplicationIds(db, organisationId, [applicationId])).has(applicationId)) {
     const { plan } = await currentSubscription(db, organisationId);
-    const rule = PLAN_INFO[plan].applicants!;
-    throw planLimit(`Your ${PLAN_INFO[plan].name} plan shows ${rule.limit} applicants ${rule.per === 'job' ? 'per job' : 'a month'}. Upgrade your plan to open this applicant.`);
+    const info = await employerPlan(db, plan);
+    const rule = info.applicants!;
+    throw planLimit(`Your ${info.name} plan shows ${rule.limit} applicants ${rule.per === 'job' ? 'per job' : 'a month'}. Upgrade your plan to open this applicant.`);
   }
 }
 
 export async function assertFeature(db: DB, organisationId: string, feature: 'interviews' | 'contactDetails'): Promise<void> {
   const { plan } = await currentSubscription(db, organisationId);
-  if (!PLAN_INFO[plan][feature]) {
+  if (!(await employerPlan(db, plan))[feature]) {
     throw planLimit(feature === 'interviews' ? 'Interview management is part of the Starter plan and above. Upgrade your plan to schedule interviews.' : 'Upgrade your plan to see contact details.');
   }
 }
@@ -90,7 +93,7 @@ function nextMonthStartIst(now: Date): string {
 
 export async function subscriptionDto(db: DB, organisationId: string, paymentMode: 'test' | 'none' | 'razorpay', now = new Date()): Promise<SubscriptionDto> {
   const { plan, row } = await currentSubscription(db, organisationId, now);
-  const info = PLAN_INFO[plan];
+  const info = await employerPlan(db, plan);
   const count = async (q: { executeTakeFirstOrThrow(): Promise<{ n: string }> }) => Number((await q.executeTakeFirstOrThrow()).n);
   const activeJobs = await count(
     db.selectFrom('jobs').select(sql<string>`count(*)`.as('n')).where('organisation_id', '=', organisationId).where('status', 'in', ACTIVE_JOB_STATUSES),

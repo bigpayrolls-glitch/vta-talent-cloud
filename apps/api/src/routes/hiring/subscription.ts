@@ -1,4 +1,5 @@
-import { adminSetPlanSchema, checkoutSchema, PLAN_INFO, planRequestSchema, uuidSchema } from '@vta/shared';
+import { adminSetPlanSchema, checkoutSchema, planRequestSchema, uuidSchema } from '@vta/shared';
+import { employerPlan } from '../../lib/plans.js';
 import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
 import { z } from 'zod';
@@ -64,7 +65,7 @@ export async function activatePlan(
     before: { plan: current, period_end: row ? iso(row.period_end) : null },
     after: { plan: p.plan, cycle: p.cycle, amount_paise: p.amountPaise, invoice, period_end: iso(end), provider: p.provider, ...(p.providerPaymentId ? { razorpay_payment_id: p.providerPaymentId } : {}) },
   });
-  await notify(trx, await orgMembers(trx, p.organisationId, ['employer_admin']), 'plan_activated', { plan: PLAN_INFO[p.plan].name, until: istDay(end), invoice }, '/employer/subscription', { except: ctx.actorId ?? undefined });
+  await notify(trx, await orgMembers(trx, p.organisationId, ['employer_admin']), 'plan_activated', { plan: (await employerPlan(trx, p.plan)).name, until: istDay(end), invoice }, '/employer/subscription', { except: ctx.actorId ?? undefined });
   return { paymentId: id, invoiceNumber: invoice };
 }
 
@@ -124,7 +125,10 @@ export const subscriptionRoutes: FastifyPluginAsync = async (app) => {
     assertVerified(org);
     const { plan: current } = await currentSubscription(db, org.id);
     if (current === 'enterprise') throw conflict('Your Enterprise plan is managed by AutoTalent Grid. Contact them to change it.');
-    const amount = PLAN_INFO[b.plan].price![b.cycle];
+    const info = await employerPlan(db, b.plan);
+    if (!info.price) throw conflict('This plan is set up with AutoTalent Grid. Ask them about it.');
+    const amount = info.price[b.cycle];
+    if (amount <= 0) throw conflict('This plan has no price for that billing period. Ask AutoTalent Grid about it.');
     reply.code(201);
     // Razorpay: the plan starts when the payment is verified (POST /payments/:id/verify, or the webhook).
     if (mode === 'razorpay') {
@@ -136,7 +140,7 @@ export const subscriptionRoutes: FastifyPluginAsync = async (app) => {
         organisationId: org.id,
         plan: b.plan,
         cycle: b.cycle,
-        description: `${PLAN_INFO[b.plan].name} plan, ${b.cycle}`,
+        description: `${info.name} plan, ${b.cycle}`,
         prefill: { name: payer.name, email: payer.email ?? undefined, contact: payer.phone ?? undefined },
         ctx: auditCtx(req),
       });
@@ -152,7 +156,7 @@ export const subscriptionRoutes: FastifyPluginAsync = async (app) => {
     const org = await employerOrg(db, req);
     await db.transaction().execute(async (trx) => {
       await audit(trx, auditCtx(req), { action: 'subscription.requested', entityType: 'organisation', entityId: org.id, after: { plan: b.plan, cycle: b.cycle ?? null } });
-      await notify(trx, await vtaReviewers(trx), 'plan_requested', { org: org.legal_name, plan: PLAN_INFO[b.plan].name, note: b.note ?? '' }, '/admin/organisations?type=employer');
+      await notify(trx, await vtaReviewers(trx), 'plan_requested', { org: org.legal_name, plan: (await employerPlan(trx, b.plan)).name, note: b.note ?? '' }, '/admin/organisations?type=employer');
     });
     return { ok: true };
   });
@@ -194,7 +198,7 @@ export const subscriptionRoutes: FastifyPluginAsync = async (app) => {
         before: { plan: before, period_end: row ? iso(row.period_end) : null },
         after: { plan: b.plan, period_end: end ? iso(end) : null, reason: b.reason },
       });
-      await notify(trx, await orgMembers(trx, id, EMPLOYER_TEAM), 'plan_set', { plan: PLAN_INFO[b.plan].name, until: end ? istDay(end) : '' }, '/employer/subscription');
+      await notify(trx, await orgMembers(trx, id, EMPLOYER_TEAM), 'plan_set', { plan: (await employerPlan(trx, b.plan)).name, until: end ? istDay(end) : '' }, '/employer/subscription');
     });
     return subscriptionDto(db, id, mode);
   });

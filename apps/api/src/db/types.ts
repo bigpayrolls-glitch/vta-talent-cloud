@@ -387,6 +387,14 @@ export interface CandidateProfileViewsTable {
   first_viewed_at: Timestamp;
 }
 
+export interface PlanCatalogueTable {
+  audience: 'employer' | 'partner';
+  code: string;
+  info: ColumnType<unknown, string, string>;
+  updated_by: string | null;
+  updated_at: Generated<Date>;
+}
+
 export interface CourseBookingsTable {
   id: string;
   candidate_id: string;
@@ -644,6 +652,7 @@ export interface Database {
   otp_challenges: OtpChallengesTable;
   payment_orders: PaymentOrdersTable;
   course_bookings: CourseBookingsTable;
+  plan_catalogue: PlanCatalogueTable;
   candidate_profile_views: CandidateProfileViewsTable;
   payment_webhook_events: PaymentWebhookEventsTable;
   invitations: InvitationsTable;

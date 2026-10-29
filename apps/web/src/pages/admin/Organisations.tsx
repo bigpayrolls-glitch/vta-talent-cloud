@@ -1,10 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { adminSetPlanSchema, createOrganisationSchema, formatRupees, PARTNER_SUBTYPES, PLAN_INFO, PLANS, reasonSchema, type Page, type Plan, type SubscriptionDto } from '@vta/shared';
+import { adminSetPlanSchema, createOrganisationSchema, formatRupees, PARTNER_SUBTYPES, PLANS, reasonSchema, type Page, type Plan, type SubscriptionDto } from '@vta/shared';
 import { Plus } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { EmptyState, ErrorNote, Field, formatDate, Modal, PageHeader, Pagination, Spinner, StatusBadge } from '../../components/ui';
 import { useToast } from '../../components/toast';
+import { usePlans } from '../../lib/plans';
 import { api, qs } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useForm } from '../../lib/useForm';
@@ -296,6 +297,7 @@ function OrgModal({ org, onClose }: { org: OrgRow; onClose: () => void }) {
 
 /** Phase 12: the employer's plan; AutoTalent Grid can set one by hand (Enterprise, or paid outside the platform). */
 function EmployerPlanPanel({ orgId }: { orgId: string }) {
+  const PLAN_INFO = usePlans();
   const qc = useQueryClient();
   const toast = useToast();
   const q = useQuery({

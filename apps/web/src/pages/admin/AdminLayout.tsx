@@ -1,4 +1,4 @@
-import { Award, BadgeCheck, BarChart3, FolderKanban, BookOpen, Briefcase, Building2, ClipboardCheck, GraduationCap, Handshake, History, LayoutDashboard, MapPin, Ticket, UserCog, Users, UsersRound } from 'lucide-react';
+import { Award, BadgeCheck, BarChart3, FolderKanban, BookOpen, Briefcase, Building2, ClipboardCheck, CreditCard, GraduationCap, Handshake, History, LayoutDashboard, MapPin, Ticket, UserCog, Users, UsersRound } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Outlet } from 'react-router';
 import { api } from '../../lib/api';
@@ -37,6 +37,7 @@ export function AdminLayout() {
     ...(can('course.review') ? [{ to: '/admin/course-approvals', label: 'Course approvals', icon: BadgeCheck, badge: pending.data?.counts.submitted ?? 0 }] : []),
     ...(can('trainer.read') ? [{ to: '/admin/trainers', label: 'Trainers', icon: UserCog }] : []),
     { to: '/admin/centres', label: 'Centres', icon: MapPin },
+    ...(can('subscription.manage') ? [{ to: '/admin/plans', label: 'Plans', icon: CreditCard }] : []),
     ...(can('organisation.manage') ? [{ to: '/admin/organisations', label: 'Organisations', icon: Building2 }] : []),
     ...(can('user.read') ? [{ to: '/admin/users', label: 'Users', icon: Users, bottom: true }] : []),
     ...(can('audit.read') ? [{ to: '/admin/audit', label: 'Audit log', icon: History }] : []),

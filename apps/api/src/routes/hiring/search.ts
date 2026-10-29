@@ -1,4 +1,4 @@
-import { candidateSearchSchema, inviteToApplySchema, maskedName, PLAN_INFO, uuidSchema, type SearchUsageDto } from '@vta/shared';
+import { candidateSearchSchema, inviteToApplySchema, maskedName, uuidSchema, type SearchUsageDto } from '@vta/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
 import { z } from 'zod';
@@ -7,6 +7,7 @@ import { audit } from '../../audit/service.js';
 import { notify } from '../../lib/notify.js';
 import { newId } from '../../lib/crypto.js';
 import { ApiError, conflict, invalid, notFound } from '../../lib/errors.js';
+import { employerPlan } from '../../lib/plans.js';
 import { currentSubscription } from '../../lib/subscriptions.js';
 import { iso, parse } from '../../lib/validate.js';
 import { assertVerified, certificatesOf, employerOrg, likeEscape, openJobsQuery, sharedDocumentsOf } from './common.js';
@@ -49,7 +50,7 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
   /** What this employer has used of its plan's candidate search this month. */
   async function usage(orgId: string): Promise<SearchUsageDto> {
     const { plan } = await currentSubscription(db, orgId);
-    const lim = PLAN_INFO[plan].search;
+    const lim = (await employerPlan(db, plan)).search;
     const m = istMonth();
     const views = await db.selectFrom('candidate_profile_views').select((eb) => eb.fn.countAll<string>().as('n')).where('organisation_id', '=', orgId).where('period', '=', m.period).executeTakeFirstOrThrow();
     const invites = await db
@@ -75,7 +76,7 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
     const org = await employerOrg(db, req);
     assertVerified(org);
     const f = parse(candidateSearchSchema, req.query);
-    const lim = PLAN_INFO[(await currentSubscription(db, org.id)).plan].search;
+    const lim = (await employerPlan(db, (await currentSubscription(db, org.id)).plan)).search;
     if (!lim.allFilters && (f.minExperienceMonths !== undefined || f.hasCertificate || f.courseId || f.availability)) {
       throw limitReached('Experience and certificate filters are in the Starter plan and above.');
     }
@@ -154,13 +155,13 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
     if (!seen) {
       const u = await usage(org.id);
       if (u.profileViews.limit !== null && u.profileViews.used >= u.profileViews.limit) {
-        throw limitReached(`You have opened ${u.profileViews.limit} candidate profiles this month, the limit of your ${PLAN_INFO[u.plan].name} plan. Upgrade to see more, or wait until ${u.resetsOn}.`);
+        throw limitReached(`You have opened ${u.profileViews.limit} candidate profiles this month, the limit of your ${(await employerPlan(db, u.plan)).name} plan. Upgrade to see more, or wait until ${u.resetsOn}.`);
       }
       await db.insertInto('candidate_profile_views').values({ organisation_id: org.id, candidate_id: id, period: m.period, viewed_by: req.actor!.userId }).onConflict((oc) => oc.doNothing()).execute();
     }
     await audit(db, auditCtx(req), { action: 'candidate.profile_viewed', entityType: 'user', entityId: id, after: { organisationId: org.id, via: 'search' } });
     // Contact details come with the plan ("View candidate contact details": Starter and above). Each reveal is logged.
-    const contactOnPlan = PLAN_INFO[(await currentSubscription(db, org.id)).plan].contactDetails;
+    const contactOnPlan = (await employerPlan(db, (await currentSubscription(db, org.id)).plan)).contactDetails;
     if (contactOnPlan) {
       await audit(db, auditCtx(req), { action: 'candidate.contact_viewed', entityType: 'user', entityId: id, after: { organisationId: org.id, via: 'search' } });
     }
@@ -209,7 +210,7 @@ export const searchRoutes: FastifyPluginAsync = async (app) => {
     if (existing) throw conflict('You already invited this person to this job');
     const u = await usage(org.id);
     if (u.invites.limit !== null && u.invites.used >= u.invites.limit) {
-      throw limitReached(`You have sent ${u.invites.limit} invitations this month, the limit of your ${PLAN_INFO[u.plan].name} plan. Upgrade to send more, or wait until ${u.resetsOn}.`);
+      throw limitReached(`You have sent ${u.invites.limit} invitations this month, the limit of your ${(await employerPlan(db, u.plan)).name} plan. Upgrade to send more, or wait until ${u.resetsOn}.`);
     }
     const iid = newId();
     await db.transaction().execute(async (trx) => {
