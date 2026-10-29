@@ -760,5 +760,20 @@
  "Choose whether you need accommodation with food": "चुनें कि आपको खाने के साथ रहने की सुविधा चाहिए या नहीं",
  "Need accommodation with food": "खाने के साथ रहने की सुविधा चाहिए",
  "Requested. The charge will be confirmed.": "अनुरोध मिल गया। शुल्क बाद में बताया जाएगा।",
- "To be confirmed": "बाद में बताया जाएगा"
+ "To be confirmed": "बाद में बताया जाएगा",
+ "After 1 month": "1 महीने के बाद",
+ "Choose": "चुनें",
+ "Choose when you can join": "चुनें कि आप कब जॉइन कर सकते हैं",
+ "Immediately": "तुरंत",
+ "No": "नहीं",
+ "No, only near where I live": "नहीं, सिर्फ़ जहाँ रहता/रहती हूँ उसके पास",
+ "When can you join a job?": "आप नौकरी कब जॉइन कर सकते हैं?",
+ "When you can join": "कब जॉइन कर सकते हैं",
+ "Willing to relocate": "दूसरे शहर जाने को तैयार",
+ "Willing to relocate for a job?": "नौकरी के लिए दूसरे शहर जाने को तैयार हैं?",
+ "Within 1 month": "1 महीने के अंदर",
+ "Within 15 days": "15 दिन के अंदर",
+ "Yes": "हाँ",
+ "Yes, I can move to another city": "हाँ, मैं दूसरे शहर जा सकता/सकती हूँ",
+ "You have an offer. Expected joining date: {date}.": "आपको ऑफ़र मिला है। जॉइन करने की संभावित तारीख: {date}।"
 }

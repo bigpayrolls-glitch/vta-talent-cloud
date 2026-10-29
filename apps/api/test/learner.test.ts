@@ -187,6 +187,16 @@ describe('EE-02 own profile', () => {
     expect((ev.after as Record<string, unknown>).experience_months).toBe(18);
   });
 
+  it('"When can you join?" is a choice from the list; willing to relocate is yes, no or not said', async () => {
+    const bad = await c.learner!.patch('/me/profile', { availability: 'Weekdays' });
+    expect(bad.status).toBe(400);
+    expect(bad.body.error.fields.availability).toBe('Choose when you can join');
+    const ok = await c.learner!.patch('/me/profile', { availability: 'within_15_days', willingToRelocate: true });
+    expect(ok.body).toMatchObject({ availability: 'within_15_days', willingToRelocate: true });
+    expect(await ctx.db.selectFrom('candidate_profiles').select(['availability', 'willing_to_relocate']).where('user_id', '=', ctx.ids.learner!).executeTakeFirst()).toEqual({ availability: 'within_15_days', willing_to_relocate: true });
+    expect((await c.learner!.patch('/me/profile', { willingToRelocate: null })).body.willingToRelocate).toBeNull();
+  });
+
   it('name and date of birth are locked once AutoTalent Grid has verified them', async () => {
     const res = await c.learner!.patch('/me/profile', { name: 'Venky L' });
     expect(res.status).toBe(400);

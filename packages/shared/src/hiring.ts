@@ -123,9 +123,12 @@ export const moveApplicationSchema = z
   .object({
     to: z.enum(APPLICATION_STATUSES),
     joiningDate: z.iso.date().optional(),
+    /** With an offer: the date the person is expected to start (may be in the future). */
+    expectedJoiningDate: z.iso.date().optional(),
     reason: optText(500),
   })
-  .refine((v) => v.to !== 'joined' || !!v.joiningDate, { message: 'Enter the joining date', path: ['joiningDate'] });
+  .refine((v) => v.to !== 'joined' || !!v.joiningDate, { message: 'Enter the joining date', path: ['joiningDate'] })
+  .refine((v) => v.to !== 'offer' || !!v.expectedJoiningDate, { message: 'Enter the expected joining date', path: ['expectedJoiningDate'] });
 
 export const INTERVIEW_MODES = ['in_person', 'phone', 'video'] as const;
 export const INTERVIEW_MODE_LABEL: Record<(typeof INTERVIEW_MODES)[number], string> = { in_person: 'In person', phone: 'Phone', video: 'Video call' };
