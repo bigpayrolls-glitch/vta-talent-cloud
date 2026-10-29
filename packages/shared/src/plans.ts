@@ -94,10 +94,34 @@ export function formatRupees(paise: number): string {
 }
 
 /** Percentage saved by paying yearly instead of twelve months, rounded down. */
-export function yearlySaving(plan: PaidPlan): number {
-  const p = PLAN_INFO[plan].price!;
-  return Math.floor((1 - p.yearly / (p.monthly * 12)) * 100);
+export function yearlySaving(price: Record<BillingCycle, number> | null): number {
+  if (!price || !price.monthly) return 0;
+  return Math.max(0, Math.floor((1 - price.yearly / (price.monthly * 12)) * 100));
 }
+
+/** All employer plans as AutoTalent Grid has set them (Admin > Plans); PLAN_INFO is the starting point. */
+export type PlanTable = Record<Plan, PlanInfo>;
+
+/** Whole rupees (the server stores paise). Not transformed here: the screen checks with the same schema. */
+const rupees = z.coerce.number().int('Whole rupees only').min(0, 'Cannot be negative').max(10_000_000, 'Check the amount');
+const optLimit = z.coerce.number().int('Whole numbers only').min(0, 'Cannot be negative').max(1_000_000).nullable();
+
+/**
+ * Admin > Plans: everything about one employer plan. Prices are in whole rupees here (stored in paise); a limit left
+ * empty (null) means no limit. Free must cost nothing.
+ */
+export const employerPlanEditSchema = z.object({
+  name: z.string().trim().min(2, 'Enter a name').max(40),
+  tagline: z.string().trim().max(120),
+  price: z.object({ monthly: rupees, yearly: rupees }).nullable(),
+  fromPrice: rupees.optional(),
+  activeJobs: optLimit,
+  applicants: z.object({ limit: z.coerce.number().int().min(0).max(1_000_000), per: z.enum(['job', 'month']) }).nullable(),
+  contactDetails: z.boolean(),
+  interviews: z.boolean(),
+  search: z.object({ results: optLimit, profileViews: optLimit, invites: optLimit, allFilters: z.boolean() }),
+  features: z.array(z.string().trim().min(2).max(120)).max(12),
+});
 
 export const checkoutSchema = z.object({
   plan: z.enum(PAID_PLANS, { error: 'Choose a plan' }),

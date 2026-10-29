@@ -71,6 +71,7 @@ const router = createBrowserRouter([
       { path: 'assessments', lazy: () => import('./pages/operations/ReviewQueue').then((m) => ({ Component: m.ReviewQueuePage })) },
       { path: 'credentials', lazy: () => import('./pages/operations/Credentials').then((m) => ({ Component: m.CredentialsPage })) },
       { path: 'credentials/:id', lazy: () => import('./pages/operations/Credentials').then((m) => ({ Component: m.CredentialDetailPage })) },
+      { path: 'plans', lazy: () => import('./pages/admin/Plans').then((m) => ({ Component: m.PlansAdminPage })) },
       { path: 'bookings', lazy: () => import('./pages/admin/Bookings').then((m) => ({ Component: m.BookingsPage })) },
       { path: 'course-approvals', lazy: () => import('./pages/admin/CourseApprovals').then((m) => ({ Component: m.CourseApprovalsPage })) },
       { path: 'course-approvals/:id', lazy: () => import('./pages/admin/CourseApprovals').then((m) => ({ Component: m.CourseReviewPage })) },

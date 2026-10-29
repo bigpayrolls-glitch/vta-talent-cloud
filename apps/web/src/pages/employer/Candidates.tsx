@@ -1,10 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { PLAN_INFO, SKILL_AREAS, type Page, type SearchUsageDto } from '@vta/shared';
+import { SKILL_AREAS, type Page, type SearchUsageDto } from '@vta/shared';
 import { ArrowLeft, Award, ExternalLink, FileText, Lock, Send, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { useToast } from '../../components/toast';
 import { EmptyState, ErrorNote, Field, Modal, PageHeader, Pagination, Spinner, StatusBadge } from '../../components/ui';
+import { usePlans } from '../../lib/plans';
 import { api, ApiError, qs } from '../../lib/api';
 import { experienceHave, shortDate, skillLabel, type JobView } from '../hiring/format';
 
@@ -28,6 +29,7 @@ const dayMonth = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('en
 
 /** What the employer's plan allows in candidate search, and what is used this month. */
 function UsageBar({ u }: { u: SearchUsageDto }) {
+  const PLAN_INFO = usePlans();
   const item = (label: string, x: { used: number; limit: number | null }) =>
     x.limit === null ? (
       <span>{label}: no limit</span>

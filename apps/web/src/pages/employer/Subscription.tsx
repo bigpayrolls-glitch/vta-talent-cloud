@@ -3,7 +3,6 @@ import {
   BILLING_CYCLES,
   formatRupees,
   PAID_PLANS,
-  PLAN_INFO,
   PLANS,
   yearlySaving,
   type BillingCycle,
@@ -17,6 +16,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ErrorNote, Field, Modal, Spinner, Wordmark } from '../../components/ui';
 import { useToast } from '../../components/toast';
+import { usePlans } from '../../lib/plans';
 import { api, ApiError } from '../../lib/api';
 import { PaymentCancelled, payWithRazorpay, type RazorpayStart } from '../../lib/razorpay';
 import { useAuth } from '../../lib/auth';
@@ -47,11 +47,13 @@ const per = (c: BillingCycle) => (c === 'monthly' ? 'month' : 'year');
 const METHOD_LABEL: Record<string, string> = { card: 'Card', upi: 'UPI', netbanking: 'Net banking', wallet: 'Wallet', other: 'Online payment' };
 
 export function PlanBadge({ plan }: { plan: Plan }) {
+  const PLAN_INFO = usePlans();
   const tone = plan === 'free' ? 'bg-surface text-ink/75' : 'bg-success-tint text-success';
   return <span className={`inline-flex rounded-full px-2.5 py-0.5 text-[13px] font-semibold ${tone}`}>{PLAN_INFO[plan].name}</span>;
 }
 
 function PriceLine({ plan, cycle }: { plan: Plan; cycle: BillingCycle }) {
+  const PLAN_INFO = usePlans();
   const { price, fromPrice } = PLAN_INFO[plan];
   if (!price)
     return fromPrice ? (
@@ -76,6 +78,7 @@ function usageText(n: number, limit: number | null) {
 
 /** The current-plan card on the employer dashboard. */
 export function CurrentPlanCard() {
+  const PLAN_INFO = usePlans();
   const q = useSubscription();
   if (!q.data) return null;
   const s = q.data;
@@ -145,6 +148,7 @@ function UsageBar({ label, n, limit, note }: { label: string; n: number; limit: 
 
 /** Subscription: current plan, usage and billing history. */
 export function SubscriptionPage() {
+  const PLAN_INFO = usePlans();
   const { can } = useAuth();
   const q = useSubscription();
   const payments = useQuery({ queryKey: ['employer', 'subscription', 'payments'], queryFn: () => api.get<{ items: Payment[] }>('/employer/subscription/payments') });
@@ -255,6 +259,7 @@ export function SubscriptionPage() {
 }
 
 function CycleToggle({ cycle, onChange }: { cycle: BillingCycle; onChange: (c: BillingCycle) => void }) {
+  const PLAN_INFO = usePlans();
   return (
     <div role="radiogroup" aria-label="Billing" className="inline-flex rounded-xl border border-line bg-white p-1">
       {BILLING_CYCLES.map((c) => (
@@ -267,7 +272,7 @@ function CycleToggle({ cycle, onChange }: { cycle: BillingCycle; onChange: (c: B
           className={`h-9 rounded-lg px-5 text-sm font-semibold transition-colors ${cycle === c ? 'bg-[#C8101A] text-white' : 'text-ink hover:bg-surface'}`}
         >
           {c === 'monthly' ? 'Monthly' : 'Yearly'}
-          {c === 'yearly' && <span className={`ml-2 font-medium ${cycle === c ? 'text-white/90' : 'text-[#C8101A]'}`}>Save up to {yearlySaving('growth')}%</span>}
+          {c === 'yearly' && <span className={`ml-2 font-medium ${cycle === c ? 'text-white/90' : 'text-[#C8101A]'}`}>Save up to {yearlySaving(PLAN_INFO.growth.price)}%</span>}
         </button>
       ))}
     </div>
@@ -276,6 +281,7 @@ function CycleToggle({ cycle, onChange }: { cycle: BillingCycle; onChange: (c: B
 
 /** Choose a plan. */
 export function PlansPage() {
+  const PLAN_INFO = usePlans();
   const [params, setParams] = useSearchParams();
   const cycle: BillingCycle = params.get('cycle') === 'yearly' ? 'yearly' : 'monthly';
   const q = useSubscription();
@@ -309,7 +315,7 @@ export function PlansPage() {
                 {info.price ? (
                   <>
                     <PriceLine plan={p} cycle={cycle} />
-                    {cycle === 'yearly' && p !== 'free' && <p className="text-sm text-[#C8101A]">Save {yearlySaving(p as PaidPlan)}% on 12 months</p>}
+                    {cycle === 'yearly' && p !== 'free' && <p className="text-sm text-[#C8101A]">Save {yearlySaving(PLAN_INFO[p].price)}% on 12 months</p>}
                   </>
                 ) : (
                   <PriceLine plan={p} cycle="monthly" />
@@ -349,6 +355,7 @@ export function PlansPage() {
 }
 
 function RequestPlanModal({ plan, cycle, onClose }: { plan: 'starter' | 'growth' | 'enterprise'; cycle?: BillingCycle; onClose: () => void }) {
+  const PLAN_INFO = usePlans();
   const toast = useToast();
   const [note, setNote] = useState('');
   const m = useMutation({
@@ -387,6 +394,7 @@ const isPaid = (p: string | undefined): p is PaidPlan => (PAID_PLANS as readonly
 
 /** Plan details & features, before paying. */
 export function PlanDetailPage() {
+  const PLAN_INFO = usePlans();
   const { plan } = useParams();
   const [params] = useSearchParams();
   const cycle: BillingCycle = params.get('cycle') === 'yearly' ? 'yearly' : 'monthly';
@@ -411,7 +419,7 @@ export function PlanDetailPage() {
           <p className="text-sm text-muted">
             {cycle === 'monthly' ? (
               <>
-                or {formatRupees(price.yearly)} / year <span className="text-[#C8101A]">(save {yearlySaving(plan)}%)</span>
+                or {formatRupees(price.yearly)} / year <span className="text-[#C8101A]">(save {yearlySaving(PLAN_INFO[plan].price)}%)</span>
               </>
             ) : (
               <>or {formatRupees(price.monthly)} / month</>
@@ -451,6 +459,7 @@ const METHODS: { id: PaymentMethod; icon: typeof CreditCard }[] = [
 
 /** Payment details. In test mode no card details are collected; a payment provider shows its own secure form. */
 export function CheckoutPage() {
+  const PLAN_INFO = usePlans();
   const [params] = useSearchParams();
   const plan = params.get('plan') ?? undefined;
   const cycle: BillingCycle = params.get('cycle') === 'yearly' ? 'yearly' : 'monthly';
@@ -610,6 +619,7 @@ interface InvoiceView extends Payment {
 
 /** Payment success (right after paying) and the invoice/receipt, printable. */
 export function InvoicePage() {
+  const PLAN_INFO = usePlans();
   const { id = '' } = useParams();
   const [params] = useSearchParams();
   const justPaid = params.get('paid') === '1';

@@ -24,6 +24,7 @@ describe('Phase 1 test 4: every API route declares a permission', () => {
       'GET /api/v1/files/:id/content', // signed, 5-minute links only (T-06)
       'GET /api/v1/health/live',
       'GET /api/v1/health/ready',
+      'GET /api/v1/plans',
       'POST /api/v1/auth/invitations/:token/accept',
       'POST /api/v1/auth/login',
       'POST /api/v1/auth/otp/request',

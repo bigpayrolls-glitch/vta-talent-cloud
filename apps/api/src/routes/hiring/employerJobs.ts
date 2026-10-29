@@ -21,7 +21,7 @@ import { invalid, notFound } from '../../lib/errors.js';
 import { LINK_TTL_SECONDS, signLink } from '../../lib/storage.js';
 import { assertActiveJobRoom, assertApplicationOpen, assertFeature, currentSubscription, lockedApplicationIds } from '../../lib/subscriptions.js';
 import { iso, parse } from '../../lib/validate.js';
-import { PLAN_INFO } from '@vta/shared';
+import { employerPlan } from '../../lib/plans.js';
 import { assertVerified, certificatesOf, employerOrg, employerOrgId, jobDto, ownJob, sharedDocumentsOf } from './common.js';
 
 const idParam = z.object({ id: uuidSchema });
@@ -237,7 +237,8 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
       .where('u.id', '=', a.candidate_id)
       .executeTakeFirstOrThrow();
     const { plan } = await currentSubscription(db, a.organisation_id);
-    const contactOnPlan = PLAN_INFO[plan].contactDetails;
+    const planInfo = await employerPlan(db, plan);
+    const contactOnPlan = planInfo.contactDetails;
     const contactShared = a.status !== 'withdrawn' && contactOnPlan;
     if (contactShared) {
       await audit(db, auditCtx(req), { action: 'application.contact_viewed', entityType: 'user', entityId: a.candidate_id, after: { applicationId: a.id, organisationId: a.organisation_id } });
@@ -274,7 +275,7 @@ export const employerJobRoutes: FastifyPluginAsync = async (app) => {
       certificates: contactShared ? await certificatesOf(db, a.candidate_id) : [],
       documents: contactShared ? await sharedDocumentsOf(db, a.candidate_id) : [],
       interviews: await interviewsOf(a.id),
-      interviewsOnPlan: PLAN_INFO[plan].interviews,
+      interviewsOnPlan: planInfo.interviews,
       timeline: await timeline(a.id),
     };
   });
