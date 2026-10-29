@@ -131,7 +131,7 @@ export function CoursesPage() {
                 {q.data ? (q.data.total === 1 ? t('{n} course with batches open for enrolment', { n: q.data.total }) : t('{n} courses with batches open for enrolment', { n: q.data.total })) : ' '}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button type="button" className="btn-secondary lg:hidden" onClick={() => setFiltersOpen(true)}>
                 <SlidersHorizontal className="size-4" aria-hidden />
                 {t('Filters')}
@@ -139,7 +139,7 @@ export function CoursesPage() {
               <label htmlFor="f-sort" className="text-sm text-muted">
                 {t('Sort by')}
               </label>
-              <select id="f-sort" className="field-input w-auto" value={sort} onChange={(e) => set('sort', e.target.value === 'soonest' ? '' : e.target.value)}>
+              <select id="f-sort" className="field-input w-auto max-w-full" value={sort} onChange={(e) => set('sort', e.target.value === 'soonest' ? '' : e.target.value)}>
                 {COURSE_SORTS.map((s) => (
                   <option key={s} value={s}>
                     {t(COURSE_SORT_LABEL[s])}
@@ -202,7 +202,7 @@ export function CoursesPage() {
                           {t('Enrol now')}
                         </Link>
                       ) : (
-                        <span className="btn-secondary h-10 cursor-default opacity-60">{t('Full')}</span>
+                        <span className="btn-secondary h-10 cursor-default text-muted">{t('Full')}</span>
                       )}
                     </div>
                   </div>

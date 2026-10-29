@@ -701,5 +701,20 @@
  "Your profile is not verified by AutoTalent Grid yet. The employer will see that.": "നിങ്ങളുടെ പ്രൊഫൈൽ ഇതുവരെ AutoTalent Grid വെരിഫൈ ചെയ്തിട്ടില്ല. തൊഴിലുടമ അത് കാണും.",
  "Your training centre created your AutoTalent Grid account. Before you continue, please read how your information is used and agree to the terms.": "നിങ്ങളുടെ ട്രെയിനിംഗ് സെന്ററാണ് നിങ്ങളുടെ AutoTalent Grid അക്കൗണ്ട് ഉണ്ടാക്കിയത്. തുടരുന്നതിന് മുമ്പ്, നിങ്ങളുടെ വിവരങ്ങൾ എങ്ങനെ ഉപയോഗിക്കുന്നു എന്ന് വായിച്ച് നിബന്ധനകൾ അംഗീകരിക്കുക.",
  "Your training centre did not give us your date of birth or city. Add them to finish setting up your account.": "നിങ്ങളുടെ ട്രെയിനിംഗ് സെന്റർ നിങ്ങളുടെ ജനന തീയതിയോ നഗരമോ ഞങ്ങൾക്ക് നൽകിയിട്ടില്ല. അക്കൗണ്ട് സെറ്റപ്പ് പൂർത്തിയാക്കാൻ അവ ചേർക്കുക.",
- "Your unsaved changes from last time were kept on this phone.": "കഴിഞ്ഞ തവണ സേവ് ചെയ്യാത്ത നിങ്ങളുടെ മാറ്റങ്ങൾ ഈ ഫോണിൽ സൂക്ഷിച്ചിട്ടുണ്ട്."
+ "Your unsaved changes from last time were kept on this phone.": "കഴിഞ്ഞ തവണ സേവ് ചെയ്യാത്ത നിങ്ങളുടെ മാറ്റങ്ങൾ ഈ ഫോണിൽ സൂക്ഷിച്ചിട്ടുണ്ട്.",
+ "Admin": "അഡ്മിൻ",
+ "Admin Portal": "അഡ്മിൻ പോർട്ടൽ",
+ "Employer": "തൊഴിലുടമ",
+ "Employer Portal": "തൊഴിലുടമ പോർട്ടൽ",
+ "Learner": "പഠിതാവ്",
+ "Learner Portal": "പഠിതാക്കളുടെ പോർട്ടൽ",
+ "Trainer": "ട്രെയിനർ",
+ "Training Partner": "ട്രെയിനിംഗ് പാർട്ണർ",
+ "Training Partner Portal": "ട്രെയിനിംഗ് പാർട്ണർ പോർട്ടൽ",
+ "Applications": "അപേക്ഷകൾ",
+ "Certificates": "സർട്ടിഫിക്കറ്റുകൾ",
+ "Course completion record": "കോഴ്സ് പൂർത്തിയാക്കിയ രേഖ",
+ "Documents": "രേഖകൾ",
+ "Home": "ഹോം",
+ "Profile": "പ്രൊഫൈൽ"
 }

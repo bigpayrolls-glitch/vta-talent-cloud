@@ -9,7 +9,7 @@ const web = join(dirname(fileURLToPath(import.meta.url)), '..');
 const src = join(web, 'src');
 const shared = join(web, '..', '..', 'packages', 'shared', 'src');
 // Shared messages and labels that learners see (form errors, skill names, document labels…).
-const SHARED_FILES = ['schemas.ts', 'learner.ts', 'catalogue.ts', 'hiring.ts', 'partnerCourses.ts', 'roles.ts'];
+const SHARED_FILES = ['schemas.ts', 'learner.ts', 'catalogue.ts', 'hiring.ts', 'partnerCourses.ts', 'roles.ts', 'training.ts'];
 
 const walk = (d) => readdirSync(d).flatMap((f) => (statSync(join(d, f)).isDirectory() ? walk(join(d, f)) : /\.(tsx?)$/.test(f) && !/\.test\./.test(f) ? [join(d, f)] : []));
 const unescape = (s) => s.replace(/\\(['"`\\])/g, '$1').replace(/\\n/g, '\n');
@@ -29,14 +29,18 @@ for (const name of SHARED_FILES) {
 }
 // Label tables shown through t(TABLE[x]) (the text is not inside a t() call).
 const TABLES = [
-  ['components/ui.tsx', 'STATUS_LABEL'],
-  ['pages/learner/Certificates.tsx', 'STATUS'],
-  ['pages/learner/Home.tsx', 'VERIFY_TEXT'],
+  [src, 'components/ui.tsx', 'STATUS_LABEL'],
+  [src, 'pages/learner/Certificates.tsx', 'STATUS'],
+  [src, 'pages/learner/Home.tsx', 'VERIFY_TEXT'],
+  [src, 'pages/learner/LearnerLayout.tsx', 'LEARNER_NAV'],
+  [shared, 'training.ts', 'CREDENTIAL_TYPE_LABEL'],
 ];
-for (const [file, name] of TABLES) {
-  const text = readFileSync(join(src, file), 'utf8');
+for (const [dir, file, name] of TABLES) {
+  const text = readFileSync(join(dir, file), 'utf8');
   const at = text.indexOf(`const ${name}`);
-  const block = text.slice(at, text.indexOf('\n};', at));
+  if (at < 0) throw new Error(`${name} not found in ${file}`);
+  const rest = text.slice(at);
+  const block = rest.slice(0, rest.search(/\n\];|\n\};|\} as const;/) + 1);
   for (const m of block.matchAll(/'((?:\\.|[^'\\])*)'/g)) if (/^[A-Z]/.test(m[1])) keys.add(unescape(m[1]));
 }
 // StatusBadge shows other statuses capitalised ("active" → "Active").

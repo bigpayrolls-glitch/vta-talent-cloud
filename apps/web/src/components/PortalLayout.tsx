@@ -236,10 +236,10 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
                 <NavLink
                   to={n.to}
                   end={n.end}
-                  className={({ isActive }) => `flex flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${isActive ? 'text-brand' : 'text-muted'}`}
+                  className={({ isActive }) => `flex min-w-0 flex-col items-center gap-1 py-2.5 text-[11px] font-medium ${isActive ? 'text-brand' : 'text-muted'}`}
                 >
                   <n.icon className="size-5" aria-hidden />
-                  {t(n.label)}
+                  <span className="w-full truncate px-0.5 text-center">{t(n.label)}</span>
                 </NavLink>
               </li>
             ))}

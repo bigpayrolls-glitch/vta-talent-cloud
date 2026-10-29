@@ -701,5 +701,20 @@
  "Your profile is not verified by AutoTalent Grid yet. The employer will see that.": "మీ ప్రొఫైల్‌ను AutoTalent Grid ఇంకా వెరిఫై చేయలేదు. ఎంప్లాయర్ ఆ విషయం చూస్తారు.",
  "Your training centre created your AutoTalent Grid account. Before you continue, please read how your information is used and agree to the terms.": "మీ ట్రైనింగ్ సెంటర్ మీ AutoTalent Grid అకౌంట్ సృష్టించింది. కొనసాగే ముందు, మీ సమాచారం ఎలా ఉపయోగించబడుతుందో చదివి, నిబంధనలకు అంగీకరించండి.",
  "Your training centre did not give us your date of birth or city. Add them to finish setting up your account.": "మీ ట్రైనింగ్ సెంటర్ మీ పుట్టిన తేదీ లేదా నగరం ఇవ్వలేదు. మీ అకౌంట్ సెటప్ పూర్తి చేయడానికి వాటిని జోడించండి.",
- "Your unsaved changes from last time were kept on this phone.": "గత సారి సేవ్ చేయని మీ మార్పులు ఈ ఫోన్‌లో ఉంచబడ్డాయి."
+ "Your unsaved changes from last time were kept on this phone.": "గత సారి సేవ్ చేయని మీ మార్పులు ఈ ఫోన్‌లో ఉంచబడ్డాయి.",
+ "Admin": "అడ్మిన్",
+ "Admin Portal": "అడ్మిన్ పోర్టల్",
+ "Employer": "ఎంప్లాయర్",
+ "Employer Portal": "ఎంప్లాయర్ పోర్టల్",
+ "Learner": "లెర్నర్",
+ "Learner Portal": "లెర్నర్ పోర్టల్",
+ "Trainer": "ట్రైనర్",
+ "Training Partner": "ట్రైనింగ్ పార్ట్‌నర్",
+ "Training Partner Portal": "ట్రైనింగ్ పార్ట్‌నర్ పోర్టల్",
+ "Applications": "దరఖాస్తులు",
+ "Certificates": "సర్టిఫికెట్లు",
+ "Course completion record": "కోర్సు పూర్తి రికార్డు",
+ "Documents": "డాక్యుమెంట్లు",
+ "Home": "హోమ్",
+ "Profile": "ప్రొఫైల్"
 }

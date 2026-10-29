@@ -21,6 +21,16 @@ test.describe('site languages', () => {
     await expectNoHorizontalScroll(page);
     await page.goto('/courses');
     await expectNoHorizontalScroll(page);
+    // Tamil and Malayalam words are long: buttons wrap instead of running off the screen.
+    for (const code of ['ta', 'ml']) {
+      await page.locator('select[name="language"]').selectOption(code);
+      await page.waitForLoadState('networkidle');
+      await expectNoHorizontalScroll(page);
+      for (const b of await page.locator('main a.btn-primary, main a.btn-secondary').all()) {
+        const box = await b.boundingBox();
+        if (box) expect(box.x + box.width, 'button fits the screen').toBeLessThanOrEqual(375);
+      }
+    }
     await page.locator('select[name="language"]').selectOption('en');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
