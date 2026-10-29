@@ -46,6 +46,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { z } from 'zod';
 import { SearchBox, Select } from '../../components/form';
+import { StayFields } from '../../components/StayFields';
 import { useToast } from '../../components/toast';
 import { ADD_CENTRE, AddCentreModal } from '../../components/centre';
 import { EmptyState, ErrorNote, Field, Modal, PageHeader, Pagination, Spinner, formatDate } from '../../components/ui';
@@ -291,6 +292,8 @@ interface WizardValues {
   feeRupees: string;
   gstPct: string;
   certificateType: string;
+  stayAvailable: boolean;
+  stayFeeRupees: string;
   batch: { name: string; centreId: string; trainerId: string; startDate: string; endDate: string; capacity: string; classTimings: string };
 }
 
@@ -311,6 +314,8 @@ const EMPTY: WizardValues = {
   feeRupees: '',
   gstPct: '18',
   certificateType: '',
+  stayAvailable: false,
+  stayFeeRupees: '',
   batch: { name: '', centreId: '', trainerId: '', startDate: '', endDate: '', capacity: '25', classTimings: '' },
 };
 
@@ -332,6 +337,8 @@ function fromCourse(c: PartnerCourse): WizardValues {
     feeRupees: String(c.feeRupees),
     gstPct: String(c.gstPct),
     certificateType: c.certificateType ?? '',
+    stayAvailable: c.stayAvailable,
+    stayFeeRupees: c.stayFeeRupees === null ? '' : String(c.stayFeeRupees),
     batch: c.firstBatch
       ? { name: c.firstBatch.name, centreId: c.firstBatch.centreId, trainerId: c.firstBatch.trainerId, startDate: c.firstBatch.startDate, endDate: c.firstBatch.endDate, capacity: String(c.firstBatch.capacity), classTimings: c.firstBatch.classTimings ?? '' }
       : EMPTY.batch,
@@ -343,13 +350,15 @@ const feeStepSchema = z.object({
   gstPct: z.coerce.number(),
   certificateType: z.string().min(1, 'Choose a certificate type'),
   firstBatch: firstBatchSchema.nullable(),
+  stayAvailable: z.boolean(),
+  stayFeeRupees: z.coerce.number().int('Whole rupees only').min(0, 'Cannot be negative').max(200_000, 'At most ₹2,00,000').nullable(),
 });
 
 /** Field errors keyed by server field names, mapped to the step that holds them. */
 const STEP_OF: Record<string, number> = {
   title: 1, skillArea: 1, courseType: 1, level: 1, description: 1, city: 1, deliveryMode: 1, durationValue: 1, image: 1,
   modules: 2, skills: 2, prerequisites: 2, learningOutcomes: 2,
-  feeRupees: 3, gstPct: 3, certificateType: 3, firstBatch: 3,
+  feeRupees: 3, gstPct: 3, certificateType: 3, firstBatch: 3, stayAvailable: 3, stayFeeRupees: 3,
 };
 const stepOf = (k: string) => STEP_OF[k.split('.')[0]!] ?? 1;
 
@@ -459,6 +468,8 @@ export function CourseWizardPage() {
         feeRupees: v.feeRupees === '' ? 0 : v.feeRupees,
         gstPct: Number(v.gstPct),
         certificateType: v.certificateType,
+        stayAvailable: v.stayAvailable,
+        stayFeeRupees: v.stayAvailable && v.stayFeeRupees !== '' ? v.stayFeeRupees : null,
         firstBatch: anyBatch ? { ...b, classTimings: b.classTimings || undefined } : null,
       };
       if (!local(feeStepSchema, body)) return null;
@@ -928,6 +939,17 @@ function StepFee({ v, set, errors }: StepProps) {
               {CERTIFICATE_TYPES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </Field>
+        </div>
+        <div className="md:col-span-3">
+          <StayFields
+            available={v.stayAvailable}
+            fee={v.stayFeeRupees}
+            error={errors.stayFeeRupees}
+            onChange={(x) => {
+              set('stayAvailable', x.available);
+              set('stayFeeRupees', x.fee);
+            }}
+          />
         </div>
       </section>
 

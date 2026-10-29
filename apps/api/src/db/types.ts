@@ -145,6 +145,8 @@ export interface CoursesTable {
   attendance_threshold_pct: number;
   pass_mark_pct: number;
   fee_paise: Generated<number>;
+  stay_available: Generated<boolean>;
+  stay_fee_paise: number | null;
   status: 'active' | 'inactive';
   created_at: Timestamp;
   updated_at: Timestamp;
@@ -263,6 +265,7 @@ export interface EnrolmentsTable {
   withdraw_reason: string | null;
   attendance_pct: ColumnType<string | null, number | null | undefined, number | null>;
   source: Generated<'centre' | 'self'>;
+  needs_stay: Generated<boolean>;
   updated_at: Timestamp;
 }
 
@@ -277,6 +280,7 @@ export interface CoursePaymentsTable {
   provider: 'test' | 'free' | 'razorpay';
   provider_payment_id: Generated<string | null>;
   status: 'succeeded';
+  stay_paise: Generated<number>;
   receipt_number: string;
   created_at: Timestamp;
 }
@@ -392,6 +396,7 @@ export interface PaymentOrdersTable {
   plan: 'starter' | 'growth' | null;
   billing_cycle: 'monthly' | 'yearly' | null;
   batch_id: string | null;
+  needs_stay: Generated<boolean>;
   provider_payment_id: string | null;
   result_id: string | null;
   failure: string | null;

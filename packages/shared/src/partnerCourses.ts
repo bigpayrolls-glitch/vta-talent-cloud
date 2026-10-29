@@ -152,6 +152,8 @@ export const partnerCourseFeeSchema = z.object({
   gstPct: z.coerce.number().int().refine((v) => (GST_RATES as readonly number[]).includes(v), 'Choose 0, 5, 12, 18 or 28%'),
   certificateType: z.enum(CERTIFICATE_TYPES, 'Choose a certificate type'),
   firstBatch: firstBatchSchema.nullable().optional(),
+  stayAvailable: z.boolean().optional(),
+  stayFeeRupees: z.coerce.number().int('Whole rupees only').min(0, 'Cannot be negative').max(200_000, 'At most ₹2,00,000').nullable().optional(),
 });
 
 /** A save from any step of the wizard. Each part is optional; the course is checked as a whole on submit. */
@@ -206,6 +208,8 @@ export interface PartnerCourse {
   feeRupees: number;
   gstPct: number;
   totalFeeRupees: number;
+  stayAvailable: boolean;
+  stayFeeRupees: number | null;
   certificateType: string | null;
   firstBatch: (z.infer<typeof firstBatchSchema> & { centreName?: string; trainerName?: string }) | null;
   imageUrl: string | null;
