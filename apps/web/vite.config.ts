@@ -60,6 +60,8 @@ export default defineConfig({
     }),
   ],
   build: {
+    // Fonts stay as files: the Content Security Policy allows fonts from this site only, not data: URLs.
+    assetsInlineLimit: (file: string) => (/\.(woff2?|ttf|otf)$/.test(file) ? false : undefined),
     rollupOptions: {
       output: {
         // Libraries change less often than app code, so phones re-download less after an update.

@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { JOB_STATUS_LABEL, type JobStatus } from '@vta/shared';
-import { ArrowRight, Plus } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import { Link } from 'react-router';
 import { EmptyState, ErrorNote, formatDate, Spinner, StatusBadge } from '../../components/ui';
+import { HeroBanner, heroPrimary, heroSecondary, MiniStat, NextSteps, Panel, StatCard, StatRow } from '../../components/Showroom';
 import { api } from '../../lib/api';
 import { firstName, useAuth } from '../../lib/auth';
 import { shortDate } from '../hiring/format';
@@ -19,19 +20,28 @@ interface Dash {
 export function EmployerDashboard() {
   const { me } = useAuth();
   const q = useQuery({ queryKey: ['employer', 'dashboard'], queryFn: () => api.get<Dash>('/employer/dashboard') });
+  const org = me?.roles.find((r) => r.role.startsWith('employer') && r.organisationName)?.organisationName;
+  const d = q.data;
   return (
     <>
-      <section className="rounded-[20px] bg-brand-tint px-6 py-7 sm:px-10">
-        <h1 className="text-[28px] font-extrabold tracking-tight sm:text-[34px]">Hello, {firstName(me?.name ?? '')}!</h1>
-        <p className="mt-1 text-lg text-ink/75">Post jobs and hire skilled technicians for your service network.</p>
-        <Link to="/employer/jobs/new" className="btn-primary mt-5">
-          <Plus className="size-4" aria-hidden />
-          Post a job
-        </Link>
-      </section>
-      <div className="mt-6">
-        <CurrentPlanCard />
-      </div>
+      <HeroBanner
+        eyebrow={org ? `Employer portal · ${org}` : 'Employer portal'}
+        title={`Hello, ${firstName(me?.name ?? '')}!`}
+        subtitle="Post jobs and hire skilled technicians for your service network."
+        floating={!!d}
+        actions={
+          <>
+            <Link to="/employer/jobs/new" className={heroPrimary}>
+              <Plus className="size-4" aria-hidden />
+              Post a job
+            </Link>
+            <Link to="/employer/candidates" className={heroSecondary}>
+              <Search className="size-4" aria-hidden />
+              Search candidates
+            </Link>
+          </>
+        }
+      />
       {q.isLoading ? (
         <Spinner />
       ) : q.isError ? (
@@ -39,84 +49,70 @@ export function EmployerDashboard() {
           <ErrorNote message={(q.error as Error).message} />
         </div>
       ) : (
-        (() => {
-          const d = q.data!;
-          const tiles = [
-            ['Open jobs', d.totals.openJobs],
-            ['Applicants', d.totals.applicants],
-            ['Shortlisted now', d.totals.shortlisted],
-            ['At interview now', d.totals.interviews],
-            ['Offers now', d.totals.offers],
-            ['Joined', d.totals.joined],
-          ] as const;
-          return (
-            <>
-              <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-                {tiles.map(([label, n]) => (
-                  <div key={label} className="card px-4 py-3">
-                    <p className="text-[26px] font-bold leading-none">{n}</p>
-                    <p className="mt-1.5 text-sm text-muted">{label}</p>
-                  </div>
-                ))}
-              </div>
-              <section className="mt-8">
-                <div className="flex items-baseline justify-between gap-3">
-                  <h2 className="text-xl font-bold">Recent jobs</h2>
-                  <Link to="/employer/jobs" className="inline-flex items-center gap-1 text-sm font-semibold text-[#C8101A] hover:underline">
-                    View all jobs
-                    <ArrowRight className="size-4" aria-hidden />
-                  </Link>
-                </div>
-                {!d.jobs.length ? (
-                  <div className="card mt-3">
-                    <EmptyState title="No jobs yet" body="Post a job. AutoTalent Grid checks each job before learners see it." />
-                  </div>
-                ) : (
-                  <div className="card mt-3 overflow-x-auto">
-                    <table className="w-full min-w-[720px] text-sm">
-                      <caption className="sr-only">Jobs and their applicants</caption>
-                      <thead className="border-b border-line text-left text-[13px] text-muted">
-                        <tr>
-                          <th className="px-4 py-2.5 font-medium">Job</th>
-                          <th className="px-3 py-2.5 font-medium">Status</th>
-                          <th className="px-3 py-2.5 text-right font-medium">Applicants</th>
-                          <th className="px-3 py-2.5 text-right font-medium">Shortlisted</th>
-                          <th className="px-3 py-2.5 text-right font-medium">Interviews</th>
-                          <th className="px-3 py-2.5 text-right font-medium">Joined</th>
-                          <th className="px-3 py-2.5 text-right font-medium">Created</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-line">
-                        {d.jobs.map((j) => (
-                          <tr key={j.id}>
-                            <td className="px-4 py-3">
-                              <Link to={`/employer/jobs/${j.id}`} className="font-semibold hover:text-brand">
-                                {j.title}
-                              </Link>
-                              <p className="text-[13px] text-muted">Closes {shortDate(j.closingDate)}, {j.openings} openings</p>
-                            </td>
-                            <td className="px-3 py-3">
-                              <StatusBadge status={j.status} label={JOB_STATUS_LABEL[j.status]} />
-                            </td>
-                            <td className="px-3 py-3 text-right">{j.applicants}</td>
-                            <td className="px-3 py-3 text-right">{j.shortlisted}</td>
-                            <td className="px-3 py-3 text-right">{j.interviews}</td>
-                            <td className="px-3 py-3 text-right font-semibold">{j.joined}</td>
-                            <td className="px-3 py-3 text-right whitespace-nowrap text-muted">{shortDate(j.createdAt.slice(0, 10))}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </section>
-              <p className="mt-6 text-sm text-muted">
-                As of {formatDate(d.asOf, true)}. &ldquo;Joined&rdquo; counts joinings you recorded; AutoTalent Grid may follow up to confirm them.
-              </p>
-            </>
-          );
-        })()
+        d && <Body d={d} />
       )}
+      <div className="mt-6">
+        <CurrentPlanCard className="rounded-[22px] bg-white p-5 sm:p-6" />
+      </div>
+      {d && (
+        <p className="mt-6 text-sm text-[#5B616E]">
+          As of {formatDate(d.asOf, true)}. &ldquo;Joined&rdquo; counts joinings you recorded; AutoTalent Grid may follow up to confirm them.
+        </p>
+      )}
+    </>
+  );
+}
+
+function Body({ d }: { d: Dash }) {
+  const drafts = d.jobs.filter((j) => j.status === 'draft');
+  const steps: { label: string; to: string }[] = [];
+  if (d.totals.shortlisted > 0) steps.push({ label: `Arrange interviews for ${d.totals.shortlisted} shortlisted ${d.totals.shortlisted === 1 ? 'candidate' : 'candidates'}`, to: '/employer/jobs' });
+  if (d.totals.offers > 0) steps.push({ label: `${d.totals.offers} ${d.totals.offers === 1 ? 'offer' : 'offers'} made: record the joining once they start`, to: '/employer/jobs' });
+  if (drafts.length > 0) steps.push({ label: drafts.length === 1 ? 'Finish and submit your draft job' : `Finish and submit your ${drafts.length} draft jobs`, to: `/employer/jobs/${drafts[0]!.id}` });
+  if (d.totals.openJobs === 0) steps.push({ label: 'Post your first job', to: '/employer/jobs/new' });
+  steps.push({ label: 'Search certified candidates near you', to: '/employer/candidates' });
+
+  return (
+    <>
+      <StatRow cols={6}>
+        <StatCard label="Open jobs" value={d.totals.openJobs} to="/employer/jobs" />
+        <StatCard label="Applicants" value={d.totals.applicants} />
+        <StatCard label="Shortlisted now" value={d.totals.shortlisted} />
+        <StatCard label="At interview now" value={d.totals.interviews} />
+        <StatCard label="Offers now" value={d.totals.offers} />
+        <StatCard label="Joined" value={d.totals.joined} note="Confirmed hires" highlight />
+      </StatRow>
+
+      <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <Panel title="Recent jobs" id="emp-jobs" link={{ to: '/employer/jobs', label: 'View all jobs' }}>
+          {!d.jobs.length ? (
+            <EmptyState title="No jobs yet" body="Post a job. AutoTalent Grid checks each job before learners see it." />
+          ) : (
+            <ul className="grid gap-3.5 md:grid-cols-2">
+              {d.jobs.map((j) => (
+                <li key={j.id} className="flex min-w-0 flex-col gap-2.5 rounded-[18px] border border-[#E3E6EA] p-4 sm:p-[18px]">
+                  <span className="self-start">
+                    <StatusBadge status={j.status} label={JOB_STATUS_LABEL[j.status]} />
+                  </span>
+                  <Link to={`/employer/jobs/${j.id}`} className="font-display text-[16px] font-bold leading-snug hover:text-[#C8101A]">
+                    {j.title}
+                  </Link>
+                  <span className="text-[13px] text-[#5B616E]">
+                    Closes {shortDate(j.closingDate)}, {j.openings} openings · Created {shortDate(j.createdAt.slice(0, 10))}
+                  </span>
+                  <div className="mt-auto flex gap-1.5 pt-1">
+                    <MiniStat n={j.applicants} label="Applicants" />
+                    <MiniStat n={j.shortlisted} label="Shortlisted" />
+                    <MiniStat n={j.interviews} label="Interviews" />
+                    <MiniStat n={j.joined} label="Joined" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+        <NextSteps title="Next steps" id="emp-next" items={steps} />
+      </div>
     </>
   );
 }

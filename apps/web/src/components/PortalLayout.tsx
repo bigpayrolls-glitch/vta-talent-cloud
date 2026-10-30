@@ -21,9 +21,16 @@ export interface NavItem {
   badge?: number;
 }
 
-function NavBadge({ n }: { n?: number }) {
+function NavBadge({ n, active = false }: { n?: number; active?: boolean }) {
   if (!n) return null;
-  return <span className="ml-auto rounded-full bg-brand px-2 py-0.5 text-[11px] font-bold leading-none text-white" aria-label={t('{n} waiting', { n })}>{n}</span>;
+  return (
+    <span
+      className={`ml-auto rounded-full px-2 py-0.5 text-[11px] font-bold leading-none shadow-[0_1px_0_rgba(0,0,0,0.2)] ${active ? 'bg-white text-[#C8101A]' : 'bg-brand text-white'}`}
+      aria-label={t('{n} waiting', { n })}
+    >
+      {n}
+    </span>
+  );
 }
 
 function initials(name: string) {
@@ -173,10 +180,36 @@ function UserMenu({ portal }: { portal: Portal }) {
   );
 }
 
+/* 3D menu: each item is a raised key with its icon on a small key cap; the open page is a pressed-in red key. */
 const navClass = ({ isActive }: { isActive: boolean }) =>
-  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-[14px] font-medium transition-colors ${
-    isActive ? 'bg-brand-tint text-brand' : 'text-ink hover:bg-surface'
+  `group flex items-center gap-3 rounded-[12px] px-2 py-1 text-[14px] font-semibold transition-all duration-150 ${
+    isActive
+      ? 'bg-[linear-gradient(180deg,#E0262F_0%,#B50E17_100%)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_3px_0_#7E0910,0_14px_22px_-12px_rgba(200,16,26,0.85)]'
+      : 'text-[#3F4552] hover:-translate-y-px hover:bg-white hover:text-ink hover:shadow-[inset_0_1px_0_#fff,0_2px_0_#D9DCE1,0_10px_18px_-12px_rgba(18,20,24,0.35)]'
   }`;
+
+function NavItemLink({ n }: { n: NavItem }) {
+  return (
+    <NavLink to={n.to} end={n.end} className={navClass}>
+      {({ isActive }) => (
+        <>
+          <span
+            className={`grid size-7 shrink-0 place-items-center rounded-[9px] transition-all ${
+              isActive
+                ? 'bg-white/20 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_1px_0_rgba(0,0,0,0.15)]'
+                : 'border border-[#E1E4E8] bg-[linear-gradient(180deg,#FFFFFF_0%,#EEF0F3_100%)] text-[#C8101A] shadow-[inset_0_1px_0_#fff,0_2px_0_#D5D8DE,0_4px_8px_-4px_rgba(18,20,24,0.25)] group-hover:shadow-[inset_0_1px_0_#fff,0_3px_0_#CDD0D6,0_6px_10px_-4px_rgba(18,20,24,0.3)]'
+            }`}
+            aria-hidden
+          >
+            <n.icon className="size-4" />
+          </span>
+          <span className="min-w-0 flex-1 truncate">{t(n.label)}</span>
+          <NavBadge n={n.badge} active={isActive} />
+        </>
+      )}
+    </NavLink>
+  );
+}
 
 export function PortalLayout({ portal, nav, children, headerExtra }: { portal: Portal; nav: NavItem[]; children?: ReactNode; headerExtra?: ReactNode }) {
   const [drawer, setDrawer] = useState(false);
@@ -185,6 +218,8 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
   // A one-item bar or menu adds nothing, so both appear only when there is somewhere else to go.
   const bottom = nav.filter((n) => n.bottom).slice(0, 5);
   const showNav = nav.length > 1;
+  // The portal home is the dashboard: it sits on the soft grey "showroom" background.
+  const isHome = location.pathname.replace(/\/$/, '') === PORTAL_PATH[portal];
 
   return (
     <div className="min-h-dvh bg-white">
@@ -208,21 +243,17 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
       </header>
 
       <div className="flex">
-        <nav aria-label={t(PORTAL_LABEL[portal])} className={`sticky top-16 hidden ${showNav ? '' : 'lg:!hidden'} h-[calc(100dvh-4rem)] w-60 shrink-0 overflow-y-auto border-r border-line px-3 py-5 lg:block`}>
-          <ul className="space-y-1">
+        <nav aria-label={t(PORTAL_LABEL[portal])} className={`sticky top-16 hidden ${showNav ? '' : 'lg:!hidden'} h-[calc(100dvh-4rem)] w-60 shrink-0 overflow-y-auto border-r border-[#E3E6EA] bg-[linear-gradient(180deg,#F7F8FA_0%,#EEF0F3_100%)] px-3 py-3 lg:block`}>
+          <ul className="space-y-[3px]">
             {nav.map((n) => (
               <li key={n.to}>
-                <NavLink to={n.to} end={n.end} className={navClass}>
-                  <n.icon className="size-[18px]" aria-hidden />
-                  {t(n.label)}
-                  <NavBadge n={n.badge} />
-                </NavLink>
+                <NavItemLink n={n} />
               </li>
             ))}
           </ul>
         </nav>
 
-        <main id="main" className={`min-w-0 flex-1 px-4 ${showNav ? 'pb-28' : 'pb-12'} pt-6 sm:px-6 lg:px-8 lg:pb-12`}>
+        <main id="main" className={`min-h-[calc(100dvh-4rem)] min-w-0 flex-1 ${isHome ? 'bg-[#EEF0F3]' : ''} px-4 ${showNav ? 'pb-28' : 'pb-12'} pt-6 sm:px-6 lg:px-8 lg:pb-12`}>
           <div className="mx-auto max-w-6xl">{children ?? <Outlet />}</div>
         </main>
       </div>
@@ -261,11 +292,7 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
             <ul className="space-y-1">
               {nav.map((n) => (
                 <li key={n.to}>
-                  <NavLink to={n.to} end={n.end} className={navClass}>
-                    <n.icon className="size-[18px]" aria-hidden />
-                    {t(n.label)}
-                    <NavBadge n={n.badge} />
-                  </NavLink>
+                  <NavItemLink n={n} />
                 </li>
               ))}
             </ul>

@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { ArrowRight, Award, BookOpen, CheckCircle2, Clock, UserCheck } from 'lucide-react';
+import { ArrowRight, Award, BookOpen, Briefcase, CheckCircle2, Clock, Search, UserCheck } from 'lucide-react';
 import { Link } from 'react-router';
 import { Spinner, StatusBadge } from '../../components/ui';
+import { HeroBanner, heroPrimary, heroSecondary, StatCard, StatRow } from '../../components/Showroom';
 import { api } from '../../lib/api';
 import { firstName, useAuth } from '../../lib/auth';
 import { t } from '../../lib/i18n';
@@ -28,20 +29,43 @@ export function LearnerHomePage() {
 
   return (
     <>
-      <section className="rounded-[20px] bg-brand-tint px-6 py-7 sm:px-10">
-        <h1 className="text-[28px] font-extrabold tracking-tight sm:text-[34px]">{t('Hello, {name}!', { name: firstName(me?.name ?? '') })}</h1>
-        <p className="mt-1 text-lg text-ink/75">{t('Keep learning. Build your career.')}</p>
+      <HeroBanner
+        eyebrow="AutoTalent Grid"
+        title={t('Hello, {name}!', { name: firstName(me?.name ?? '') })}
+        subtitle={t('Keep learning. Build your career.')}
+        floating={!!p}
+        actions={
+          <>
+            <Link to="/learn/jobs" className={heroPrimary}>
+              <Briefcase className="size-4" aria-hidden />
+              {t('Find jobs')}
+            </Link>
+            <Link to="/courses" className={heroSecondary}>
+              <Search className="size-4" aria-hidden />
+              {t('Find a course')}
+            </Link>
+          </>
+        }
+      >
         {p && (
-          <p className="mt-4 inline-flex flex-wrap items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm">
+          <p className="mt-4 inline-flex flex-wrap items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm text-ink">
             <span className="font-semibold">{p.candidateCode}</span>
             <StatusBadge status={p.verificationStatus} />
           </p>
         )}
-      </section>
+      </HeroBanner>
+
+      {p && (
+        <StatRow cols={3}>
+          <StatCard icon={UserCheck} label={t('Profile')} value={`${p.completeness.pct}%`} to="/learn/profile" />
+          <StatCard icon={BookOpen} label={t('My Courses')} value={learning.data ? learning.data.items.length : '…'} to="/learn/learning" />
+          <StatCard icon={Award} label={t('Certificates')} value={creds.data ? creds.data.items.filter((c) => c.status === 'active').length : '…'} to="/learn/certificates" highlight />
+        </StatRow>
+      )}
 
       {p && (
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          <Link to="/learn/profile" className="card flex items-center gap-4 px-5 py-4 hover:border-brand">
+          <Link to="/learn/profile" className="flex items-center gap-4 rounded-[22px] bg-white px-5 py-4 transition-transform hover:-translate-y-0.5">
             <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-surface">
               {p.completeness.pct === 100 ? <CheckCircle2 className="size-5 text-success" aria-hidden /> : <UserCheck className="size-5" aria-hidden />}
             </span>
@@ -55,7 +79,7 @@ export function LearnerHomePage() {
             <ArrowRight className="size-5 text-brand" aria-hidden />
           </Link>
           {p.verificationStatus === 'needs_correction' && (
-            <Link to="/learn/profile" className="card flex items-center gap-4 border-warning bg-warning-tint px-5 py-4">
+            <Link to="/learn/profile" className="flex items-center gap-4 rounded-[22px] border border-warning bg-warning-tint px-5 py-4">
               <Clock className="size-5 shrink-0 text-warning" aria-hidden />
               <span className="min-w-0 flex-1 text-sm">
                 <span className="block font-semibold text-ink">{t('Please correct your details')}</span>
@@ -66,15 +90,16 @@ export function LearnerHomePage() {
         </div>
       )}
 
-      <section className="mt-8">
+      <div className="mt-6 grid gap-5 lg:grid-cols-2">
+      <section className="min-w-0 rounded-[22px] bg-white p-5 sm:p-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold">{t('My course')}</h2>
+          <h2 className="font-display text-[18px] font-extrabold">{t('My course')}</h2>
           <Link to="/learn/learning" className="text-sm font-semibold text-brand">{t('All learning')}</Link>
         </div>
         {learning.isLoading ? (
           <Spinner />
         ) : current ? (
-          <article className="card mt-3 px-5 py-4">
+          <article className="mt-3 rounded-[18px] border border-[#E3E6EA] px-4 py-4">
             <p className="font-semibold">{current.course.title}</p>
             <p className="text-sm text-muted">{current.batch.name}, {current.centre.name}</p>
             <div className="mt-3">
@@ -82,17 +107,17 @@ export function LearnerHomePage() {
             </div>
           </article>
         ) : (
-          <p className="card mt-3 flex items-center gap-3 px-5 py-4 text-sm text-muted">
+          <p className="mt-3 flex items-center gap-3 text-sm text-muted">
             <BookOpen className="size-5 shrink-0" aria-hidden />
             {t('You are not in a running course. Your training centre will enrol you.')}
           </p>
         )}
       </section>
 
-      <section className="mt-8">
-        <h2 className="text-xl font-bold">{t('Latest certificate')}</h2>
+      <section className="min-w-0 rounded-[22px] bg-white p-5 sm:p-6">
+        <h2 className="font-display text-[18px] font-extrabold">{t('Latest certificate')}</h2>
         {latest ? (
-          <Link to={`/learn/certificates/${latest.id}`} className="card mt-3 flex items-center gap-4 px-5 py-4 hover:border-brand">
+          <Link to={`/learn/certificates/${latest.id}`} className="mt-3 flex items-center gap-4 rounded-[18px] border border-[#E3E6EA] px-4 py-4 hover:border-brand">
             <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand">
               <Award className="size-5" aria-hidden />
             </span>
@@ -103,9 +128,10 @@ export function LearnerHomePage() {
             <ArrowRight className="size-5 text-brand" aria-hidden />
           </Link>
         ) : (
-          <p className="card mt-3 px-5 py-4 text-sm text-muted">{t('Certificates appear here when you complete a course and pass its assessment.')}</p>
+          <p className="mt-3 text-sm text-muted">{t('Certificates appear here when you complete a course and pass its assessment.')}</p>
         )}
       </section>
+      </div>
     </>
   );
 }
