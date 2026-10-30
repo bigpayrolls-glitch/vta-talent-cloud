@@ -174,8 +174,8 @@ function UserMenu({ portal }: { portal: Portal }) {
 }
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
-  `flex items-center gap-3 rounded-lg px-3 py-2.5 text-[14px] font-medium transition-colors ${
-    isActive ? 'bg-brand-tint text-brand' : 'text-ink hover:bg-surface'
+  `flex items-center gap-3 rounded-[14px] px-3 py-2.5 text-[14px] font-semibold transition-colors ${
+    isActive ? 'bg-[#C8101A] text-white shadow-[0_10px_20px_-12px_rgba(200,16,26,0.8)] [&_span]:bg-white [&_span]:text-[#C8101A]' : 'text-[#4B5160] hover:bg-[#F1F2F4] hover:text-ink'
   }`;
 
 export function PortalLayout({ portal, nav, children, headerExtra }: { portal: Portal; nav: NavItem[]; children?: ReactNode; headerExtra?: ReactNode }) {
@@ -185,6 +185,8 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
   // A one-item bar or menu adds nothing, so both appear only when there is somewhere else to go.
   const bottom = nav.filter((n) => n.bottom).slice(0, 5);
   const showNav = nav.length > 1;
+  // The portal home is the dashboard: it sits on the soft grey "showroom" background.
+  const isHome = location.pathname.replace(/\/$/, '') === PORTAL_PATH[portal];
 
   return (
     <div className="min-h-dvh bg-white">
@@ -208,7 +210,7 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
       </header>
 
       <div className="flex">
-        <nav aria-label={t(PORTAL_LABEL[portal])} className={`sticky top-16 hidden ${showNav ? '' : 'lg:!hidden'} h-[calc(100dvh-4rem)] w-60 shrink-0 overflow-y-auto border-r border-line px-3 py-5 lg:block`}>
+        <nav aria-label={t(PORTAL_LABEL[portal])} className={`sticky top-16 hidden ${showNav ? '' : 'lg:!hidden'} h-[calc(100dvh-4rem)] w-60 shrink-0 overflow-y-auto border-r border-line bg-white px-3 py-5 lg:block`}>
           <ul className="space-y-1">
             {nav.map((n) => (
               <li key={n.to}>
@@ -222,7 +224,7 @@ export function PortalLayout({ portal, nav, children, headerExtra }: { portal: P
           </ul>
         </nav>
 
-        <main id="main" className={`min-w-0 flex-1 px-4 ${showNav ? 'pb-28' : 'pb-12'} pt-6 sm:px-6 lg:px-8 lg:pb-12`}>
+        <main id="main" className={`min-h-[calc(100dvh-4rem)] min-w-0 flex-1 ${isHome ? 'bg-[#EEF0F3]' : ''} px-4 ${showNav ? 'pb-28' : 'pb-12'} pt-6 sm:px-6 lg:px-8 lg:pb-12`}>
           <div className="mx-auto max-w-6xl">{children ?? <Outlet />}</div>
         </main>
       </div>

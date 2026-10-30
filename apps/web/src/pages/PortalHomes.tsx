@@ -14,6 +14,7 @@ import {
 import { useEffect } from 'react';
 import { Link, Outlet } from 'react-router';
 import { PortalLayout, type NavItem } from '../components/PortalLayout';
+import { HeroBanner, Panel, StatCard, StatRow } from '../components/Showroom';
 import { firstName, useAuth } from '../lib/auth';
 import { refreshSnapshot, startAutoSync } from '../offline/sync';
 import { useOffline } from '../offline/useOffline';
@@ -61,65 +62,74 @@ export function PortalHomeContent({ portal }: { portal: 'partner' }) {
   const { me } = useAuth();
   const plan = PLANS[portal];
   const myRoles = me?.roles.filter((r) => ['partner_admin', 'trainer'].includes(r.role)) ?? [];
+  const isTrainer = !!me?.roles.some((r) => r.role === 'trainer');
 
   return (
     <>
-      <section className="rounded-[20px] bg-brand-tint px-6 py-8 sm:px-10 sm:py-10">
-        <h1 className="text-[30px] font-extrabold tracking-tight sm:text-[36px]">Hello, {firstName(me?.name ?? '')}!</h1>
-        <p className="mt-1 text-lg text-ink/75">{plan.greeting}</p>
+      <HeroBanner eyebrow={isTrainer ? 'Trainer · AutoTalent Grid' : 'Training partner'} title={`Hello, ${firstName(me?.name ?? '')}!`} subtitle={plan.greeting} floating={isTrainer}>
         {myRoles.length > 0 && (
-          <ul className="mt-5 flex flex-wrap gap-2">
+          <ul className="mt-4 flex flex-wrap gap-2">
             {myRoles.map((r) => (
-              <li key={r.id} className="rounded-full bg-white px-3 py-1 text-sm font-medium">
+              <li key={r.id} className="rounded-full border border-white/25 bg-white/15 px-3 py-1 text-sm font-medium text-white backdrop-blur-sm">
                 {ROLE_LABEL[r.role]}
-                {r.organisationName && <span className="text-muted">, {r.organisationName}</span>}
-                {r.centreName && <span className="text-muted">, {r.centreName}</span>}
+                {r.organisationName && <span className="text-white/70">, {r.organisationName}</span>}
+                {r.centreName && <span className="text-white/70">, {r.centreName}</span>}
               </li>
             ))}
           </ul>
         )}
-      </section>
+      </HeroBanner>
 
-      {portal === 'partner' && me?.roles.some((r) => r.role === 'trainer' && !r.centreName) && !me.roles.some((r) => r.role === 'trainer' && r.centreName) && (
-        <p className="card mt-6 px-5 py-4 text-sm">
+      {isTrainer && <TrainerStats />}
+
+      {me?.roles.some((r) => r.role === 'trainer' && !r.centreName) && !me.roles.some((r) => r.role === 'trainer' && r.centreName) && (
+        <p className="mt-6 rounded-[22px] bg-white px-5 py-4 text-sm">
           <span className="font-semibold">You are an independent trainer.</span> AutoTalent Grid checks your details first. Once you are verified, training partners can give you batches,
           and they appear here.
         </p>
       )}
-      {portal === 'partner' && me?.roles.some((r) => r.role === 'trainer') && (
+      {isTrainer && (
         <>
           <TrainerToday />
           <InstallCard />
         </>
       )}
 
-      {myRoles.some((r) => r.role !== 'trainer') && (
-        <Link to="/partner/programmes" className="card mt-6 flex items-center gap-4 px-5 py-4 hover:border-brand">
-          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand">
-            <BarChart3 className="size-5" aria-hidden />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-semibold">Programmes</span>
-            <span className="block text-sm text-muted">Progress against targets, beneficiaries, documents and reports</span>
-          </span>
-          <ArrowRight className="size-5 text-brand" aria-hidden />
-        </Link>
-      )}
-
-      {portal === 'partner' && (
-        <Link to="/partner/batches" className="card mt-6 flex items-center gap-4 px-5 py-4 hover:border-brand">
-          <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-brand-tint text-brand">
-            <Users className="size-5" aria-hidden />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block font-semibold">Batches and rosters</span>
-            <span className="block text-sm text-muted">Batches, attendance, assessments and who is enrolled</span>
-          </span>
-          <ArrowRight className="size-5 text-brand" aria-hidden />
-        </Link>
-      )}
-
+      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        {myRoles.some((r) => r.role !== 'trainer') && (
+          <HomeLink to="/partner/programmes" icon={BarChart3} title="Programmes" body="Progress against targets, beneficiaries, documents and reports" />
+        )}
+        <HomeLink to="/partner/batches" icon={Users} title="Batches and rosters" body="Batches, attendance, assessments and who is enrolled" />
+      </div>
     </>
+  );
+}
+
+function HomeLink({ to, icon: Icon, title, body }: { to: string; icon: typeof Users; title: string; body: string }) {
+  return (
+    <Link to={to} className="flex items-center gap-4 rounded-[22px] bg-white px-5 py-5 transition-transform hover:-translate-y-0.5">
+      <span className="grid size-12 shrink-0 place-items-center rounded-[14px] bg-[#C8101A] text-white">
+        <Icon className="size-5" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="font-display block text-[16px] font-bold">{title}</span>
+        <span className="block text-sm text-[#5B616E]">{body}</span>
+      </span>
+      <ArrowRight className="size-5 text-[#C8101A]" aria-hidden />
+    </Link>
+  );
+}
+
+/** Numbers from the copy kept on the phone, so they show offline too. */
+function TrainerStats() {
+  const off = useOffline();
+  const learners = off.batches.reduce((n, b) => n + b.people.length, 0);
+  return (
+    <StatRow cols={3}>
+      <StatCard icon={Users} label="Running batches" value={off.ready ? off.batches.length : '…'} />
+      <StatCard icon={UserCog} label="Learners" value={off.ready ? learners : '…'} note="In your running batches" />
+      <StatCard icon={RefreshCw} label="Not synced" value={off.ready ? off.unsynced : '…'} note={off.online ? 'Online' : 'Offline'} highlight={off.unsynced > 0} />
+    </StatRow>
   );
 }
 
@@ -131,18 +141,17 @@ function TrainerToday() {
   }, []);
   if (!off.ready) return null;
   return (
-    <section className="mt-6">
-      <h2 className="text-xl font-bold">Today</h2>
+    <Panel title="Today" id="tr-today" className="mt-6">
       {off.batches.length === 0 ? (
-        <p className="card mt-3 px-5 py-4 text-sm text-muted">
+        <p className="text-sm text-[#5B616E]">
           {off.online ? 'No running batches assigned to you.' : 'You are offline and no batches are stored on this phone yet. Open the app once while connected.'}
         </p>
       ) : (
-        <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+        <ul className="grid gap-3 sm:grid-cols-2">
           {off.batches.map((b) => {
             const waiting = off.ops.filter((o) => o.batchId === b.id).length;
             return (
-              <li key={b.id} className="card flex flex-wrap items-center gap-3 px-5 py-4">
+              <li key={b.id} className="flex flex-wrap items-center gap-3 rounded-[18px] border border-[#E3E6EA] px-4 py-4">
                 <span className="min-w-0 flex-1">
                   <span className="block font-semibold">{b.name}</span>
                   <span className="block text-sm text-muted">
@@ -159,6 +168,6 @@ function TrainerToday() {
           })}
         </ul>
       )}
-    </section>
+    </Panel>
   );
 }

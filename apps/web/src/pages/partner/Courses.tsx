@@ -54,6 +54,7 @@ import { api, ApiError, qs, uploadFile } from '../../lib/api';
 import { firstName, useAuth } from '../../lib/auth';
 import { useListParams } from '../../lib/useListParams';
 import { CreateBatchModal } from '../training/Batches';
+import { HeroBanner, heroPrimary, heroSecondary, NextSteps, Panel, StatCard, StatRow } from '../../components/Showroom';
 import { ApprovalBadge, BatchBadge, CourseSummary, CourseThumb, fmtDay, HistoryList, rupees } from './courseParts';
 
 /**
@@ -93,92 +94,80 @@ export function PartnerDashboard() {
   const { me } = useAuth();
   const q = useQuery({ queryKey: ['partner-dashboard'], queryFn: () => api.get<Dashboard>('/partner/dashboard') });
   const org = me?.roles.find((r) => r.role === 'partner_admin')?.organisationName;
+  const d = q.data;
   return (
     <div>
-      <section className="flex flex-wrap items-center justify-between gap-4 rounded-[20px] bg-brand-tint px-6 py-7 sm:px-10">
-        <div>
-          <h1 className="text-[28px] font-extrabold tracking-tight sm:text-[32px]">Welcome back, {firstName(me?.name ?? '')}</h1>
-          <p className="mt-1 text-ink/75">{org ? `${org} · ` : ''}Here’s an overview of your training activities.</p>
-        </div>
-        <Link to="/partner/courses/new" className="btn-primary">
-          <Plus className="size-4" aria-hidden />
-          Create course
-        </Link>
-      </section>
+      <HeroBanner
+        eyebrow={org ? `Training partner · ${org}` : 'Training partner'}
+        title={`Welcome back, ${firstName(me?.name ?? '')}`}
+        subtitle="Here’s an overview of your training activities."
+        floating={!!d}
+        actions={
+          <>
+            <Link to="/partner/courses/new" className={heroPrimary}>
+              <Plus className="size-4" aria-hidden />
+              Create course
+            </Link>
+            <Link to="/partner/batches" className={heroSecondary}>
+              <UsersRound className="size-4" aria-hidden />
+              Open batches
+            </Link>
+          </>
+        }
+      />
 
       {q.isLoading && <Spinner />}
       {q.isError && <div className="mt-6"><ErrorNote message={(q.error as Error).message} /></div>}
-      {q.data && (
+      {d && (
         <>
-          <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Stat icon={BookOpen} label="Courses" value={q.data.courses.total} note={`${q.data.courses.published} published, ${q.data.courses.inReview} in review`} to="/partner/courses" />
-            <Stat icon={UsersRound} label="Batches" value={q.data.batches.total} note={`${q.data.batches.ongoing} ongoing, ${q.data.batches.upcoming} upcoming`} to="/partner/batches" />
-            <Stat icon={Users} label="Enrolments" value={q.data.enrolments} note="Learners in your batches" />
-            <Stat icon={IndianRupee} label="Total revenue" value={q.data.revenueRupees} money note="Course fees paid online, incl. GST" />
-          </div>
+          <StatRow>
+            <StatCard icon={BookOpen} label="Courses" value={d.courses.total.toLocaleString('en-IN')} note={`${d.courses.published} published, ${d.courses.inReview} in review`} to="/partner/courses" />
+            <StatCard icon={UsersRound} label="Batches" value={d.batches.total.toLocaleString('en-IN')} note={`${d.batches.ongoing} ongoing, ${d.batches.upcoming} upcoming`} to="/partner/batches" />
+            <StatCard icon={Users} label="Enrolments" value={d.enrolments.toLocaleString('en-IN')} note="Learners in your batches" />
+            <StatCard icon={IndianRupee} label="Total revenue" value={rupees(d.revenueRupees)} note="Course fees paid online, incl. GST" highlight />
+          </StatRow>
 
-          {q.data.courses.needsAction > 0 && (
-            <Link to="/partner/courses?approvalStatus=changes_requested" className="card mt-4 flex items-center gap-3 border-warning/40 bg-warning-tint px-5 py-3 text-sm">
+          {d.courses.needsAction > 0 && (
+            <Link to="/partner/courses?approvalStatus=changes_requested" className="mt-5 flex items-center gap-3 rounded-[18px] border border-warning/40 bg-warning-tint px-5 py-3.5 text-sm">
               <AlertTriangle className="size-5 text-warning" aria-hidden />
               <span className="flex-1">
-                <span className="font-semibold">{q.data.courses.needsAction} {q.data.courses.needsAction === 1 ? 'course needs' : 'courses need'} your attention</span> — drafts to finish or changes AutoTalent Grid asked for.
+                <span className="font-semibold">{d.courses.needsAction} {d.courses.needsAction === 1 ? 'course needs' : 'courses need'} your attention</span> — drafts to finish or changes AutoTalent Grid asked for.
               </span>
               <ArrowRight className="size-4 text-warning" aria-hidden />
             </Link>
           )}
 
-          <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
-            <section className="card">
-              <div className="flex items-center justify-between border-b border-line px-5 py-4">
-                <h2 className="font-bold">Recent activities</h2>
-              </div>
-              {q.data.activity.length === 0 ? (
+          <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+            <Panel title="Recent activities" id="pd-activity">
+              {d.activity.length === 0 ? (
                 <EmptyState title="Nothing yet" body="Create your first course. When AutoTalent Grid approves it, enrolments show up here." />
               ) : (
-                <ul className="divide-y divide-line">
-                  {q.data.activity.map((a, i) => (
+                <ul className="-mx-2 space-y-1">
+                  {d.activity.map((a, i) => (
                     <li key={i}>
-                      <Link to={a.link} className="flex items-start gap-3 px-5 py-3 hover:bg-surface/60">
-                        <span className={`mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg ${a.kind === 'course' ? 'bg-brand-tint text-brand' : a.kind === 'enrolment' ? 'bg-success-tint text-success' : 'bg-info-tint text-info'}`}>
+                      <Link to={a.link} className="flex items-start gap-3 rounded-[14px] px-2 py-2.5 hover:bg-[#F4F5F7]">
+                        <span className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-[12px] ${a.kind === 'course' ? 'bg-brand-tint text-brand' : a.kind === 'enrolment' ? 'bg-success-tint text-success' : 'bg-info-tint text-info'}`}>
                           {a.kind === 'course' ? <BookOpen className="size-4" aria-hidden /> : a.kind === 'enrolment' ? <Users className="size-4" aria-hidden /> : <UsersRound className="size-4" aria-hidden />}
                         </span>
                         <span className="min-w-0 flex-1 text-sm">{a.text}</span>
-                        <span className="shrink-0 text-xs text-muted">{formatDate(a.at)}</span>
+                        <span className="shrink-0 text-xs text-[#5B616E]">{formatDate(a.at)}</span>
                       </Link>
                     </li>
                   ))}
                 </ul>
               )}
-            </section>
-            <section className="card px-5 py-5">
-              <h2 className="font-bold">How publishing works</h2>
-              <ol className="mt-3 space-y-3 text-sm">
-                {['Create the course in four steps', 'Submit it for admin review', 'AutoTalent Grid approves and publishes it', 'Learners see it and enrol; you run the batches'].map((t, i) => (
-                  <li key={t} className="flex gap-3">
-                    <span className="grid size-6 shrink-0 place-items-center rounded-full bg-brand text-xs font-bold text-white">{i + 1}</span>
-                    <span>{t}</span>
-                  </li>
-                ))}
-              </ol>
-              <p className="mt-4 rounded-lg bg-surface px-3 py-2 text-xs text-muted">A course is not visible to learners until it is reviewed, approved and published by AutoTalent Grid.</p>
-            </section>
+            </Panel>
+            <NextSteps
+              title="How publishing works"
+              id="pd-publish"
+              items={['Create the course in four steps', 'Submit it for admin review', 'AutoTalent Grid approves and publishes it', 'Learners see it and enrol; you run the batches'].map((label) => ({ label }))}
+              footer="A course is not visible to learners until it is reviewed, approved and published by AutoTalent Grid."
+            />
           </div>
         </>
       )}
     </div>
   );
-}
-
-function Stat({ icon: Icon, label, value, note, to, money = false }: { icon: typeof BookOpen; label: string; value: number; note?: string; to?: string; money?: boolean }) {
-  const body = (
-    <>
-      <span className="grid size-10 place-items-center rounded-xl bg-brand-tint text-brand"><Icon className="size-5" aria-hidden /></span>
-      <p className="mt-3 text-[26px] font-bold leading-none tracking-tight">{money ? rupees(value) : value.toLocaleString('en-IN')}</p>
-      <p className="mt-1.5 text-sm font-medium">{label}</p>
-      {note && <p className="text-xs text-muted">{note}</p>}
-    </>
-  );
-  return to ? <Link to={to} className="card block px-5 py-4 transition-colors hover:border-brand">{body}</Link> : <div className="card px-5 py-4">{body}</div>;
 }
 
 // ====================================================================== screen 2: courses list

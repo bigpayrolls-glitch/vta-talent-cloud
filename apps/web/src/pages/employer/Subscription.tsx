@@ -77,14 +77,14 @@ function usageText(n: number, limit: number | null) {
 }
 
 /** The current-plan card on the employer dashboard. */
-export function CurrentPlanCard() {
+export function CurrentPlanCard({ className = 'card px-5 py-5' }: { className?: string } = {}) {
   const PLAN_INFO = usePlans();
   const q = useSubscription();
   if (!q.data) return null;
   const s = q.data;
   const cycle = s.cycle ?? 'monthly';
   return (
-    <section className="card px-5 py-5" aria-labelledby="plan-h">
+    <section className={className} aria-labelledby="plan-h">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="plan-h" className="flex items-center gap-2 font-semibold">
