@@ -280,7 +280,7 @@ export interface CoursePaymentsTable {
   amount_paise: number;
   currency: Generated<string>;
   method: 'upi' | 'card' | 'netbanking' | 'wallet' | 'other' | null;
-  provider: 'test' | 'free' | 'razorpay';
+  provider: 'test' | 'free' | 'razorpay' | 'cashfree';
   provider_payment_id: Generated<string | null>;
   status: 'succeeded';
   stay_paise: Generated<number>;
@@ -371,7 +371,7 @@ export interface SubscriptionPaymentsTable {
   gst_paise: Generated<number>;
   currency: Generated<string>;
   method: 'card' | 'upi' | 'netbanking' | 'wallet' | 'other';
-  provider: 'test' | 'razorpay';
+  provider: 'test' | 'razorpay' | 'cashfree';
   provider_payment_id: Generated<string | null>;
   status: 'succeeded';
   invoice_number: string;
@@ -406,7 +406,7 @@ export interface CourseBookingsTable {
   amount_paise: number;
   stay_paise: Generated<number>;
   method: 'upi' | 'card' | 'netbanking' | 'wallet' | 'other' | null;
-  provider: 'test' | 'free' | 'razorpay';
+  provider: 'test' | 'free' | 'razorpay' | 'cashfree';
   provider_payment_id: string | null;
   receipt_number: string;
   enrolment_id: string | null;
@@ -420,6 +420,7 @@ export interface PaymentOrdersTable {
   id: string;
   purpose: 'plan' | 'course' | 'booking';
   course_id: string | null;
+  provider: Generated<'razorpay' | 'cashfree'>;
   provider_order_id: string;
   amount_paise: number;
   status: Generated<'created' | 'paid' | 'failed' | 'needs_refund'>;

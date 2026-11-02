@@ -11,6 +11,8 @@ import { ApiError } from './errors.js';
 export interface GatewayOrder {
   id: string;
   amountPaise: number;
+  /** Cashfree only: what its Checkout opens with. */
+  sessionId?: string;
 }
 
 export interface GatewayPayment {
@@ -23,13 +25,28 @@ export interface GatewayPayment {
 }
 
 export interface PaymentGateway {
+  /** Which provider this is; Razorpay when not given. */
+  readonly kind?: 'razorpay' | 'cashfree';
   readonly keyId: string;
   readonly keySecret: string;
   readonly webhookSecret: string | undefined;
-  createOrder(input: { amountPaise: number; receipt: string; notes: Record<string, string> }): Promise<GatewayOrder>;
-  fetchPayment(paymentId: string): Promise<GatewayPayment>;
+  /** Cashfree only: which Checkout to open. */
+  readonly mode?: 'production' | 'sandbox';
+  createOrder(input: {
+    amountPaise: number;
+    receipt: string;
+    notes: Record<string, string>;
+    customer?: { id: string; name?: string; email?: string; phone?: string };
+    returnUrl?: string;
+  }): Promise<GatewayOrder>;
+  fetchPayment(paymentId: string, providerOrderId?: string): Promise<GatewayPayment>;
   capturePayment(paymentId: string, amountPaise: number): Promise<GatewayPayment>;
+  /** Cashfree only: the order's successful payment, if any. */
+  findPaidPayment?(providerOrderId: string): Promise<GatewayPayment | null>;
 }
+
+export type GatewayKind = 'razorpay' | 'cashfree';
+export const kindOf = (g: PaymentGateway): GatewayKind => g.kind ?? 'razorpay';
 
 export const gatewayUnavailable = () => new ApiError('UNAVAILABLE', 'The payment service is not reachable right now. Please try again in a minute.');
 
@@ -53,6 +70,7 @@ export const mapPayment = (p: RzpPayment): GatewayPayment => ({
 });
 
 export class RazorpayGateway implements PaymentGateway {
+  readonly kind = 'razorpay' as const;
   readonly keyId: string;
   readonly keySecret: string;
   readonly webhookSecret: string | undefined;
@@ -121,7 +139,7 @@ export const webhookSignatureOk = (webhookSecret: string, rawBody: Buffer, signa
 /** For tests: what Razorpay would send. */
 export const signForTests = hmac;
 
-/** The method Razorpay reports, as stored on receipts. */
+/** The method the provider reports, as stored on receipts. */
 export function recordedMethod(m: string | null): 'card' | 'upi' | 'netbanking' | 'wallet' | 'other' {
   return m === 'card' || m === 'upi' || m === 'netbanking' || m === 'wallet' ? m : 'other';
 }

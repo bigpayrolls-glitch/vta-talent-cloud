@@ -10,15 +10,14 @@ import {
   type PaidPartnerPlan,
   type PartnerPlan,
   type PartnerSubscriptionDto,
-  type PaymentMethod,
-} from '@vta/shared';
+  type PaymentMethod, isOnlinePayment, paymentProviderName } from '@vta/shared';
 import { ArrowLeft, Check, CircleCheck, CreditCard, Download, Landmark, Lock, Minus, ReceiptText, Smartphone } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ErrorNote, PageHeader, Spinner, Wordmark } from '../../components/ui';
 import { api, ApiError } from '../../lib/api';
 import { usePartnerPlans } from '../../lib/plans';
-import { PaymentCancelled, payWithRazorpay, type RazorpayStart } from '../../lib/razorpay';
+import { isOnlineStart, PaymentCancelled, payOnline, type OnlineStart } from '../../lib/razorpay';
 
 /**
  * Training partner Subscription & Billing (29 Oct 2026, AutoTalent Grid's design): plans, usage, comparison,
@@ -79,13 +78,13 @@ export function PartnerSubscriptionPage() {
   const pay = useMutation({
     mutationFn: async (): Promise<string | null> => {
       setNote(null);
-      const live = sub.data?.paymentMode === 'razorpay';
-      const r = await api.post<{ paymentId: string } | RazorpayStart>('/partner/subscription/checkout', { plan: chosen, cycle, method: live ? undefined : method, acceptTerms: terms });
-      if (!('razorpay' in r)) return r.paymentId;
+      const live = isOnlinePayment(sub.data?.paymentMode);
+      const r = await api.post<{ paymentId: string } | OnlineStart>('/partner/subscription/checkout', { plan: chosen, cycle, method: live ? undefined : method, acceptTerms: terms });
+      if (!isOnlineStart(r)) return r.paymentId;
       setStage('paying');
       try {
-        const out = await payWithRazorpay(r, () => setStage('verifying'));
-        if (out.status === 'needs_refund') {
+        const out = await payOnline(r, () => setStage('verifying'));
+        if (out.status === 'needs_refund' || out.status === 'pending') {
           setNote(out.message);
           return null;
         }
@@ -351,10 +350,10 @@ export function PartnerSubscriptionPage() {
               <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
                 <span className="inline-flex items-center gap-1.5 text-xs text-muted">
                   <Lock className="size-3.5" aria-hidden />
-                  {s.paymentMode === 'razorpay' ? 'Secure payment via Razorpay' : 'Test payment'}
+                  {isOnlinePayment(s.paymentMode) ? `Secure payment via ${paymentProviderName(s.paymentMode)}` : 'Test payment'}
                 </span>
                 <button type="submit" className="btn-primary h-12 bg-[#C8101A] px-6 text-base" disabled={pay.isPending}>
-                  {stage === 'verifying' ? 'Confirming your payment…' : stage === 'paying' ? 'Complete the payment in the Razorpay window…' : pay.isPending ? 'Please wait…' : `Proceed to payment, ${formatRupees(order.total)}`}
+                  {stage === 'verifying' ? 'Confirming your payment…' : stage === 'paying' ? `Complete the payment in the ${paymentProviderName(s.paymentMode)} window…` : pay.isPending ? 'Please wait…' : `Proceed to payment, ${formatRupees(order.total)}`}
                 </button>
               </div>
             </>

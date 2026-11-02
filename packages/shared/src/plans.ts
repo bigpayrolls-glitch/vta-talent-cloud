@@ -7,6 +7,13 @@ import { z } from 'zod';
 // A plan's numbers are enforced on the server; the screens read the same table.
 // ---------------------------------------------------------------------------
 
+/** How plans and course fees are paid: a marked test payment, not online (ask AutoTalent Grid), or a provider. */
+export type PaymentMode = 'test' | 'none' | 'razorpay' | 'cashfree';
+/** True when payers pay online through a real provider (Razorpay or Cashfree). */
+export const isOnlinePayment = (m: PaymentMode | undefined): m is 'razorpay' | 'cashfree' => m === 'razorpay' || m === 'cashfree';
+/** The provider's name as shown to payers. */
+export const paymentProviderName = (m: PaymentMode | undefined) => (m === 'cashfree' ? 'Cashfree' : 'Razorpay');
+
 export const PLANS = ['free', 'starter', 'growth', 'enterprise'] as const;
 export type Plan = (typeof PLANS)[number];
 export const PAID_PLANS = ['starter', 'growth'] as const;
@@ -166,7 +173,7 @@ export interface SubscriptionDto {
     resetsOn: string;
   };
   /** How payments are taken: 'test' (staging: no money moves) or 'none' (ask AutoTalent Grid). */
-  paymentMode: 'test' | 'none' | 'razorpay';
+  paymentMode: PaymentMode;
 }
 
 /** What an employer has used of its plan's candidate search this month. */
@@ -314,5 +321,5 @@ export interface PartnerSubscriptionDto {
     learners: number;
     learnersLimit: number | null;
   };
-  paymentMode: 'test' | 'none' | 'razorpay';
+  paymentMode: PaymentMode;
 }

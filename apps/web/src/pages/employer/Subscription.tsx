@@ -9,8 +9,7 @@ import {
   type PaidPlan,
   type PaymentMethod,
   type Plan,
-  type SubscriptionDto,
-} from '@vta/shared';
+  type SubscriptionDto, isOnlinePayment, paymentProviderName } from '@vta/shared';
 import { ArrowLeft, ArrowRight, Briefcase, CalendarDays, Check, ChevronRight, CircleCheck, CreditCard, FileText, Landmark, Lock, Printer, ShieldCheck, Smartphone, Users } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
@@ -18,7 +17,7 @@ import { ErrorNote, Field, Modal, Spinner, Wordmark } from '../../components/ui'
 import { useToast } from '../../components/toast';
 import { usePlans } from '../../lib/plans';
 import { api, ApiError } from '../../lib/api';
-import { PaymentCancelled, payWithRazorpay, type RazorpayStart } from '../../lib/razorpay';
+import { isOnlineStart, PaymentCancelled, payOnline, type OnlineStart } from '../../lib/razorpay';
 import { useAuth } from '../../lib/auth';
 
 /**
@@ -474,13 +473,13 @@ export function CheckoutPage() {
   const pay = useMutation({
     mutationFn: async (): Promise<{ paymentId: string } | null> => {
       setNote(null);
-      const live = sub.data?.paymentMode === 'razorpay';
-      const r = await api.post<{ paymentId: string } | RazorpayStart>('/employer/subscription/checkout', { plan, cycle, method: live ? undefined : method, acceptTerms: terms });
-      if (!('razorpay' in r)) return r;
+      const live = isOnlinePayment(sub.data?.paymentMode);
+      const r = await api.post<{ paymentId: string } | OnlineStart>('/employer/subscription/checkout', { plan, cycle, method: live ? undefined : method, acceptTerms: terms });
+      if (!isOnlineStart(r)) return r;
       setStage('paying');
       try {
-        const out = await payWithRazorpay(r, () => setStage('verifying'));
-        if (out.status === 'needs_refund') {
+        const out = await payOnline(r, () => setStage('verifying'));
+        if (out.status === 'needs_refund' || out.status === 'pending') {
           setNote(out.message);
           return null;
         }
@@ -547,10 +546,10 @@ export function CheckoutPage() {
             pay.mutate();
           }}
         >
-          {s.paymentMode === 'razorpay' ? (
+          {isOnlinePayment(s.paymentMode) ? (
             <p className="flex items-start gap-2.5 rounded-lg bg-surface px-4 py-3 text-sm">
               <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-              <span>You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. AutoTalent Grid never sees your card or bank details.</span>
+              <span>You pay securely with {paymentProviderName(s.paymentMode)}: UPI, debit or credit card, net banking or wallet. AutoTalent Grid never sees your card or bank details.</span>
             </p>
           ) : (
           <>
@@ -604,7 +603,7 @@ export function CheckoutPage() {
             </p>
           )}
           <button type="submit" className="btn-primary mt-5 h-12 w-full bg-[#C8101A] text-base" disabled={pay.isPending}>
-            {stage === 'verifying' ? 'Confirming your payment…' : stage === 'paying' ? 'Complete the payment in the Razorpay window…' : pay.isPending ? 'Please wait…' : `Pay ${formatRupees(amount)}`}
+            {stage === 'verifying' ? 'Confirming your payment…' : stage === 'paying' ? `Complete the payment in the ${paymentProviderName(s.paymentMode)} window…` : pay.isPending ? 'Please wait…' : `Pay ${formatRupees(amount)}`}
           </button>
         </form>
       )}

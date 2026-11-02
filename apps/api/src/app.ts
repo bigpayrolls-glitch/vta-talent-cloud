@@ -9,6 +9,7 @@ import { resolveActor, SESSION_COOKIE } from './auth/sessions.js';
 import { ApiError } from './lib/errors.js';
 import { newId, safeEqual } from './lib/crypto.js';
 import { providersFor, type Providers } from './lib/providers.js';
+import { CashfreeGateway } from './lib/cashfree.js';
 import { RazorpayGateway, type PaymentGateway } from './lib/razorpay.js';
 import { paymentRoutes } from './routes/payments.js';
 import { assertPermission, type Actor } from './policy/index.js';
@@ -46,7 +47,7 @@ declare module 'fastify' {
     config: Config;
     providers: Providers;
     storage: Storage;
-    /** Razorpay, when PAYMENT_MODE is razorpay; otherwise null. */
+    /** Razorpay or Cashfree, when PAYMENT_MODE is one of them; otherwise null. */
     gateway: PaymentGateway | null;
     routeTable: RouteInfo[];
   }
@@ -97,7 +98,7 @@ export async function buildApp(opts: AppOptions): Promise<FastifyInstance> {
   app.decorate('config', opts.config);
   app.decorate('providers', opts.providers ?? providersFor(opts.config, app.log));
   app.decorate('storage', opts.storage ?? (opts.config.STORAGE_DRIVER === 'database' ? databaseStorage(opts.db) : localStorage(opts.config.STORAGE_DIR)));
-  app.decorate('gateway', opts.gateway !== undefined ? opts.gateway : opts.config.paymentMode === 'razorpay' ? new RazorpayGateway(opts.config) : null);
+  app.decorate('gateway', opts.gateway !== undefined ? opts.gateway : opts.config.paymentMode === 'razorpay' ? new RazorpayGateway(opts.config) : opts.config.paymentMode === 'cashfree' ? new CashfreeGateway(opts.config) : null);
   app.decorateRequest('actor', null);
 
   await app.register(cookie);
