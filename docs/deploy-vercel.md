@@ -79,7 +79,34 @@ Set **Settings → Functions → Function Region** to Mumbai (`bom1`), next to t
 The build stops with a list of anything missing. Sign-in codes are made and checked by Message Central VerifyNow
 (6 digits, SMS); the app still applies its own limits (one code a minute, five an hour, five tries a code).
 
-## Razorpay (payments on the live site)
+## Cashfree (payments on the live site, from 2 Nov 2026)
+
+Razorpay did not approve www.autotalentgrid.com on the PF Mitra account, so AutoTalent Grid uses its own
+Cashfree Payments account. With `CASHFREE_APP_ID` and `CASHFREE_SECRET_KEY` set, employer plans, partner plans,
+course fees and career-journey courses are paid through Cashfree Checkout (UPI, cards, net banking, wallets).
+Cashfree keys win over Razorpay keys if both are set; `PAYMENT_MODE` can force one (`cashfree`, `razorpay`, `none`).
+
+| Name | Value |
+|---|---|
+| `CASHFREE_APP_ID` | Cashfree Dashboard → Developers → API Keys → App ID (production) |
+| `CASHFREE_SECRET_KEY` | the Secret Key shown with it. It also checks webhooks, so no separate webhook secret |
+| `CASHFREE_ENV` | `production` on the live site (the default). `sandbox` with sandbox keys on a staging copy only; the live site refuses sandbox |
+
+**Webhook** (Cashfree Dashboard → Developers → Webhooks → Add webhook endpoint):
+URL `https://www.autotalentgrid.com/api/v1/payments/cashfree/webhook`, event **Payment Success** (latest
+version). It completes payments whose browser closed before returning; repeats are ignored.
+
+**Whitelist the domain** in Cashfree (Developers → Whitelisting) for `www.autotalentgrid.com`, as Cashfree asks
+for websites taking payments.
+
+How a payment works: the API creates a Cashfree order (our `payment_orders.id` is Cashfree's `order_id`) and
+returns the payment session; Checkout opens as a pop-up. Afterwards the browser asks the API to verify; the API
+asks Cashfree for the order's payments and accepts only a `SUCCESS` payment for the full amount in INR on that
+order, then starts the plan or confirms the seat. On phones where Checkout opens as its own page, the payer comes
+back to `/pay/return/<order>`, which does the same check. Cashfree needs the payer's 10-digit mobile number; for
+company plans without a personal number the company's contact number is used.
+
+## Razorpay (earlier provider, kept for later)
 
 With `RAZORPAY_KEY_ID` and `RAZORPAY_KEY_SECRET` set, employer plans and course fees are paid through Razorpay
 Checkout (UPI, cards, net banking, wallets). Without them the live site falls back to "Ask AutoTalent Grid".

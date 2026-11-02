@@ -26,6 +26,7 @@ const routes: RouteObject[] = [
   { path: '/enrol/done/:id', lazy: () => import('./pages/public/Courses').then((m) => ({ Component: m.EnrolDonePage })) },
   { path: '/enrol/booked/:id', lazy: () => import('./pages/public/Courses').then((m) => ({ Component: () => <m.EnrolDonePage booking /> })) },
   { path: '/enrol/course/:courseId', lazy: () => import('./pages/public/Courses').then((m) => ({ Component: m.BookPage })) },
+  { path: '/pay/return/:id', lazy: () => import('./pages/public/Courses').then((m) => ({ Component: m.PaymentReturnPage })) },
   { path: '/enrol/:batchId', lazy: () => import('./pages/public/Courses').then((m) => ({ Component: m.EnrolPage })) },
   { path: '/join/trainer', lazy: () => import('./pages/TrainerSignupPage').then((m) => ({ Component: m.TrainerSignupPage })) },
   { path: '/join/employer', lazy: () => import('./pages/public/JoinPage').then((m) => ({ Component: () => <m.JoinPage type="employer" /> })) },

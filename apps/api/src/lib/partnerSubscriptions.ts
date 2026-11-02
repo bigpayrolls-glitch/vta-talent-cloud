@@ -1,3 +1,4 @@
+import type { PaymentMode } from '@vta/shared';
 import { PARTNER_PLANS, type PartnerPlan, type PartnerSubscriptionDto } from '@vta/shared';
 import { sql } from 'kysely';
 import type { DB } from '../db/index.js';
@@ -41,7 +42,7 @@ export async function partnerUsage(db: DB, organisationId: string, except: { cou
   return { activeCourses, activeBatches, learners };
 }
 
-export async function partnerSubscriptionDto(db: DB, organisationId: string, paymentMode: 'test' | 'none' | 'razorpay'): Promise<PartnerSubscriptionDto> {
+export async function partnerSubscriptionDto(db: DB, organisationId: string, paymentMode: PaymentMode): Promise<PartnerSubscriptionDto> {
   const { plan, row } = await currentPartnerPlan(db, organisationId);
   const info = await partnerPlan(db, plan);
   const u = await partnerUsage(db, organisationId);

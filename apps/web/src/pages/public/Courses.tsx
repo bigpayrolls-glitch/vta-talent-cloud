@@ -24,15 +24,14 @@ import {
   TRACK_LABEL,
   TRACK_STEP_LABEL,
   hoursLabel,
-  splitLabel,
-} from '@vta/shared';
+  splitLabel, isOnlinePayment, paymentProviderName, type PaymentMode } from '@vta/shared';
 import { ArrowLeft, ArrowRight, Award, BedDouble, Route, Building2, CalendarDays, Check, CircleCheck, Clock, CreditCard, Landmark, MapPin, Printer, School, ShieldCheck, SlidersHorizontal, Smartphone, X } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { durationText } from '../../components/form';
 import { EmptyState, ErrorNote, Spinner, Wordmark } from '../../components/ui';
 import { api, ApiError } from '../../lib/api';
-import { PaymentCancelled, payWithRazorpay, type RazorpayStart } from '../../lib/razorpay';
+import { confirmPayment, isOnlineStart, PaymentCancelled, payOnline, type OnlineStart } from '../../lib/razorpay';
 import { useAuth } from '../../lib/auth';
 import { t, tn } from '../../lib/i18n';
 import { PublicShell } from './Home';
@@ -517,7 +516,7 @@ interface Quote {
   batch: { id: string; name: string; startDate: string; endDate: string; centre: string; city: string | null; provider: string; seatsLeft: number };
   course: { id: string; title: string; skillArea: string; deliveryMode: string; durationValue: number; durationUnit: string; feeRupees: number; stayAvailable: boolean; stayFeeRupees: number | null; stayMeals: number };
   blocker: string | null;
-  paymentMode: 'test' | 'none' | 'razorpay';
+  paymentMode: PaymentMode;
 }
 
 function Stepper({ step }: { step: 1 | 2 | 3 }) {
@@ -552,7 +551,7 @@ interface PayCourse {
 /**
  * The payment half of enrolling: accommodation choice, summary, method, terms and the pay button. Used for a
  * batch (seat confirmed at once) and for a career journey course (AutoTalent Grid assigns the batch).
- * `post` sends the enrolment and returns the new record's id, or a Razorpay order to pay.
+ * `post` sends the enrolment and returns the new record's id, or an online payment order to pay.
  */
 function PayPanel({
   course,
@@ -565,8 +564,8 @@ function PayPanel({
 }: {
   course: PayCourse;
   blocker: string | null;
-  paymentMode: 'test' | 'none' | 'razorpay';
-  post: (body: { method?: PayMethod; needsStay: boolean; acceptTerms: boolean }) => Promise<{ id: string } | RazorpayStart>;
+  paymentMode: PaymentMode;
+  post: (body: { method?: PayMethod; needsStay: boolean; acceptTerms: boolean }) => Promise<{ id: string } | OnlineStart>;
   onDone: (id: string) => void;
   contactText: string;
   confirmText: string;
@@ -583,13 +582,13 @@ function PayPanel({
   const pay = useMutation({
     mutationFn: async (): Promise<string | null> => {
       setNote(null);
-      const live = paymentMode === 'razorpay';
+      const live = isOnlinePayment(paymentMode);
       const r = await post({ method: fee && !live ? method : undefined, needsStay: course.stayAvailable && needsStay === true, acceptTerms: terms });
-      if (!('razorpay' in r)) return r.id;
+      if (!isOnlineStart(r)) return r.id;
       setStage('paying');
       try {
-        const out = await payWithRazorpay(r, () => setStage('verifying'));
-        if (out.status === 'needs_refund') {
+        const out = await payOnline(r, () => setStage('verifying'));
+        if (out.status === 'needs_refund' || out.status === 'pending') {
           setNote(out.message);
           return null;
         }
@@ -681,7 +680,7 @@ function PayPanel({
           <p className="mt-4 rounded-lg bg-surface px-4 py-3 text-sm">{contactText}</p>
         ) : (
           <>
-            {fee > 0 && paymentMode === 'razorpay' && (
+            {fee > 0 && isOnlinePayment(paymentMode) && (
               <p className="mt-4 flex items-start gap-2.5 rounded-lg bg-surface px-4 py-3 text-sm">
                 <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
                 <span>{confirmText}</span>
@@ -737,7 +736,7 @@ function PayPanel({
               </p>
             )}
             <button type="submit" className="btn-primary mt-5 h-12 w-full bg-[#C8101A] text-base hover:bg-brand-hover" disabled={pay.isPending}>
-              {stage === 'verifying' ? t('Confirming your payment…') : stage === 'paying' ? t('Complete the payment in the Razorpay window…') : pay.isPending ? t('Please wait…') : fee > 0 ? t('Pay {amount}', { amount: rupees(fee) }) : t('Confirm enrolment')}
+              {stage === 'verifying' ? t('Confirming your payment…') : stage === 'paying' ? t('Complete the payment in the {provider} window…', { provider: paymentProviderName(paymentMode) }) : pay.isPending ? t('Please wait…') : fee > 0 ? t('Pay {amount}', { amount: rupees(fee) }) : t('Confirm enrolment')}
             </button>
           </>
         )}
@@ -824,10 +823,10 @@ export function EnrolPage() {
                   blocker={d.blocker}
                   paymentMode={d.paymentMode}
                   contactText={t('Online payment is not switched on yet. Contact the training centre to enrol.')}
-                  confirmText={t('You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. Your seat is confirmed as soon as the payment goes through.')}
+                  confirmText={t('You pay securely with {provider}: UPI, debit or credit card, net banking or wallet. Your seat is confirmed as soon as the payment goes through.', { provider: paymentProviderName(d.paymentMode) })}
                   post={async (body) => {
-                    const r = await api.post<{ enrolmentId: string } | RazorpayStart>('/me/enrolments', { batchId, ...body });
-                    return 'razorpay' in r ? r : { id: r.enrolmentId };
+                    const r = await api.post<{ enrolmentId: string } | OnlineStart>('/me/enrolments', { batchId, ...body });
+                    return isOnlineStart(r) ? r : { id: r.enrolmentId };
                   }}
                   onDone={(id) => navigate(`/enrol/done/${id}`, { replace: true })}
                 />
@@ -843,7 +842,7 @@ export function EnrolPage() {
 interface BookQuote {
   course: { id: string; title: string; skillArea: string; deliveryMode: string; durationValue: number; durationUnit: string; journey: JourneyInfo | null } & PayCourse;
   blocker: string | null;
-  paymentMode: 'test' | 'none' | 'razorpay';
+  paymentMode: PaymentMode;
 }
 
 /** Career journey course: enrol and pay for the course; AutoTalent Grid assigns the training partner and batch. */
@@ -897,10 +896,10 @@ export function BookPage() {
                   blocker={d.blocker}
                   paymentMode={d.paymentMode}
                   contactText={t('Online payment is not switched on yet. Contact AutoTalent Grid to enrol.')}
-                  confirmText={t('You pay securely with Razorpay: UPI, debit or credit card, net banking or wallet. Your enrolment is confirmed as soon as the payment goes through.')}
+                  confirmText={t('You pay securely with {provider}: UPI, debit or credit card, net banking or wallet. Your enrolment is confirmed as soon as the payment goes through.', { provider: paymentProviderName(d.paymentMode) })}
                   post={async (body) => {
-                    const r = await api.post<{ bookingId: string } | RazorpayStart>('/me/bookings', { courseId, ...body });
-                    return 'razorpay' in r ? r : { id: r.bookingId };
+                    const r = await api.post<{ bookingId: string } | OnlineStart>('/me/bookings', { courseId, ...body });
+                    return isOnlineStart(r) ? r : { id: r.bookingId };
                   }}
                   onDone={(id) => navigate(`/enrol/booked/${id}`, { replace: true })}
                 />
@@ -1028,6 +1027,52 @@ export function EnrolDonePage({ booking = false }: { booking?: boolean }) {
             </ol>
           </aside>
         </div>
+      </div>
+    </PublicShell>
+  );
+}
+
+/**
+ * Where Cashfree sends the payer back when its Checkout opened as its own page (some phones and in-app browsers).
+ * The API is asked whether the payment arrived, then the payer goes to the same page as after an in-page payment.
+ */
+export function PaymentReturnPage() {
+  const { id = '' } = useParams();
+  const navigate = useNavigate();
+  const { me } = useAuth();
+  const [message, setMessage] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    confirmPayment(id, 6)
+      .then((out) => {
+        if (!live) return;
+        if (out.status === 'paid') {
+          if (out.purpose === 'course') navigate(`/enrol/done/${out.enrolmentId}`, { replace: true });
+          else if (out.purpose === 'booking') navigate(`/enrol/booked/${out.bookingId}`, { replace: true });
+          else navigate(me?.portals.includes('employer') ? `/employer/subscription/invoices/${out.paymentId}?paid=1` : `/partner/subscription/invoices/${out.paymentId}?paid=1`, { replace: true });
+        } else setMessage(out.message);
+      })
+      .catch((e: unknown) => live && setMessage(e instanceof Error ? e.message : String(e)));
+    return () => {
+      live = false;
+    };
+  }, [id, me, navigate]);
+  return (
+    <PublicShell>
+      <div className="mx-auto max-w-xl px-4 py-12 text-center">
+        {message ? (
+          <>
+            <ErrorNote message={message} />
+            <Link to="/" className="btn-secondary mt-6">
+              {t('Home')}
+            </Link>
+          </>
+        ) : (
+          <>
+            <Spinner />
+            <p className="mt-2 text-muted">{t('Confirming your payment…')}</p>
+          </>
+        )}
       </div>
     </PublicShell>
   );

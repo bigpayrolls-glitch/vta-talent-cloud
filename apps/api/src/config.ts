@@ -50,7 +50,12 @@ const envSchema = z.object({
    * (allowed on local and staging only); 'none' means employers ask AutoTalent Grid and an admin sets the plan.
    * A real payment provider (for example Razorpay) needs an account and keys from AutoTalent Grid.
    */
-  PAYMENT_MODE: z.enum(['test', 'none', 'razorpay']).optional(),
+  PAYMENT_MODE: z.enum(['test', 'none', 'razorpay', 'cashfree']).optional(),
+  /** Cashfree Payments keys (AutoTalent Grid's own account). With both set, payments go through Cashfree. */
+  CASHFREE_APP_ID: z.preprocess(blank, z.string().trim().optional()),
+  CASHFREE_SECRET_KEY: z.preprocess(blank, z.string().trim().optional()),
+  /** 'sandbox' for Cashfree test keys (local and staging only); the live site needs 'production'. */
+  CASHFREE_ENV: z.enum(['production', 'sandbox']).default('production'),
   /** Razorpay keys (same account as PF Mitra). With both keys set, payments go through Razorpay. */
   RAZORPAY_KEY_ID: z.preprocess(blank, z.string().trim().optional()),
   RAZORPAY_KEY_SECRET: z.preprocess(blank, z.string().trim().optional()),
@@ -73,7 +78,7 @@ export type Config = Omit<Env, 'FILE_SIGNING_SECRET' | 'SMS_PROVIDER' | 'EMAIL_P
   fileSigningSecret: string;
   /** Staging only: return sign-in codes to the screen (there is no SMS provider yet). */
   showCodes: boolean;
-  paymentMode: 'test' | 'none' | 'razorpay';
+  paymentMode: 'test' | 'none' | 'razorpay' | 'cashfree';
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -101,7 +106,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
   if (parsed.APP_ENV === 'production' && parsed.PAYMENT_MODE === 'test') throw new Error('PAYMENT_MODE=test is not allowed in production.');
   const hasRazorpay = !!parsed.RAZORPAY_KEY_ID && !!parsed.RAZORPAY_KEY_SECRET;
-  const paymentMode = parsed.PAYMENT_MODE ?? (hasRazorpay ? 'razorpay' : parsed.APP_ENV === 'production' ? 'none' : 'test');
+  const hasCashfree = !!parsed.CASHFREE_APP_ID && !!parsed.CASHFREE_SECRET_KEY;
+  // Cashfree first: Razorpay did not approve this website for the PF Mitra account (2 Nov 2026).
+  const paymentMode = parsed.PAYMENT_MODE ?? (hasCashfree ? 'cashfree' : hasRazorpay ? 'razorpay' : parsed.APP_ENV === 'production' ? 'none' : 'test');
+  if (paymentMode === 'cashfree' && !hasCashfree) throw new Error('PAYMENT_MODE=cashfree needs CASHFREE_APP_ID and CASHFREE_SECRET_KEY.');
+  if (paymentMode === 'cashfree' && parsed.APP_ENV === 'production' && parsed.CASHFREE_ENV !== 'production') {
+    throw new Error('The live site needs Cashfree production keys and CASHFREE_ENV=production, not sandbox.');
+  }
   if (paymentMode === 'razorpay' && !hasRazorpay) throw new Error('PAYMENT_MODE=razorpay needs RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET.');
   if (paymentMode === 'razorpay' && parsed.APP_ENV === 'production' && parsed.RAZORPAY_KEY_ID!.startsWith('rzp_test_')) {
     throw new Error('The live site needs Razorpay live keys (rzp_live_…), not test keys.');

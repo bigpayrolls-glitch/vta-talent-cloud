@@ -1,4 +1,4 @@
-import { assignBookingSchema, BOOKING_STATUSES, courseBookingSchema, uuidSchema, type JourneyInfo, type Track, type TrackStep } from '@vta/shared';
+import { assignBookingSchema, BOOKING_STATUSES, courseBookingSchema, uuidSchema, type JourneyInfo, type Track, type TrackStep, isOnlinePayment } from '@vta/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
 import { z } from 'zod';
@@ -10,7 +10,7 @@ import { newId } from '../../lib/crypto.js';
 import { formatDay, todayIst } from '../../lib/dates.js';
 import { conflict, invalid, notFound } from '../../lib/errors.js';
 import { notify, orgMembers, vtaReviewers } from '../../lib/notify.js';
-import { startRazorpayOrder } from '../../lib/payments.js';
+import { startOnlineOrder } from '../../lib/payments.js';
 import { iso, parse } from '../../lib/validate.js';
 import { learnerBlocker } from './catalogue.js';
 
@@ -79,7 +79,7 @@ export async function createBooking(
   ctx: AuditContext,
   userId: string,
   courseId: string,
-  pay: { provider: 'test' | 'razorpay'; method: 'upi' | 'card' | 'netbanking' | 'wallet' | 'other'; providerPaymentId?: string; expectedAmount?: number; needsStay: boolean },
+  pay: { provider: 'test' | 'razorpay' | 'cashfree'; method: 'upi' | 'card' | 'netbanking' | 'wallet' | 'other'; providerPaymentId?: string; expectedAmount?: number; needsStay: boolean },
 ): Promise<{ bookingId: string; receiptNumber: string } | { blocked: string }> {
   const c = await trx.selectFrom('courses').selectAll().where('id', '=', courseId).forUpdate().executeTakeFirst();
   if (!c) return { blocked: 'This course is no longer available.' };
@@ -186,12 +186,12 @@ export const bookingRoutes: FastifyPluginAsync = async (app) => {
     if (amount > 0 && mode === 'none') throw conflict('Online payment is not set up yet. Contact AutoTalent Grid to enrol.');
     if (amount > 0 && mode === 'test' && !body.method) throw invalid('Choose how to pay', { method: 'Choose how to pay' });
 
-    if (amount > 0 && mode === 'razorpay') {
+    if (amount > 0 && isOnlinePayment(mode)) {
       const why = await bookingBlocker(db, userId, c);
       if (why) throw conflict(why);
       const learner = await db.selectFrom('users').select(['name', 'email', 'phone']).where('id', '=', userId).executeTakeFirstOrThrow();
       reply.code(201);
-      return startRazorpayOrder(app, {
+      return startOnlineOrder(app, {
         purpose: 'booking',
         amountPaise: amount,
         payerId: userId,
