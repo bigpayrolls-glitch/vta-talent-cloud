@@ -30,6 +30,8 @@ const filterSchema = listQuerySchema.extend({
   skillArea: z.enum(SKILL_AREAS).optional(),
   city: z.string().trim().max(80).optional(),
   duplicates: z.enum(['true']).optional(),
+  /** How the candidate joined: signed up themselves, imported from a spreadsheet, or added by an Admin. */
+  source: z.enum(['self', 'import', 'admin']).optional(),
 });
 
 export const IMPORT_MAX_ROWS = 10_000;
@@ -57,6 +59,7 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
     if (f.skillArea) q = q.where((eb) => eb(eb.val(f.skillArea!), '=', eb.fn.any('cp.skill_areas')));
     if (f.city) q = q.where('cp.city', 'ilike', f.city.replace(/[%_\\]/g, '\\$&'));
     if (f.duplicates) q = q.where('cp.duplicate_of', 'is not', null);
+    if (f.source) q = q.where('cp.source', '=', f.source);
     if (f.q) {
       const like = `%${f.q.replace(/[%_\\]/g, '\\$&')}%`;
       const digits = f.q.replace(/\D/g, '');
@@ -70,7 +73,7 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
     }
     const { total } = await q.select((eb) => eb.fn.countAll<string>().as('total')).executeTakeFirstOrThrow();
     const rows = await q
-      .select(['u.id', 'u.name', 'u.phone', 'u.status as user_status', 'cp.candidate_code', 'cp.city', 'cp.skill_areas', 'cp.experience_months', 'cp.verification_status', 'cp.duplicate_of', 'cp.created_at'])
+      .select(['u.id', 'u.name', 'u.phone', 'u.status as user_status', 'cp.candidate_code', 'cp.city', 'cp.skill_areas', 'cp.experience_months', 'cp.verification_status', 'cp.duplicate_of', 'cp.created_at', 'cp.source'])
       .orderBy('cp.created_at', 'desc')
       .limit(f.pageSize)
       .offset((f.page - 1) * f.pageSize)
@@ -88,6 +91,7 @@ export const candidateRoutes: FastifyPluginAsync = async (app) => {
         possibleDuplicate: !!r.duplicate_of,
         userStatus: r.user_status,
         createdAt: iso(r.created_at),
+        source: r.source,
       })),
       page: f.page,
       pageSize: f.pageSize,
