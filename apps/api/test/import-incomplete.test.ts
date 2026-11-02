@@ -81,3 +81,14 @@ describe('importing candidates without date of birth or city', () => {
     expect((await employer.get(`/employer/candidates/${found.id}`)).status).toBe(404);
   });
 });
+
+describe('when and how a candidate joined (2 Nov 2026)', () => {
+  it('the list shows the join date and how they joined, and can be filtered by it', async () => {
+    const found = (await admin.get('/admin/candidates?q=9066699111')).body.items as { createdAt: string; source: string }[];
+    expect(found[0]).toMatchObject({ source: 'import', createdAt: expect.any(String) });
+    const imported = (await admin.get('/admin/candidates?source=import&pageSize=100')).body.items as { source: string }[];
+    expect(imported.length).toBeGreaterThan(0);
+    expect(imported.every((c) => c.source === 'import')).toBe(true);
+    expect((await admin.get('/admin/candidates?source=other')).status).toBe(400);
+  });
+});

@@ -34,8 +34,10 @@ interface CandidateRow {
   verificationStatus: string;
   possibleDuplicate: boolean;
   userStatus: string;
+  createdAt: string;
+  source: 'self' | 'import' | 'admin';
 }
-interface CandidateDetail extends Omit<CandidateRow, 'possibleDuplicate'> {
+interface CandidateDetail extends Omit<CandidateRow, 'possibleDuplicate' | 'source'> {
   email: string | null;
   dateOfBirth: string | null;
   age: number | null;
@@ -57,12 +59,15 @@ interface CandidateDetail extends Omit<CandidateRow, 'possibleDuplicate'> {
 }
 
 const experience = (m: number) => (m === 0 ? 'No experience' : m < 12 ? `${m} months` : `${Math.floor(m / 12)} yr${m >= 24 ? 's' : ''}${m % 12 ? ` ${m % 12} mo` : ''}`);
+/** How a candidate joined, in the words used on the candidate page. */
+const SOURCE_LABEL: Record<CandidateRow['source'], string> = { self: 'Signed up themselves', import: 'CSV import', admin: 'Added by an admin' };
+
 const fileSize = (b: number) => (b < 1024 * 1024 ? `${Math.max(1, Math.round(b / 1024))} KB` : `${(b / 1024 / 1024).toFixed(1)} MB`);
 
 export function CandidatesPage() {
   const { can } = useAuth();
   const manage = can('candidate.manage');
-  const { values, page, set, setPage } = useListParams(['q', 'verificationStatus', 'skillArea', 'duplicates'] as const);
+  const { values, page, set, setPage } = useListParams(['q', 'verificationStatus', 'skillArea', 'source', 'duplicates'] as const);
   const [adding, setAdding] = useState(false);
   const q = useQuery({
     queryKey: ['candidates', values, page],
@@ -95,6 +100,7 @@ export function CandidatesPage() {
         <div className="grid grid-cols-2 gap-3 sm:flex">
           <Select id="cd-status" label="Verification" className="sm:w-44" value={values.verificationStatus} onChange={(v) => set('verificationStatus', v)} options={[{ value: '', label: 'Any status' }, { value: 'pending', label: 'Pending' }, { value: 'verified', label: 'Verified' }, { value: 'needs_correction', label: 'Needs correction' }, { value: 'rejected', label: 'Rejected' }]} />
           <Select id="cd-skill" label="Skill area" className="sm:w-44" value={values.skillArea} onChange={(v) => set('skillArea', v)} options={[{ value: '', label: 'All skills' }, ...SKILL_AREAS.map((s) => ({ value: s, label: SKILL_AREA_LABEL[s] }))]} />
+          <Select id="cd-source" label="How they joined" className="sm:w-48" value={values.source} onChange={(v) => set('source', v)} options={[{ value: '', label: 'Any way of joining' }, { value: 'self', label: SOURCE_LABEL.self }, { value: 'import', label: SOURCE_LABEL.import }, { value: 'admin', label: SOURCE_LABEL.admin }]} />
           <label className="col-span-2 flex h-11 items-center gap-2 whitespace-nowrap rounded-lg border border-line px-3 text-sm">
             <input type="checkbox" className="size-4 accent-[var(--color-brand)]" checked={values.duplicates === 'true'} onChange={(e) => set('duplicates', e.target.checked ? 'true' : '')} />
             Possible duplicates
@@ -118,6 +124,7 @@ export function CandidatesPage() {
                   <th className="px-4 py-3 font-medium">City</th>
                   <th className="px-4 py-3 font-medium">Skills</th>
                   <th className="px-4 py-3 font-medium">Experience</th>
+                  <th className="px-4 py-3 font-medium">Joined</th>
                   <th className="px-4 py-3 font-medium">Verification</th>
                 </tr>
               </thead>
@@ -131,6 +138,10 @@ export function CandidatesPage() {
                     <td className="px-4 py-3">{c.city}</td>
                     <td className="px-4 py-3"><SkillTags areas={c.skillAreas} /></td>
                     <td className="px-4 py-3 text-muted">{experience(c.experienceMonths)}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {formatDate(c.createdAt)}
+                      <span className="block text-[13px] text-muted">{SOURCE_LABEL[c.source]}</span>
+                    </td>
                     <td className="px-4 py-3">
                       <span className="flex flex-wrap items-center gap-2">
                         <StatusBadge status={c.verificationStatus} />
@@ -154,7 +165,8 @@ export function CandidatesPage() {
                       <span className="font-semibold">{c.name}</span>
                       <StatusBadge status={c.verificationStatus} />
                     </span>
-                    <span className="mt-0.5 block text-sm text-muted">{c.code}, {c.city}</span>
+                    <span className="mt-0.5 block text-sm text-muted">{c.code}{c.city ? `, ${c.city}` : ''}</span>
+                    <span className="mt-0.5 block text-xs text-muted">Joined {formatDate(c.createdAt)}, {SOURCE_LABEL[c.source].toLowerCase()}</span>
                     {c.possibleDuplicate && <span className="mt-1 block text-xs font-semibold text-warning">Possible duplicate</span>}
                   </Link>
                 </li>
