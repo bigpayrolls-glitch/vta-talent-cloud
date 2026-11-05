@@ -73,11 +73,14 @@ export function EmployerJobsPage() {
   );
 }
 
+/** Months as years for the form: 18 → "1.5", 24 → "2". */
+const yearsText = (months: number) => String(Math.round((months / 12) * 10) / 10);
+
 const blank = {
   title: '',
   skillArea: '2W',
   skills: '',
-  minExperienceMonths: '0',
+  minExperienceYears: '0',
   city: '',
   location: '',
   salaryMin: '',
@@ -95,6 +98,7 @@ const FIELD_LABEL: Record<string, string> = {
   title: 'Job title',
   skillArea: 'Skill area',
   minExperienceMonths: 'Experience needed',
+  minExperienceYears: 'Experience needed',
   skills: 'Required skills',
   city: 'City',
   location: 'Area or address',
@@ -118,7 +122,7 @@ export function JobFormPage() {
         title: j.title,
         skillArea: j.skillArea,
         skills: j.skills.join(', '),
-        minExperienceMonths: String(j.minExperienceMonths),
+        minExperienceYears: yearsText(j.minExperienceMonths),
         city: j.city,
         location: j.location ?? '',
         salaryMin: j.salaryMin == null ? '' : String(j.salaryMin),
@@ -139,7 +143,9 @@ function JobForm({ id, initial, status }: { id?: string; initial: typeof blank; 
   const toast = useToast();
   const f = useForm(jobSchema);
   const draft = useDraft(`job:${id ?? 'new'}`, initial);
-  const v = draft.value;
+  // A draft kept from before 5 Nov 2026 holds months; show it in years.
+  const kept = draft.value as typeof blank & { minExperienceMonths?: string };
+  const v: typeof blank = kept.minExperienceYears === undefined ? { ...kept, minExperienceYears: yearsText(Number(kept.minExperienceMonths ?? 0)) } : kept;
   const set = (k: keyof typeof blank) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     draft.setValue({ ...v, [k]: e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value });
 
@@ -150,6 +156,8 @@ function JobForm({ id, initial, status }: { id?: string; initial: typeof blank; 
     f.submit(
       {
         ...v,
+        // Employers give years (half years allowed); jobs keep months.
+        minExperienceMonths: v.minExperienceYears.trim() === '' ? 0 : Number.isFinite(Number(v.minExperienceYears)) ? Math.round(Number(v.minExperienceYears) * 12) : v.minExperienceYears,
         // Skills may be separated by commas, semicolons, bullets or slashes.
         skills: v.skills
           .split(/[,;\u2022|/]/)
@@ -217,8 +225,8 @@ function JobForm({ id, initial, status }: { id?: string; initial: typeof blank; 
               ))}
             </select>
           </Field>
-          <Field label="Experience needed (months)" htmlFor="j-exp" error={f.errors.minExperienceMonths}>
-            <input id="j-exp" type="number" min={0} inputMode="numeric" className="field-input" value={v.minExperienceMonths} onChange={set('minExperienceMonths')} />
+          <Field label="Experience needed (years)" htmlFor="j-exp" error={f.errors.minExperienceMonths} hint="0 if no experience is needed. Half years are fine, for example 1.5.">
+            <input id="j-exp" type="number" min={0} max={40} step={0.5} inputMode="decimal" className="field-input" value={v.minExperienceYears} onChange={set('minExperienceYears')} />
           </Field>
         </div>
         <Field label="Required skills" htmlFor="j-skills" error={f.errors.skills} hint="Short skills, separated with commas. Up to 15 skills, each under 60 characters.">

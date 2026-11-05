@@ -63,7 +63,7 @@ export const jobSchema = z
       .array(z.string().trim().min(2, 'Each skill needs at least 2 letters').max(60, 'Keep each skill under 60 characters. Separate skills with commas.'))
       .max(15, 'List at most 15 skills')
       .default([]),
-    minExperienceMonths: z.coerce.number('Enter a number').int('Whole months only').min(0, 'Not below 0').max(480, 'Check the months'),
+    minExperienceMonths: z.coerce.number('Enter the years of experience').int('Whole months only').min(0, 'Not below 0').max(480, 'At most 40 years'),
     city: z.string().trim().min(2, 'Enter a city').max(80, 'Keep the city under 80 characters'),
     location: optText(160),
     salaryMin: z.coerce.number('Enter a number').int('Whole rupees only').min(0, 'Not below 0').max(1_000_000, 'Enter the monthly salary').optional().nullable(),
