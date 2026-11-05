@@ -16,7 +16,11 @@ export function useForm<S extends z.ZodType>(schema: S) {
     const parsed = schema.safeParse(values);
     if (!parsed.success) {
       const next: Record<string, string> = {};
-      for (const i of parsed.error.issues) next[i.path.join('.') || '_'] ??= i.message;
+      for (const i of parsed.error.issues) {
+        next[i.path.join('.') || '_'] ??= i.message;
+        // An error on one item of a list (skills.2) also shows on the field itself, so it is never hidden.
+        if (i.path.length > 1) next[String(i.path[0])] ??= i.message;
+      }
       setErrors(next);
       return;
     }
@@ -26,7 +30,9 @@ export function useForm<S extends z.ZodType>(schema: S) {
       await action(parsed.data);
     } catch (e) {
       if (e instanceof ApiError) {
-        setErrors(e.fields);
+        const fields: Record<string, string> = { ...e.fields };
+        for (const [k, m] of Object.entries(e.fields)) if (k.includes('.')) fields[k.split('.')[0]!] ??= m;
+        setErrors(fields);
         if (!Object.keys(e.fields).length || e.code !== 'VALIDATION_FAILED') setFormError(e.message);
       } else {
         setFormError('Something went wrong. Please try again.');
