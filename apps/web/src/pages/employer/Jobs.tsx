@@ -90,6 +90,22 @@ const blank = {
 };
 
 /** EM-03: post or edit a job. Unsaved input is kept on the device. */
+/** Field names as the form shows them, for the "please correct" line. */
+const FIELD_LABEL: Record<string, string> = {
+  title: 'Job title',
+  skillArea: 'Skill area',
+  minExperienceMonths: 'Experience needed',
+  skills: 'Required skills',
+  city: 'City',
+  location: 'Area or address',
+  salaryMin: 'Salary from',
+  salaryMax: 'Salary to',
+  openings: 'Openings',
+  shift: 'Shift and conditions',
+  closingDate: 'Closing date',
+  description: 'Job description',
+};
+
 export function JobFormPage() {
   const { id } = useParams();
   const editing = !!id;
@@ -127,12 +143,16 @@ function JobForm({ id, initial, status }: { id?: string; initial: typeof blank; 
   const set = (k: keyof typeof blank) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     draft.setValue({ ...v, [k]: e.target.type === 'checkbox' ? (e.target as HTMLInputElement).checked : e.target.value });
 
-  const save = () =>
+  // Can this job be sent to AutoTalent Grid straight after saving? New jobs, drafts and rejected jobs can.
+  const canSend = !status || status === 'draft' || status === 'rejected';
+
+  const save = (send: boolean) =>
     f.submit(
       {
         ...v,
+        // Skills may be separated by commas, semicolons, bullets or slashes.
         skills: v.skills
-          .split(',')
+          .split(/[,;\u2022|/]/)
           .map((s) => s.trim())
           .filter(Boolean),
         salaryMin: v.salaryMin === '' ? null : v.salaryMin,
@@ -141,11 +161,25 @@ function JobForm({ id, initial, status }: { id?: string; initial: typeof blank; 
       async (data) => {
         const res = id ? await api.put<JobView>(`/employer/jobs/${id}`, data) : await api.post<JobView>('/employer/jobs', data);
         draft.clear();
+        if (send) {
+          // Saved first, so nothing typed is lost if sending is refused (company not verified yet, or the plan's job limit).
+          try {
+            await api.post(`/employer/jobs/${res.id}/submit`);
+            toast('success', 'Saved and sent to AutoTalent Grid for review. It goes live once approved.');
+          } catch (e) {
+            toast('error', `Saved as a draft, but not sent for review: ${e instanceof ApiError ? e.message : 'please try again from the job page.'}`);
+          }
+        } else {
+          toast('success', id ? (res.status === 'pending_review' && status !== 'pending_review' ? 'Saved. The change goes to AutoTalent Grid for review.' : 'Job saved') : 'Draft saved. Send it to AutoTalent Grid when ready.');
+        }
         await qc.invalidateQueries({ queryKey: ['employer'] });
-        toast('success', id ? (res.status === 'pending_review' && status !== 'pending_review' ? 'Saved. The change goes to AutoTalent Grid for review.' : 'Job saved') : 'Draft saved. Send it to AutoTalent Grid when ready.');
         navigate(`/employer/jobs/${res.id}`);
       },
     );
+  const [sending, setSending] = useState(false);
+  const errorFields = Object.keys(f.errors)
+    .filter((k) => !k.includes('.'))
+    .map((k) => FIELD_LABEL[k] ?? k);
 
   return (
     <>
@@ -160,10 +194,15 @@ function JobForm({ id, initial, status }: { id?: string; initial: typeof blank; 
         className="card max-w-3xl space-y-4 px-5 py-5"
         onSubmit={(e) => {
           e.preventDefault();
-          void save();
+          setSending(false);
+          void save(false);
         }}
       >
-        {draft.restored && <p className="rounded-lg bg-info-tint px-3 py-2 text-sm text-info">Your unsaved changes from last time were kept on this device.</p>}
+        {draft.restored && (
+          <p className="rounded-lg bg-info-tint px-3 py-2 text-sm text-info">
+            Your unsaved changes from last time were kept on this device. They are not saved yet: check them and save.
+          </p>
+        )}
         {f.formError && <ErrorNote message={f.formError} />}
         <Field label="Job title" htmlFor="j-title" error={f.errors.title}>
           <input id="j-title" className="field-input" value={v.title} onChange={set('title')} placeholder="For example, Two-wheeler service technician" />
@@ -182,7 +221,7 @@ function JobForm({ id, initial, status }: { id?: string; initial: typeof blank; 
             <input id="j-exp" type="number" min={0} inputMode="numeric" className="field-input" value={v.minExperienceMonths} onChange={set('minExperienceMonths')} />
           </Field>
         </div>
-        <Field label="Required skills" htmlFor="j-skills" error={f.errors.skills} hint="Separate with commas.">
+        <Field label="Required skills" htmlFor="j-skills" error={f.errors.skills} hint="Short skills, separated with commas. Up to 15 skills, each under 60 characters.">
           <input id="j-skills" className="field-input" value={v.skills} onChange={set('skills')} placeholder="Engine servicing, Brakes, Electrical basics" />
         </Field>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -212,16 +251,35 @@ function JobForm({ id, initial, status }: { id?: string; initial: typeof blank; 
             <input id="j-close" type="date" className="field-input" value={v.closingDate} onChange={set('closingDate')} />
           </Field>
         </div>
-        <Field label="Job description" htmlFor="j-desc" error={f.errors.description}>
+        <Field label="Job description" htmlFor="j-desc" error={f.errors.description} hint={`${v.description.trim().length.toLocaleString('en-IN')} of 4,000 characters`}>
           <textarea id="j-desc" rows={6} className="field-input h-auto py-2" value={v.description} onChange={set('description')} />
         </Field>
         <label className="flex items-center gap-3 text-sm">
           <input type="checkbox" className="size-4 accent-[var(--color-brand)]" checked={v.vtaCertificatePreferred} onChange={set('vtaCertificatePreferred')} />
           AutoTalent Grid certificate preferred
         </label>
+        {errorFields.length > 0 && (
+          <p role="alert" className="rounded-lg bg-brand-tint px-3 py-2 text-sm font-medium text-brand">
+            Not saved yet. Please correct: {errorFields.join(', ')}.
+          </p>
+        )}
+        {canSend && <p className="text-[13px] text-muted">AutoTalent Grid checks every job before learners can see it. Send it for review when it is ready; it goes live once approved.</p>}
         <div className="flex flex-wrap gap-2 pt-2">
-          <button type="submit" className="btn-primary" disabled={f.submitting}>
-            {f.submitting ? 'Saving…' : id ? 'Save changes' : 'Save draft'}
+          {canSend && (
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={f.submitting}
+              onClick={() => {
+                setSending(true);
+                void save(true);
+              }}
+            >
+              {f.submitting && sending ? 'Sending…' : 'Save and send for review'}
+            </button>
+          )}
+          <button type="submit" className={canSend ? 'btn-secondary' : 'btn-primary'} disabled={f.submitting}>
+            {f.submitting && !sending ? 'Saving…' : id ? 'Save changes' : 'Save draft'}
           </button>
           <button
             type="button"

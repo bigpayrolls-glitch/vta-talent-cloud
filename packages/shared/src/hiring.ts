@@ -17,7 +17,7 @@ export const SECTOR_LABEL: Record<(typeof SECTORS)[number], string> = {
   other: 'Other',
 };
 
-const optText = (max: number) => z.string().trim().max(max).optional().or(z.literal('').transform(() => undefined));
+const optText = (max: number) => z.string().trim().max(max, `Keep this under ${max} characters`).optional().or(z.literal('').transform(() => undefined));
 
 /** EM-01 / EM-02: what an employer admin keeps up to date about the company. Legal name is fixed after VTA verifies it. */
 export const companyProfileSchema = z.object({
@@ -57,17 +57,20 @@ export const JOB_STATUS_LABEL: Record<JobStatus, string> = {
 /** EM-03: a vacancy. Salary is optional, monthly, in rupees. */
 export const jobSchema = z
   .object({
-    title: z.string().trim().min(3, 'Enter a job title').max(120),
+    title: z.string().trim().min(3, 'Enter a job title').max(120, 'Keep the title under 120 characters'),
     skillArea: z.enum(SKILL_AREAS, 'Choose a skill area'),
-    skills: z.array(z.string().trim().min(2).max(60)).max(15).default([]),
-    minExperienceMonths: z.coerce.number().int().min(0, 'Not below 0').max(480, 'Check the months'),
-    city: z.string().trim().min(2, 'Enter a city').max(80),
+    skills: z
+      .array(z.string().trim().min(2, 'Each skill needs at least 2 letters').max(60, 'Keep each skill under 60 characters. Separate skills with commas.'))
+      .max(15, 'List at most 15 skills')
+      .default([]),
+    minExperienceMonths: z.coerce.number('Enter a number').int('Whole months only').min(0, 'Not below 0').max(480, 'Check the months'),
+    city: z.string().trim().min(2, 'Enter a city').max(80, 'Keep the city under 80 characters'),
     location: optText(160),
-    salaryMin: z.coerce.number().int().min(0).max(1_000_000).optional().nullable(),
-    salaryMax: z.coerce.number().int().min(0).max(1_000_000).optional().nullable(),
-    openings: z.coerce.number().int().min(1, 'At least 1').max(500),
+    salaryMin: z.coerce.number('Enter a number').int('Whole rupees only').min(0, 'Not below 0').max(1_000_000, 'Enter the monthly salary').optional().nullable(),
+    salaryMax: z.coerce.number('Enter a number').int('Whole rupees only').min(0, 'Not below 0').max(1_000_000, 'Enter the monthly salary').optional().nullable(),
+    openings: z.coerce.number('Enter a number').int('Whole numbers only').min(1, 'At least 1').max(500, 'At most 500'),
     shift: optText(200),
-    description: z.string().trim().min(20, 'Describe the job in a few lines').max(4000),
+    description: z.string().trim().min(20, 'Describe the job in a few lines').max(4000, 'Keep the description under 4,000 characters'),
     closingDate: z.iso.date('Choose a closing date'),
     vtaCertificatePreferred: z.boolean().default(false),
   })
