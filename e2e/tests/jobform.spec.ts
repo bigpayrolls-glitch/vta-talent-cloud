@@ -13,7 +13,7 @@ test('a job with a too-long skill says what to fix, then saves and goes for revi
   await page.goto('/employer/jobs/new');
   await page.getByLabel('Job title').fill(JOB);
   await page.getByLabel('Skill area').selectOption({ index: 0 });
-  await page.getByLabel('Experience needed (months)').fill('24');
+  await page.getByLabel('Experience needed (years)').fill('2');
   await page.getByLabel('Required skills').fill('Customer handling and voice of customer follow-up calls after every vehicle delivery');
   await page.getByLabel('City', { exact: true }).fill('Bengaluru');
   await page.getByLabel('Openings').fill('1');
@@ -28,6 +28,11 @@ test('a job with a too-long skill says what to fix, then saves and goes for revi
   await page.getByRole('button', { name: 'Save and send for review' }).click();
   await expect(page.getByRole('heading', { name: JOB })).toBeVisible();
   await expect(page.getByText('Waiting for AutoTalent Grid review').first()).toBeVisible();
+  // Experience is entered in years and kept as months: 2 years shows as 2 years, and edits show 2 again.
+  await expect(page.getByText('2 yrs or more')).toBeVisible();
+  await page.getByRole('link', { name: 'Edit' }).click();
+  await expect(page.getByLabel('Experience needed (years)')).toHaveValue('2');
+  await page.getByRole('link', { name: 'Back to the job' }).click();
 
   // Close it again so other tests see the same number of active jobs.
   await page.getByRole('button', { name: 'Close job' }).click();

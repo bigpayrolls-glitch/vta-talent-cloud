@@ -13,7 +13,7 @@ test.describe.serial('hiring: vacancy to verified joining', () => {
     await signInEmail(page, EMAIL.employerAdminA);
     await page.getByRole('link', { name: 'Post a job' }).first().click();
     await page.getByLabel('Job title').fill(JOB);
-    await page.getByLabel('Experience needed (months)').fill('6');
+    await page.getByLabel('Experience needed (years)').fill('0.5');
     await page.getByLabel('Required skills').fill('Engine servicing, Brakes');
     await page.getByLabel('City', { exact: true }).fill('Bengaluru');
     await page.getByLabel('Salary from (₹ a month, optional)').fill('15000');
