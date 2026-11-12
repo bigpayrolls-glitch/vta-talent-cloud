@@ -1,10 +1,10 @@
-import { partnerCheckoutSchema, partnerPlanTotal, uuidSchema } from '@vta/shared';
+import { partnerCheckoutSchema, partnerPlanTotal, uuidSchema, isOnlinePayment } from '@vta/shared';
 import type { FastifyPluginAsync, FastifyRequest } from 'fastify';
 import { z } from 'zod';
 import { auditCtx } from '../../app.js';
 import { conflict, invalid, notFound } from '../../lib/errors.js';
 import { partnerSubscriptionDto } from '../../lib/partnerSubscriptions.js';
-import { startRazorpayOrder } from '../../lib/payments.js';
+import { startOnlineOrder } from '../../lib/payments.js';
 import { partnerPlan } from '../../lib/plans.js';
 import { iso, parse } from '../../lib/validate.js';
 import { partnerOrgs } from '../../policy/index.js';
@@ -73,9 +73,9 @@ export const partnerSubscriptionRoutes: FastifyPluginAsync = async (app) => {
     const { gst, total } = partnerPlanTotal(info, b.cycle);
     if (total <= 0) throw conflict('This plan has no price for that billing period. Ask AutoTalent Grid about it.');
     reply.code(201);
-    if (mode === 'razorpay') {
+    if (isOnlinePayment(mode)) {
       const payer = await db.selectFrom('users').select(['name', 'email', 'phone']).where('id', '=', req.actor!.userId).executeTakeFirstOrThrow();
-      return startRazorpayOrder(app, {
+      return startOnlineOrder(app, {
         purpose: 'plan',
         amountPaise: total,
         gstPaise: gst,

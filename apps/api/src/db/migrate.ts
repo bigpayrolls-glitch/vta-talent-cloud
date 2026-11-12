@@ -30,6 +30,7 @@ import * as m0027 from './migrations/0027_technician_names.js';
 import * as m0028 from './migrations/0028_remove_mistaken_enrolments.js';
 import * as m0029 from './migrations/0029_stay_meals.js';
 import * as m0030 from './migrations/0030_fix_imported_experience.js';
+import * as m0031 from './migrations/0031_cashfree.js';
 import * as m0020 from './migrations/0020_imported_searchable.js';
 import * as m0019 from './migrations/0019_import_incomplete.js';
 import * as m0018 from './migrations/0018_centre_location.js';
@@ -67,6 +68,7 @@ const MIGRATIONS: Record<string, Migration> = {
   '0028_remove_mistaken_enrolments': m0028,
   '0029_stay_meals': m0029,
   '0030_fix_imported_experience': m0030,
+  '0031_cashfree': m0031,
 };
 
 const provider: MigrationProvider = { getMigrations: async () => MIGRATIONS };

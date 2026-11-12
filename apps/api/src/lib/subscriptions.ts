@@ -1,3 +1,4 @@
+import type { PaymentMode } from '@vta/shared';
 import { PLANS, type Plan, type SubscriptionDto } from '@vta/shared';
 import { employerPlan } from './plans.js';
 import { sql } from 'kysely';
@@ -94,7 +95,7 @@ function nextMonthStartIst(now: Date): string {
   return new Date(Date.UTC(m === 11 ? y + 1 : y, (m + 1) % 12, 1)).toISOString().slice(0, 10);
 }
 
-export async function subscriptionDto(db: DB, organisationId: string, paymentMode: 'test' | 'none' | 'razorpay', now = new Date()): Promise<SubscriptionDto> {
+export async function subscriptionDto(db: DB, organisationId: string, paymentMode: PaymentMode, now = new Date()): Promise<SubscriptionDto> {
   const { plan, row } = await currentSubscription(db, organisationId, now);
   const info = await employerPlan(db, plan);
   const count = async (q: { executeTakeFirstOrThrow(): Promise<{ n: string }> }) => Number((await q.executeTakeFirstOrThrow()).n);

@@ -1,4 +1,4 @@
-import { adminSetPlanSchema, checkoutSchema, PARTNER_PLANS, planRequestSchema, PLANS, uuidSchema, type PaidPartnerPlan, type PartnerPlan, type Plan } from '@vta/shared';
+import { adminSetPlanSchema, checkoutSchema, PARTNER_PLANS, planRequestSchema, PLANS, uuidSchema, type PaidPartnerPlan, type PartnerPlan, type Plan, isOnlinePayment } from '@vta/shared';
 import { currentPartnerPlan, partnerSubscriptionDto } from '../../lib/partnerSubscriptions.js';
 import { employerPlan, partnerPlan } from '../../lib/plans.js';
 import type { FastifyPluginAsync } from 'fastify';
@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { auditCtx } from '../../app.js';
 import { audit, type AuditContext } from '../../audit/service.js';
 import type { DB } from '../../db/index.js';
-import { startRazorpayOrder } from '../../lib/payments.js';
+import { startOnlineOrder } from '../../lib/payments.js';
 import { newId } from '../../lib/crypto.js';
 import { conflict, invalid, notFound } from '../../lib/errors.js';
 import { EMPLOYER_TEAM, notify, orgMembers, vtaReviewers } from '../../lib/notify.js';
@@ -36,7 +36,7 @@ export async function activatePlan(
     amountPaise: number;
     gstPaise?: number;
     method: 'card' | 'upi' | 'netbanking' | 'wallet' | 'other';
-    provider: 'test' | 'razorpay';
+    provider: 'test' | 'razorpay' | 'cashfree';
     providerPaymentId?: string;
     paidBy: string;
   },
@@ -146,9 +146,9 @@ export const subscriptionRoutes: FastifyPluginAsync = async (app) => {
     if (amount <= 0) throw conflict('This plan has no price for that billing period. Ask AutoTalent Grid about it.');
     reply.code(201);
     // Razorpay: the plan starts when the payment is verified (POST /payments/:id/verify, or the webhook).
-    if (mode === 'razorpay') {
+    if (isOnlinePayment(mode)) {
       const payer = await db.selectFrom('users').select(['name', 'email', 'phone']).where('id', '=', req.actor!.userId).executeTakeFirstOrThrow();
-      return startRazorpayOrder(app, {
+      return startOnlineOrder(app, {
         purpose: 'plan',
         amountPaise: amount,
         payerId: req.actor!.userId,

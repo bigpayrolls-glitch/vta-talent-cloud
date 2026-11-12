@@ -8,13 +8,14 @@ import {
   type DurationBucket,
   type FeeBucket,
   TRACKS,
+  isOnlinePayment,
 } from '@vta/shared';
 import type { FastifyPluginAsync } from 'fastify';
 import { sql } from 'kysely';
 import { z } from 'zod';
 import { auditCtx } from '../../app.js';
 import { audit, type AuditContext } from '../../audit/service.js';
-import { startRazorpayOrder } from '../../lib/payments.js';
+import { startOnlineOrder } from '../../lib/payments.js';
 import type { DB } from '../../db/index.js';
 import type { Course } from '../../db/types.js';
 import { newId } from '../../lib/crypto.js';
@@ -207,7 +208,7 @@ export async function enrolSelf(
   ctx: AuditContext,
   userId: string,
   batchId: string,
-  pay: { provider: 'test' | 'razorpay'; method: 'upi' | 'card' | 'netbanking' | 'wallet' | 'other'; providerPaymentId?: string; expectedFee?: number; needsStay?: boolean },
+  pay: { provider: 'test' | 'razorpay' | 'cashfree'; method: 'upi' | 'card' | 'netbanking' | 'wallet' | 'other'; providerPaymentId?: string; expectedFee?: number; needsStay?: boolean },
 ): Promise<{ enrolmentId: string; receiptNumber: string } | { blocked: string }> {
   const locked = await trx.selectFrom('batches').select(['id', 'capacity', 'status', 'start_date']).where('id', '=', batchId).forUpdate().executeTakeFirst();
   const b = locked ? await batchSummary(trx, batchId) : undefined;
@@ -350,12 +351,12 @@ export const catalogueRoutes: FastifyPluginAsync = async (app) => {
 
     // A paid course with Razorpay: nothing is enrolled yet. An order is made and the learner pays in Razorpay
     // Checkout; the seat is confirmed when the payment is verified (POST /payments/:id/verify, or the webhook).
-    if (fee > 0 && mode === 'razorpay') {
+    if (fee > 0 && isOnlinePayment(mode)) {
       const why = await blocker(db, userId, quote);
       if (why) throw conflict(why);
       const learner = await db.selectFrom('users').select(['name', 'email', 'phone']).where('id', '=', userId).executeTakeFirstOrThrow();
       reply.code(201);
-      return startRazorpayOrder(app, {
+      return startOnlineOrder(app, {
         purpose: 'course',
         amountPaise: fee,
         payerId: userId,
