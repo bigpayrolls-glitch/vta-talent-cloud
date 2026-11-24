@@ -236,7 +236,8 @@ export async function seed(db: DB): Promise<SeedResult> {
   for (const [key, fee] of [['course2w', 4999], ['course4w', 9999], ['courseEv', 11999]] as const) {
     await db.updateTable('courses').set({ fee_paise: fee * 100 }).where('id', '=', ids[key]!).execute();
   }
-  await batch('batchOpen2w', '2W Peenya November 2026', 'course2w', 'centrePartnerA', 'trainerA', '2026-11-10', '2027-02-10', 'planned', []);
+  // Always in the future (3 weeks from the day the demo data is loaded), so it stays open for enrolment.
+  await batch('batchOpen2w', '2W Peenya November 2026', 'course2w', 'centrePartnerA', 'trainerA', OPEN_BATCH_START(), OPEN_BATCH_END(), 'planned', []);
 
   // ---- Training partner courses: one waiting for AutoTalent Grid's review, one still a draft (all invented) ----
   const partnerCourse = async (key: string, title: string, status: 'submitted' | 'draft', extra: Partial<Record<string, unknown>> = {}) => {
@@ -527,3 +528,8 @@ if (isMain) {
     await db.destroy();
   }
 }
+
+const isoDay = (offsetDays: number) => new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10);
+/** Start and end of the demo batch that is open for enrolment: 3 weeks from today, for 3 months. */
+export const OPEN_BATCH_START = () => isoDay(21);
+export const OPEN_BATCH_END = () => isoDay(21 + 92);
