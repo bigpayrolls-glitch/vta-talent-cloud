@@ -395,7 +395,16 @@ function InviteModal({ candidateId, name, onClose, onDone }: { candidateId: stri
       <div className="space-y-4">
         {limit && <UpgradeNote message={limit} />}
         {error && <ErrorNote message={error} />}
-        <Field label="Job" htmlFor="inv-job">
+        {jobs.data && jobs.data.items.length === 0 && (
+          <p role="alert" className="rounded-lg bg-warning-tint px-3 py-2 text-sm">
+            <span className="font-semibold">You have no published job yet.</span> You can invite a candidate only to a job that is live. Post a job and send it for review;
+            once AutoTalent Grid approves it, it appears here.{' '}
+            <Link to="/employer/jobs" className="font-semibold text-brand underline">
+              See your jobs
+            </Link>
+          </p>
+        )}
+        <Field label="Job" htmlFor="inv-job" hint={!jobId && jobs.data && jobs.data.items.length > 0 ? 'Choose the job first; then Send invitation works.' : undefined}>
           <select id="inv-job" className="field-input" value={jobId} onChange={(e) => setJobId(e.target.value)}>
             <option value="">Choose one of your published jobs</option>
             {jobs.data?.items.map((j) => (

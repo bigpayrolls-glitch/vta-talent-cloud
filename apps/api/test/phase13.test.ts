@@ -1,3 +1,4 @@
+import { OPEN_BATCH_START } from '../src/db/seed.js';
 import { sql } from 'kysely';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { EMAIL, loginEmail, loginPhone, PHONE, setup, type Client, type Ctx } from './helpers.js';
@@ -21,10 +22,13 @@ describe('public catalogue', () => {
     const r = await pub('/public/courses');
     expect(r.statusCode).toBe(200);
     const body = r.json();
-    expect(body.items.map((i: { title: string }) => i.title)).toEqual(['2W Service Technician', '4W Service Technician', 'EV Technician']);
-    const tw = body.items[0];
-    expect(tw).toMatchObject({ feeRupees: 4999, nextStart: '2026-11-10', batchCount: 1, providers: ['Skill Bridge Foundation (demo)'], cities: ['Bengaluru'] });
-    expect(body.items[1].providers).toEqual(['AutoTalent Grid']);
+    // Listed by next start date; the demo dates move with today, so compare the set of titles.
+    const titles = body.items.map((i: { title: string }) => i.title);
+    expect([...titles].sort()).toEqual(['2W Service Technician', '4W Service Technician', 'EV Technician']);
+    const byTitle = (t: string) => body.items.find((i: { title: string }) => i.title === t);
+    const tw = byTitle('2W Service Technician');
+    expect(tw).toMatchObject({ feeRupees: 4999, nextStart: OPEN_BATCH_START(), batchCount: 1, providers: ['Skill Bridge Foundation (demo)'], cities: ['Bengaluru'] });
+    expect(byTitle('4W Service Technician').providers).toEqual(['AutoTalent Grid']);
     expect(body.cities).toEqual(['Bengaluru', 'Mysuru']);
   });
 
@@ -75,7 +79,7 @@ describe('learner self-enrolment', () => {
     expect(r.body.receiptNumber).toMatch(/^ATG-ENR-\d{8}-\d{4}$/);
     enrolmentId = r.body.enrolmentId;
     const rec = (await c.learner!.get(`/me/enrolments/${enrolmentId}/receipt`)).body;
-    expect(rec).toMatchObject({ amountRupees: 4999, method: 'upi', test: true, free: false, status: 'enrolled', course: { title: '2W Service Technician' }, batch: { startDate: '2026-11-10', provider: 'Skill Bridge Foundation (demo)' } });
+    expect(rec).toMatchObject({ amountRupees: 4999, method: 'upi', test: true, free: false, status: 'enrolled', course: { title: '2W Service Technician' }, batch: { startDate: OPEN_BATCH_START(), provider: 'Skill Bridge Foundation (demo)' } });
     expect(rec.learner.code).toMatch(/^ATG\d{7}$/);
     expect((await pub(`/public/courses/${ctx.ids.course2w}`)).json().batches[0].seatsLeft).toBe(19);
     const learning = (await c.learner!.get('/me/learning')).body.items;
